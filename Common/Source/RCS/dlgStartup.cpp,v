@@ -1,0 +1,601 @@
+head	8.4;
+access;
+symbols
+	beta8:8.1;
+locks
+	root:8.4; strict;
+comment	@// @;
+
+
+8.4
+date	2010.12.13.14.20.57;	author root;	state Exp;
+branches;
+next	8.3;
+
+8.3
+date	2010.11.12.22.01.44;	author root;	state Exp;
+branches;
+next	8.2;
+
+8.2
+date	2009.11.01.19.39.48;	author root;	state Exp;
+branches;
+next	8.1;
+
+8.1
+date	2009.06.19.20.28.25;	author venta;	state Exp;
+branches;
+next	;
+
+
+desc
+@none
+@
+
+
+8.4
+log
+@*** empty log message ***
+@
+text
+@/*
+   LK8000 Tactical Flight Computer -  WWW.LK8000.IT
+   Released under GNU/GPL License v.2
+   See CREDITS.TXT file for authors and copyrights
+
+   $Id$
+*/
+
+#include "StdAfx.h"
+#include "XCSoar.h"
+
+#include "externs.h"
+#include "dlgTools.h"
+#include "InfoBoxLayout.h"
+
+static WndForm *wf=NULL;
+static WndOwnerDrawFrame *wSplash=NULL;
+#if !LKSTARTUP
+static HBITMAP hSplash;
+#endif
+extern HINSTANCE hInst;
+
+static void OnSplashPaint(WindowControl * Sender, HDC hDC){
+
+#if LKSTARTUP
+ HBITMAP hWelcomeBitmap=NULL;
+ TCHAR sDir[MAX_PATH];
+ TCHAR srcfile[MAX_PATH];
+ bool fullsize=true;
+
+ LocalPath(sDir,TEXT(LKD_BITMAPS));
+
+ // first look for lkstart_480x272.bmp for example
+ _stprintf(srcfile,_T("%s\\LKSTART_%s.BMP"),sDir, GetSizeSuffix() );
+
+ if (  GetFileAttributes(srcfile) == 0xffffffff ) {
+	fullsize=false;
+	switch(ScreenSize) {
+                        case ss800x480:
+                        case ss640x480:
+                        case ss720x408:
+                        case ss896x672:
+                                _stprintf(srcfile,_T("%s\\LKSTART_LB.BMP"),sDir);
+                                break;
+
+                        case ss480x272:
+                        case ss480x234:
+                        case ss400x240:
+                        case ss320x240:
+                                _stprintf(srcfile,_T("%s\\LKSTART_LS.BMP"),sDir);
+                                break;
+
+                        case ss480x640:
+                        case ss480x800:
+                                _stprintf(srcfile,_T("%s\\LKSTART_PB.BMP"),sDir);
+                                break;
+
+                        case ss240x320:
+                        case ss272x480:
+                                _stprintf(srcfile,_T("%s\\LKSTART_PS.BMP"),sDir);
+                                break;
+
+                        default:
+                                _stprintf(srcfile,_T("%s\\LKSTART_DEFAULT.BMP"),sDir);
+                                break;
+	}
+ }
+
+ #if (WINDOWSPC>0)
+ hWelcomeBitmap=(HBITMAP)LoadImage(GetModuleHandle(NULL),srcfile,IMAGE_BITMAP,0,0,LR_LOADFROMFILE);
+ #else
+ hWelcomeBitmap=(HBITMAP)SHLoadDIBitmap(srcfile);
+ #endif
+ if (hWelcomeBitmap==NULL) hWelcomeBitmap=LoadBitmap(hInst, MAKEINTRESOURCE(IDB_SWIFT));
+
+ HDC hTempDC = CreateCompatibleDC(hDC);
+ HBITMAP oldBitmap=(HBITMAP)SelectObject(hTempDC, hWelcomeBitmap);
+
+ BITMAP bm;
+ GetObject(hWelcomeBitmap,sizeof(bm), &bm);
+
+ StretchBlt(hDC,0,0,
+	ScreenSizeX,ScreenSizeY,
+	hTempDC, 0, 0,
+	2,2,
+	BLACKNESS);
+
+  if (fullsize) {
+	BitBlt(hDC,0,0,bm.bmWidth,bm.bmHeight,hTempDC, 0, 0, SRCCOPY);
+  } else {
+  	if ( (bm.bmWidth >ScreenSizeX)||(bm.bmHeight>ScreenSizeY)) {
+		StretchBlt(hDC,0,0,
+			ScreenSizeX,ScreenSizeY-NIBLSCALE(35),
+			hTempDC, 0, 0,
+			bm.bmWidth,bm.bmHeight,
+			SRCCOPY);
+	  } else {
+		BitBlt(hDC,(ScreenSizeX-bm.bmWidth)/2,0,bm.bmWidth,IBLSCALE(260),hTempDC, 0, 0, SRCCOPY);
+	  }
+  }
+
+  DeleteObject(hWelcomeBitmap);
+  SelectObject(hTempDC, oldBitmap);
+  DeleteDC(hTempDC);
+
+
+
+#else
+  RECT  rc;
+  hSplash=LoadBitmap(hInst, MAKEINTRESOURCE(IDB_SWIFT));
+  CopyRect(&rc, Sender->GetBoundRect());
+  HDC hDCTemp = CreateCompatibleDC(hDC);
+  SelectObject(hDCTemp, hSplash);
+  StretchBlt(hDC, 
+	     rc.left, rc.top, 
+	     rc.right, rc.bottom,
+	     hDCTemp, 0, 0, 318, 163, SRCCOPY); 
+  DeleteObject(hSplash);
+  DeleteDC(hDCTemp);
+#endif
+
+}
+
+static void OnCloseClicked(WindowControl * Sender){
+	(void)Sender;
+  wf->SetModalResult(mrOK);
+}
+static void OnSIMClicked(WindowControl * Sender){
+	(void)Sender;
+  RUN_MODE=RUN_SIM;
+  wf->SetModalResult(mrOK);
+}
+static void OnFLYClicked(WindowControl * Sender){
+	(void)Sender;
+  RUN_MODE=RUN_FLY;
+  LKForceComPortReset=true;
+  PortMonitorMessages=0;
+  wf->SetModalResult(mrOK);
+}
+static void OnPROFILEClicked(WindowControl * Sender){
+	(void)Sender;
+  RUN_MODE=RUN_PROFILE;
+  if (EnableSoundModes) LKSound(_T("LK_SLIDE.WAV"));
+  wf->SetModalResult(mrOK);
+}
+static void OnEXITClicked(WindowControl * Sender){
+	(void)Sender;
+  RUN_MODE=RUN_EXIT;
+  wf->SetModalResult(mrOK);
+}
+
+static CallBackTableEntry_t CallBackTable[]={
+  DeclareCallBackEntry(OnSplashPaint),
+  DeclareCallBackEntry(NULL)
+};
+
+extern TCHAR startProfileFile[];
+
+
+#if LKSTARTUP
+bool dlgStartupShowModal(void){
+#else
+void dlgStartupShowModal(void){
+#endif
+  WndProperty* wp;
+
+  #if LKSTARTUP
+  StartupStore(TEXT(". Startup dialog, RUN_MODE=%d %s"),RUN_MODE,NEWLINE);
+  #else 
+  StartupStore(TEXT(". Startup dialog%s"),NEWLINE);
+  #endif
+
+  char filename[MAX_PATH];
+  if (RUN_MODE==RUN_WELCOME) {
+	if (!InfoBoxLayout::landscape) {
+		LocalPathS(filename, TEXT("dlgFlySim_L.xml"));
+		wf = dlgLoadFromXML(CallBackTable, filename, hWndMainWindow, TEXT("IDR_XML_FLYSIM_L"));
+	} else {
+		LocalPathS(filename, TEXT("dlgFlySim.xml"));
+		wf = dlgLoadFromXML(CallBackTable, filename, hWndMainWindow, TEXT("IDR_XML_FLYSIM"));
+	}
+	#if LKSTARTUP
+	if (!wf) return false;
+	#else
+	if (!wf) return;
+	#endif
+  } else {
+	if (!InfoBoxLayout::landscape) {
+		LocalPathS(filename, TEXT("dlgStartup_L.xml"));
+		wf = dlgLoadFromXML(CallBackTable, filename, hWndMainWindow, TEXT("IDR_XML_STARTUP_L"));
+	} else {
+		LocalPathS(filename, TEXT("dlgStartup.xml"));
+		wf = dlgLoadFromXML(CallBackTable, filename, hWndMainWindow, TEXT("IDR_XML_STARTUP"));
+	}
+	#if LKSTARTUP
+	if (!wf) return false;
+	#else
+	if (!wf) return;
+	#endif
+  }
+
+  wSplash = (WndOwnerDrawFrame*)wf->FindByName(TEXT("frmSplash")); 
+  wSplash->SetWidth(ScreenSizeX);
+
+
+  #if LKSTARTUP
+  int  PROFWIDTH=0, PROFACCEPTWIDTH=0, PROFHEIGHT=0, PROFSEPARATOR=0;
+  if (RUN_MODE==RUN_WELCOME) {
+	((WndButton *)wf->FindByName(TEXT("cmdFLY"))) ->SetOnClickNotify(OnFLYClicked);
+	((WndButton *)wf->FindByName(TEXT("cmdSIM"))) ->SetOnClickNotify(OnSIMClicked);
+	((WndButton *)wf->FindByName(TEXT("cmdPROFILE"))) ->SetOnClickNotify(OnPROFILEClicked);
+	((WndButton *)wf->FindByName(TEXT("cmdEXIT"))) ->SetOnClickNotify(OnEXITClicked);
+	if (ScreenLandscape) {
+		
+		PROFWIDTH=(ScreenSizeX-IBLSCALE(320))/3; 
+
+
+		switch(ScreenSize) {
+			case ss800x480:
+			case ss400x240:
+				((WndButton *)wf->FindByName(TEXT("cmdFLY"))) ->SetWidth(IBLSCALE(110));
+				((WndButton *)wf->FindByName(TEXT("cmdSIM"))) ->SetWidth(IBLSCALE(110));
+				((WndButton *)wf->FindByName(TEXT("cmdSIM"))) ->SetLeft(IBLSCALE(208)+PROFWIDTH*3);
+				((WndButton *)wf->FindByName(TEXT("cmdPROFILE"))) ->SetLeft(IBLSCALE(88)+PROFWIDTH);
+				((WndButton *)wf->FindByName(TEXT("cmdPROFILE"))) ->SetWidth(IBLSCALE(92)+PROFWIDTH/6);
+				((WndButton *)wf->FindByName(TEXT("cmdEXIT"))) ->SetLeft(IBLSCALE(161)+PROFWIDTH*2);
+				((WndButton *)wf->FindByName(TEXT("cmdEXIT"))) ->SetWidth(IBLSCALE(65)+PROFWIDTH/5);
+				break;
+			case ss480x272:
+				((WndButton *)wf->FindByName(TEXT("cmdFLY"))) ->SetWidth(IBLSCALE(117));
+				((WndButton *)wf->FindByName(TEXT("cmdFLY"))) ->SetHeight(IBLSCALE(38));
+				((WndButton *)wf->FindByName(TEXT("cmdFLY"))) ->SetTop(IBLSCALE(197));
+				((WndButton *)wf->FindByName(TEXT("cmdSIM"))) ->SetWidth(IBLSCALE(117));
+				((WndButton *)wf->FindByName(TEXT("cmdSIM"))) ->SetLeft(IBLSCALE(201)+PROFWIDTH*3);
+				((WndButton *)wf->FindByName(TEXT("cmdSIM"))) ->SetHeight(IBLSCALE(38));
+				((WndButton *)wf->FindByName(TEXT("cmdSIM"))) ->SetTop(IBLSCALE(197));
+				((WndButton *)wf->FindByName(TEXT("cmdPROFILE"))) ->SetLeft(IBLSCALE(88)+PROFWIDTH);
+				((WndButton *)wf->FindByName(TEXT("cmdPROFILE"))) ->SetWidth(IBLSCALE(99)+PROFWIDTH/6);
+				((WndButton *)wf->FindByName(TEXT("cmdPROFILE"))) ->SetHeight(IBLSCALE(38));
+				((WndButton *)wf->FindByName(TEXT("cmdPROFILE"))) ->SetTop(IBLSCALE(197));
+				((WndButton *)wf->FindByName(TEXT("cmdEXIT"))) ->SetLeft(IBLSCALE(161)+PROFWIDTH*2);
+				((WndButton *)wf->FindByName(TEXT("cmdEXIT"))) ->SetWidth(IBLSCALE(65)+PROFWIDTH/5);
+				((WndButton *)wf->FindByName(TEXT("cmdEXIT"))) ->SetHeight(IBLSCALE(38));
+				((WndButton *)wf->FindByName(TEXT("cmdEXIT"))) ->SetTop(IBLSCALE(197));
+				break;
+			default:
+				((WndButton *)wf->FindByName(TEXT("cmdPROFILE"))) ->SetLeft(IBLSCALE(93)+PROFWIDTH);
+				((WndButton *)wf->FindByName(TEXT("cmdPROFILE"))) ->SetWidth(IBLSCALE(73)+PROFWIDTH/6);
+				((WndButton *)wf->FindByName(TEXT("cmdEXIT"))) ->SetLeft(IBLSCALE(166)+PROFWIDTH*2);
+				((WndButton *)wf->FindByName(TEXT("cmdEXIT"))) ->SetWidth(IBLSCALE(60)+PROFWIDTH/5);
+				((WndButton *)wf->FindByName(TEXT("cmdSIM"))) ->SetLeft(IBLSCALE(228)+PROFWIDTH*3);
+				break;
+		}	
+	} else {
+		PROFWIDTH=IBLSCALE(236);
+		PROFACCEPTWIDTH=NIBLSCALE(45);
+		PROFHEIGHT=NIBLSCALE(25);
+		PROFSEPARATOR=NIBLSCALE(2);
+	}
+  }
+
+  if (RUN_MODE==RUN_PROFILE) {
+	((WndButton *)wf->FindByName(TEXT("cmdClose"))) ->SetOnClickNotify(OnCloseClicked);
+	if (ScreenLandscape) {
+		PROFWIDTH=IBLSCALE(256);
+		PROFACCEPTWIDTH=NIBLSCALE(60);
+		PROFHEIGHT=NIBLSCALE(30);
+		PROFSEPARATOR=NIBLSCALE(4);
+		((WndButton *)wf->FindByName(TEXT("cmdClose"))) ->SetWidth(PROFACCEPTWIDTH);
+		((WndButton *)wf->FindByName(TEXT("cmdClose"))) ->
+			SetLeft((((ScreenSizeX-PROFWIDTH-PROFSEPARATOR-PROFACCEPTWIDTH)/2)+PROFSEPARATOR+PROFWIDTH)-NIBLSCALE(2));
+		((WndButton *)wf->FindByName(TEXT("cmdClose"))) ->SetHeight(PROFHEIGHT-NIBLSCALE(4));
+	} else {
+		PROFWIDTH=IBLSCALE(236);
+		PROFACCEPTWIDTH=NIBLSCALE(45);
+		PROFHEIGHT=NIBLSCALE(25);
+		PROFSEPARATOR=NIBLSCALE(2);
+		((WndButton *)wf->FindByName(TEXT("cmdClose"))) ->SetWidth(ScreenSizeX-NIBLSCALE(6));
+		((WndButton *)wf->FindByName(TEXT("cmdClose"))) -> SetLeft(NIBLSCALE(2));
+	}
+  }
+
+
+  #else
+  ((WndButton *)wf->FindByName(TEXT("cmdClose"))) ->SetOnClickNotify(OnCloseClicked);
+  #ifdef LKCOLOR
+  ((WndButton *)wf->FindByName(TEXT("cmdClose"))) ->SetWidth(ScreenSizeX-NIBLSCALE(6));
+  #endif
+  #endif
+
+  TCHAR temp[MAX_PATH];
+
+  #ifdef LKCOLOR
+  wf->SetHeight(ScreenSizeY);
+  wf->SetWidth(ScreenSizeX);
+  #endif
+
+  wp = ((WndProperty *)wf->FindByName(TEXT("prpProfile")));
+  if (wp) {
+    DataFieldFileReader* dfe;
+    dfe = (DataFieldFileReader*)wp->GetDataField();
+    _stprintf(temp,_T("*%S"),LKS_PRF); 
+    dfe->ScanDirectoryTop(_T(LKD_CONF),temp); 
+    dfe->Lookup(startProfileFile);
+
+    #if LKSTARTUP
+    wp->SetHeight(PROFHEIGHT);
+    wp->SetWidth(PROFWIDTH);
+    if (ScreenLandscape)
+    	wp->SetLeft(((ScreenSizeX-PROFWIDTH-PROFSEPARATOR-PROFACCEPTWIDTH)/2)-NIBLSCALE(2));
+    else
+    	wp->SetLeft(0);
+    #else
+
+    #ifdef LKCOLOR
+    wp->SetHeight(NIBLSCALE(25));
+    int xs=ScreenSizeX-NIBLSCALE(2)-(NIBLSCALE(60));
+    if (!ScreenLandscape) xs+=NIBLSCALE(20);
+    wp->SetWidth(xs);
+    wp->SetLeft(( ScreenSizeX-xs)/2);
+    #endif
+    #endif
+
+    wp->RefreshDisplay();
+    #ifndef LKSTARTUP
+    if (dfe->GetNumFiles()<=2) {
+      delete wf;
+      wf = NULL;
+      return;
+    }
+    #endif
+  }
+
+  if  (!CheckDataDir()) {
+	TCHAR mydir[MAX_PATH];
+	TCHAR mes[MAX_PATH];
+	LocalPath(mydir,_T(LKD_SYSTEM));
+	_stprintf(mes,_T("%s"),mydir);
+	MessageBoxX(hWndMainWindow, mes, _T("Install PROBLEM!"), MB_OK|MB_ICONQUESTION);
+	extern void Shutdown(void);
+	Shutdown();
+  }
+
+  if  (!CheckLanguageDir()) {
+	StartupStore(_T("... CHECK LANGUAGE DIRECTORY FAILED!%s"),NEWLINE);
+	MessageBoxX(hWndMainWindow, TEXT("Check LK8000/_Language directory and files!"), TEXT("INSTALL PROBLEM"), MB_OK|MB_ICONQUESTION);
+	extern void Shutdown(void);
+	Shutdown();
+  }
+  wf->ShowModal();
+
+  wp = (WndProperty*)wf->FindByName(TEXT("prpProfile"));
+  if (wp) {
+	DataFieldFileReader* dfe;
+	dfe = (DataFieldFileReader*)wp->GetDataField();
+	if (_tcslen(dfe->GetPathFile())>0) {
+		_tcscpy(startProfileFile,dfe->GetPathFile());
+	}
+	if (EnableSoundModes) LKSound(_T("LK_SLIDE.WAV"));
+	RUN_MODE=RUN_WELCOME;
+  }
+  if (RUN_MODE==RUN_EXIT) {
+	if (EnableSoundModes) LKSound(_T("LK_SLIDE.WAV"));
+	if (MessageBoxX(hWndMainWindow, 
+		gettext(TEXT("Confirm Exit?")), 
+		TEXT("LK8000"), MB_YESNO|MB_ICONQUESTION) == IDYES) {
+		extern void Shutdown(void);
+		Shutdown();
+	} else
+		RUN_MODE=RUN_WELCOME;
+  }
+
+  delete wf;
+
+  wf = NULL;
+
+  #if LKSTARTUP
+  if (RUN_MODE==RUN_FLY) {
+	if (EnableSoundModes) LKSound(_T("LK_SLIDE.WAV"));
+	return false;
+  }
+  if (RUN_MODE==RUN_SIM) {
+	if (EnableSoundModes) LKSound(_T("LK_SLIDE.WAV"));
+	return false;
+  }
+
+  return true; // else repeat dialog
+  #endif
+
+}
+
+@
+
+
+8.3
+log
+@*** empty log message ***
+@
+text
+@d1 7
+d18 1
+d20 1
+a22 1
+///: Load the bitmap with Maintain effective lookout..
+d25 81
+a105 1
+  RECT  rc;
+a106 2
+  ///: maintain effective lookout..
+  // hSplash=LoadBitmap(hInst, MAKEINTRESOURCE(IDB_DISCLAIMER)); 
+d108 2
+a109 1
+///:  CreateProgressDialog(_T("start"));
+a110 1
+
+a112 1
+
+a117 1
+	     
+d120 1
+d128 23
+d159 4
+d164 1
+d166 4
+d171 1
+d173 14
+a186 7
+  if (!InfoBoxLayout::landscape) {
+    char filename[MAX_PATH];
+    LocalPathS(filename, TEXT("dlgStartup_L.xml"));
+    wf = dlgLoadFromXML(CallBackTable, 
+                        filename, 
+                        hWndMainWindow,
+                        TEXT("IDR_XML_STARTUP_L"));
+d188 12
+a199 6
+    char filename[MAX_PATH];
+    LocalPathS(filename, TEXT("dlgStartup.xml"));
+    wf = dlgLoadFromXML(CallBackTable, 
+                        filename, 
+                        hWndMainWindow,
+                        TEXT("IDR_XML_STARTUP"));
+a200 1
+  if (!wf) return;
+d202 2
+a203 1
+  wSplash = (WndOwnerDrawFrame*)wf->FindByName(TEXT("frmSplash"));
+a204 2
+  ((WndButton *)wf->FindByName(TEXT("cmdClose")))
+    ->SetOnClickNotify(OnCloseClicked);
+d206 80
+d287 2
+a288 2
+  ((WndButton *)wf->FindByName(TEXT("cmdClose")))
+    ->SetWidth(ScreenSizeX-NIBLSCALE(6));
+a292 3
+  _stprintf(temp,TEXT("%s"),XCSoar_Version);
+  wf->SetCaption(temp);
+
+a297 4
+  wp = ((WndProperty *)wf->FindByName(TEXT("prpDisclaimer")));
+  if (wp) 
+    wp->SetText(TEXT("Pilot assumes complete\r\nresponsibility to operate\r\nthe aircraft safely.\r\nMaintain effective lookout.\r\n"));
+
+d302 1
+a302 2
+    ///: dfe->ScanDirectoryTop(TEXT("*.prf")); 091101 TESTFIX profile in Config directory
+    _stprintf(temp,_T("*%S"),LKS_PRF); // 091101
+d305 10
+d322 2
+d325 1
+a325 1
+    ///: 100207 comment out to force profile splash screen
+d331 1
+d334 16
+d354 17
+a370 5
+    DataFieldFileReader* dfe;
+    dfe = (DataFieldFileReader*)wp->GetDataField();
+    if (_tcslen(dfe->GetPathFile())>0) {
+      _tcscpy(startProfileFile,dfe->GetPathFile());
+    }
+d377 13
+@
+
+
+8.2
+log
+@1.15b
+@
+text
+@d14 1
+d19 5
+a23 1
+  hSplash=LoadBitmap(hInst, MAKEINTRESOURCE(IDB_DISCLAIMER));
+d53 1
+a53 1
+  StartupStore(TEXT("Startup dialog\n"));
+d77 5
+d84 1
+a84 1
+  _stprintf(temp,TEXT("%s %s"), _T(LKNAME),XCSoar_Version);
+d87 5
+d100 3
+a102 5
+#ifdef GNAV
+    dfe->ScanDirectoryTop(TEXT("config/*.prf"));
+#else
+    dfe->ScanDirectoryTop(TEXT("*.prf"));
+#endif
+d104 7
+d112 1
+@
+
+
+8.1
+log
+@beta8
+@
+text
+@a0 33
+/*
+Copyright_License {
+
+  XCSoar Glide Computer - http://xcsoar.sourceforge.net/
+  Copyright (C) 2000 - 2008  
+
+  	M Roberts (original release)
+	Robin Birch <robinb@@ruffnready.co.uk>
+	Samuel Gisiger <samuel.gisiger@@triadis.ch>
+	Jeff Goodenough <jeff@@enborne.f2s.com>
+	Alastair Harrison <aharrison@@magic.force9.co.uk>
+	Scott Penrose <scottp@@dd.com.au>
+	John Wharington <jwharington@@gmail.com>
+	Lars H <lars_hn@@hotmail.com>
+	Rob Dunning <rob@@raspberryridgesheepfarm.com>
+	Russell King <rmk@@arm.linux.org.uk>
+
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License
+  as published by the Free Software Foundation; either version 2
+  of the License, or (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+}
+*/
+d27 1
+a27 1
+	     hDCTemp, 0, 0, 318, 163, SRCCOPY);
+d74 1
+a74 1
+  _stprintf(temp,TEXT("XCSoar: Version %s"), XCSoar_Version);
+@

@@ -1,0 +1,5539 @@
+head	1.25;
+access;
+symbols;
+locks
+	root:1.25; strict;
+comment	@// @;
+
+
+1.25
+date	2010.12.11.13.56.45;	author root;	state Exp;
+branches;
+next	1.24;
+
+1.24
+date	2010.11.20.17.36.44;	author root;	state Exp;
+branches;
+next	1.23;
+
+1.23
+date	2010.10.03.20.51.17;	author root;	state Exp;
+branches;
+next	1.22;
+
+1.22
+date	2010.04.14.10.46.18;	author root;	state Exp;
+branches;
+next	1.21;
+
+1.21
+date	2010.03.23.15.37.29;	author root;	state Exp;
+branches;
+next	1.20;
+
+1.20
+date	2010.02.25.22.45.18;	author root;	state Exp;
+branches;
+next	1.19;
+
+1.19
+date	2009.12.22.01.17.41;	author root;	state Exp;
+branches;
+next	1.18;
+
+1.18
+date	2009.11.23.17.32.13;	author root;	state Exp;
+branches;
+next	1.17;
+
+1.17
+date	2009.11.23.00.18.33;	author root;	state Exp;
+branches;
+next	1.16;
+
+1.16
+date	2009.11.01.11.01.42;	author root;	state Exp;
+branches;
+next	1.15;
+
+1.15
+date	2009.10.23.11.17.10;	author root;	state Exp;
+branches;
+next	1.14;
+
+1.14
+date	2009.10.19.19.12.58;	author root;	state Exp;
+branches;
+next	1.13;
+
+1.13
+date	2009.10.12.13.24.50;	author root;	state Exp;
+branches;
+next	1.12;
+
+1.12
+date	2009.10.07.21.06.58;	author root;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	2009.10.06.12.10.58;	author root;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2009.10.04.21.59.25;	author root;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2009.09.29.10.33.58;	author root;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2009.09.25.14.38.26;	author root;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2009.09.19.11.01.45;	author root;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2009.09.19.01.23.03;	author root;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2009.09.07.19.08.35;	author root;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2009.07.30.13.38.23;	author root;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2009.07.21.13.26.31;	author root;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2009.07.17.15.25.41;	author root;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2009.07.14.23.12.55;	author root;	state Exp;
+branches;
+next	;
+
+
+desc
+@iniziale
+@
+
+
+1.25
+log
+@*** empty log message ***
+@
+text
+@/*
+   LK8000 Tactical Flight Computer -  WWW.LK8000.IT
+   Released under GNU/GPL License v.2
+   See CREDITS.TXT file for authors and copyrights
+
+   $Id: LKCalculations.cpp,v 1.24 2010/11/20 17:36:44 root Exp root $
+*/
+
+#include "StdAfx.h"
+#include "Defines.h" 
+#include "LKUtils.h"
+#include "Cpustats.h"
+#include "Calculations.h"
+#include "compatibility.h"
+#ifdef OLDPPC
+#include "XCSoarProcess.h"
+#else
+#include "Process.h"
+#endif
+#include "Utils.h"
+#include "Utils2.h"
+#include "externs.h"
+#include "McReady.h"
+#include "MapWindow.h"
+#include "RasterTerrain.h"
+#include <math.h>
+#include <tchar.h>
+#include "Calculations2.h"
+#include "Message.h"
+
+extern void LatLon2Flat(double lon, double lat, int *scx, int *scy);
+extern int CalculateWaypointApproxDistance(int scx_aircraft, int scy_aircraft, int i);
+
+extern void InsertCommonList(int newwp);
+extern void InsertRecentList(int newwp);
+extern void RemoveRecentList(int newwp);
+
+#define TASKINDEX	Task[ActiveWayPoint].Index
+#define ISPARAGLIDER (AircraftCategory == (AircraftCategory_t)umParaglider)
+
+
+/*
+ * Used by Alternates and BestAlternate
+ * Colors VGR are disabled, but available
+ */
+
+void DoAlternates(NMEA_INFO *Basic, DERIVED_INFO *Calculated, int AltWaypoint) {
+
+  // handle virtual wps as alternates
+  if (AltWaypoint<=RESWP_END) {
+	if (!ValidResWayPoint(AltWaypoint)) return;
+  } else {
+	if (!ValidWayPoint(AltWaypoint)) return;
+  }
+  double w1lat = WayPointList[AltWaypoint].Latitude;
+  double w1lon = WayPointList[AltWaypoint].Longitude;
+  double w0lat = Basic->Latitude;
+  double w0lon = Basic->Longitude;
+  double *altwp_dist = &WayPointCalc[AltWaypoint].Distance;
+  double *altwp_gr   = &WayPointCalc[AltWaypoint].GR;
+  double *altwp_arrival = &WayPointCalc[AltWaypoint].AltArriv[AltArrivMode];
+  short  *altwp_vgr  = &WayPointCalc[AltWaypoint].VGR;
+  double GRsafecalc;
+
+  DistanceBearing(w1lat, w1lon,
+                  w0lat, w0lon,
+                  altwp_dist, NULL);
+
+  if (SafetyAltitudeMode==0 && !WayPointCalc[AltWaypoint].IsLandable)
+	GRsafecalc = Calculated->NavAltitude - WayPointList[AltWaypoint].Altitude;
+  else 
+	GRsafecalc = Calculated->NavAltitude - WayPointList[AltWaypoint].Altitude - SAFETYALTITUDEARRIVAL;
+
+  if (GRsafecalc <=0) *altwp_gr = INVALID_GR;
+  else {
+	*altwp_gr = *altwp_dist / GRsafecalc;
+	if ( *altwp_gr >ALTERNATE_MAXVALIDGR || *altwp_gr <0 ) *altwp_gr = INVALID_GR;
+	else if ( *altwp_gr <1 ) *altwp_gr = 1;
+  }
+
+
+  // We need to calculate arrival also for BestAlternate, since the last "reachable" could be
+  // even 60 seconds old and things may have changed drastically
+
+  *altwp_arrival = CalculateWaypointArrivalAltitude(Basic, Calculated, AltWaypoint);
+  if ( (*altwp_arrival - ALTERNATE_OVERSAFETY) >0 ) {
+  	if ( *altwp_gr <= (GlidePolar::bestld *SAFELD_FACTOR) ) *altwp_vgr = 1; // full green vgr
+  	else 
+  		if ( *altwp_gr <= GlidePolar::bestld ) *altwp_vgr = 2; // yellow vgr
+		else *altwp_vgr =3; // RED vgr
+  } else 
+  {
+	*altwp_vgr = 3; // full red
+  }
+}
+
+// Fill Calculated values for waypoint, assuming that DistanceBearing has already been performed!
+// Assumes that waypoint IS VALID
+// Currently called by DoNearest
+
+void DoNearestAlternate(NMEA_INFO *Basic, DERIVED_INFO *Calculated, int AltWaypoint) { 
+
+  double *altwp_dist = &WayPointCalc[AltWaypoint].Distance;
+  double *altwp_gr   = &WayPointCalc[AltWaypoint].GR;
+  double *altwp_arrival = &WayPointCalc[AltWaypoint].AltArriv[AltArrivMode];
+  short  *altwp_vgr  = &WayPointCalc[AltWaypoint].VGR;
+  double GRsafecalc;
+
+  if (SafetyAltitudeMode==0 && !WayPointCalc[AltWaypoint].IsLandable)
+	GRsafecalc = Calculated->NavAltitude - WayPointList[AltWaypoint].Altitude;
+  else
+	GRsafecalc = Calculated->NavAltitude - WayPointList[AltWaypoint].Altitude - SAFETYALTITUDEARRIVAL;
+
+  if (GRsafecalc <=0) *altwp_gr = INVALID_GR;
+  else {
+	*altwp_gr = *altwp_dist / GRsafecalc;
+	if ( *altwp_gr >ALTERNATE_MAXVALIDGR || *altwp_gr <0 ) *altwp_gr = INVALID_GR;
+	else if ( *altwp_gr <1 ) *altwp_gr = 1;
+  }
+
+  *altwp_arrival = CalculateWaypointArrivalAltitude(Basic, Calculated, AltWaypoint);
+  if ( (*altwp_arrival - ALTERNATE_OVERSAFETY) >0 ) {
+  	if ( *altwp_gr <= (GlidePolar::bestld *SAFELD_FACTOR) ) *altwp_vgr = 1; // full green vgr
+  	else 
+  		if ( *altwp_gr <= GlidePolar::bestld ) *altwp_vgr = 2; // yellow vgr
+		else *altwp_vgr =3; // RED vgr
+  } else 
+  {
+	*altwp_vgr = 3; // full red
+  }
+}
+
+/*
+ * Search for the best landing option
+ */
+#ifdef DEBUG
+#define DEBUG_BESTALTERNATE
+#endif
+#define MAXBEST 10      // max number of reachable landing points searched for, 
+			// among a preliminar list of MAXBEST * 2 - CPU HOGGING ALERT!
+
+void SearchBestAlternate(NMEA_INFO *Basic, 
+			 DERIVED_INFO *Calculated)
+{
+  int sortedLandableIndex[MAXBEST];
+  double sortedArrivalAltitude[MAXBEST];
+  int sortApproxDistance[MAXBEST*2];
+  int sortApproxIndex[MAXBEST*2];
+  int i, k, l;
+  #if UNSORTEDRANGE
+  int j;
+  #endif
+  double arrival_altitude;
+  int active_bestalternate_on_entry=-1;
+  int bestalternate=-1;
+
+  #ifdef DEBUG_BESTALTERNATE
+  TCHAR ventabuffer[200];
+  #endif
+
+  if (!WayPointList) return;
+
+  double searchrange=(Calculated->NavAltitude-SAFETYALTITUDEARRIVAL)* GlidePolar::bestld /1000;
+  if (searchrange <= 0) 
+	searchrange=2; // lock to home airport at once
+  if (searchrange > ALTERNATE_MAXRANGE) 
+	searchrange=ALTERNATE_MAXRANGE;
+
+  LockTaskData();
+  active_bestalternate_on_entry = BestAlternate;
+
+  // Do preliminary fast search
+  int scx_aircraft, scy_aircraft;
+  LatLon2Flat(Basic->Longitude, Basic->Latitude, &scx_aircraft, &scy_aircraft);
+
+  // Clear search lists
+  for (i=0; i<MAXBEST*2; i++) {
+	sortApproxIndex[i]= -1;
+	sortApproxDistance[i] = 0;
+  }
+  #if UNSORTEDRANGE
+  for (j=0; j<RangeLandableNumber; j++) {
+	i=RangeLandableIndex[j];
+  #else
+  for (i=0; i<(int)NumberOfWayPoints; i++) {
+
+	#ifdef USEISLANDABLE
+	if (!WayPointCalc[i].IsLandable) {
+	#else
+	if (!(((WayPointList[i].Flags & AIRPORT) == AIRPORT) || ((WayPointList[i].Flags & LANDPOINT) == LANDPOINT))) {
+	#endif
+		continue; // ignore non-landable fields
+	}
+   #endif
+
+	int approx_distance = CalculateWaypointApproxDistance(scx_aircraft, scy_aircraft, i);
+
+	// Size a reasonable distance, wide enough 
+	if ( approx_distance > searchrange ) continue;
+
+	// see if this fits into slot
+	for (k=0; k< MAXBEST*2; k++)  {
+      
+		if (((approx_distance < sortApproxDistance[k]) 
+			// wp is closer than this one
+			|| (sortApproxIndex[k]== -1))   // or this one isn't filled
+			&& (sortApproxIndex[k]!= i))    // and not replacing with same
+		{
+			// ok, got new biggest, put it into the slot.
+			for (l=MAXBEST*2-1; l>k; l--) {
+				if (l>0) {
+					sortApproxDistance[l] = sortApproxDistance[l-1];
+					sortApproxIndex[l] = sortApproxIndex[l-1];
+				}
+			}
+
+			sortApproxDistance[k] = approx_distance;
+			sortApproxIndex[k] = i;
+			k=MAXBEST*2;
+		}
+	} // for k
+  } // for all waypoints, or the reduced list by Range
+
+  #ifdef DEBUG_BESTALTERNATE
+  FILE *fp;
+  if ( (fp=_tfopen(_T("DEBUG.TXT"),_T("a"))) != NULL )  {
+	wsprintf(ventabuffer,TEXT("==================\n"));
+	fprintf(fp,"%S",ventabuffer);
+	wsprintf(ventabuffer,TEXT("[GPSTIME=%02d:%02d:%02d] Altitude=%dm searchrange=%dKm Curr.Best=%d\n\n"),
+	     GPS_INFO.Hour, GPS_INFO.Minute, GPS_INFO.Second,
+	     (int)Calculated->NavAltitude, (int)searchrange, BestAlternate);
+	fprintf(fp,"%S",ventabuffer);
+	for ( int dbug=0; dbug<MAXBEST*2; dbug++) {
+		if ( sortApproxIndex[dbug] <0 ) wsprintf(ventabuffer,_T("%d=empty\n"), dbug);
+		else
+			wsprintf(ventabuffer,TEXT("%d=%s(%d)\n"), dbug, 
+			WayPointList[sortApproxIndex[dbug]].Name, sortApproxDistance[dbug] );
+		fprintf(fp,"%S",ventabuffer);
+	}
+	fclose(fp);
+  } else
+	DoStatusMessage(_T("CANNOT OPEN DEBUG FILE"));
+  #endif
+
+
+  // Now do detailed search
+  for (i=0; i<MAXBEST; i++) {
+	sortedLandableIndex[i]= -1;
+	sortedArrivalAltitude[i] = 0;
+  }
+
+  bool found_reachable_airport = false;
+
+  for (int scan_airports_slot=0; scan_airports_slot<2; scan_airports_slot++) {
+
+	if (found_reachable_airport ) { 
+		continue; // don't bother filling the rest of the list
+	}
+
+	for (i=0; i<MAXBEST*2; i++) {
+		if (sortApproxIndex[i]<0) { // ignore invalid points
+			continue;
+		}
+
+		if ((scan_airports_slot==0) && 
+			#ifdef USEISLANDABLE
+			(!WayPointCalc[sortApproxIndex[i]].IsAirport))
+			#else
+			((WayPointList[sortApproxIndex[i]].Flags & AIRPORT) != AIRPORT))
+			#endif
+		{
+			// we are in the first scan, looking for airports only
+			continue;
+		}
+
+		arrival_altitude = CalculateWaypointArrivalAltitude(Basic, Calculated, sortApproxIndex[i]);
+
+		WayPointCalc[sortApproxIndex[i]].AltArriv[AltArrivMode] = arrival_altitude; 
+		// This is holding the real arrival value
+
+		/* 
+	 	 * We can't use degraded polar here, but we can't accept an
+		 * arrival 1m over safety.  That is 2m away from being
+		 * unreachable! So we higher this value to 100m.
+		 */
+		arrival_altitude -= ALTERNATE_OVERSAFETY; 
+
+		if (scan_airports_slot==0) {
+			if (arrival_altitude<0) {
+				// in first scan, this airport is unreachable, so ignore it.
+				continue;
+			} else 
+				// this airport is reachable
+				found_reachable_airport = true;
+		}
+
+		// see if this fits into slot
+		for (k=0; k< MAXBEST; k++) {
+			if (((arrival_altitude > sortedArrivalAltitude[k]) 
+				// closer than this one
+				||(sortedLandableIndex[k]== -1))
+				// or this one isn't filled
+				&&(sortedLandableIndex[k]!= i))  // and not replacing with same
+			{
+				double wp_distance, wp_bearing;
+				DistanceBearing(Basic->Latitude , Basic->Longitude ,
+					WayPointList[sortApproxIndex[i]].Latitude,
+					WayPointList[sortApproxIndex[i]].Longitude,
+					&wp_distance, &wp_bearing);
+
+				WayPointCalc[sortApproxIndex[i]].Distance = wp_distance;
+				WayPointCalc[sortApproxIndex[i]].Bearing = wp_bearing;
+            
+				bool out_of_range;
+				double distance_soarable = FinalGlideThroughTerrain(wp_bearing, Basic, Calculated,
+					NULL, NULL, wp_distance, &out_of_range, NULL);
+            
+				if ((distance_soarable>= wp_distance)||(arrival_altitude<0)) {
+					// only put this in the index if it is reachable
+					// and doesn't go through terrain, OR, if it is unreachable
+					// it doesn't matter if it goes through terrain because
+					// pilot has to climb first anyway
+              
+					// ok, got new biggest, put it into the slot.
+					for (l=MAXBEST-1; l>k; l--) {
+						if (l>0) {
+							sortedArrivalAltitude[l] = sortedArrivalAltitude[l-1];
+							sortedLandableIndex[l] = sortedLandableIndex[l-1];
+						}
+					}
+
+					sortedArrivalAltitude[k] = arrival_altitude;
+					sortedLandableIndex[k] = sortApproxIndex[i];
+					k=MAXBEST;
+				} 
+			} // if (((arrival_altitude > sortedArrivalAltitude[k]) ...
+		} // for (k=0; k< MAXBEST; k++) {
+	} // for i
+  }
+
+  #ifdef DEBUG_BESTALTERNATE
+  if ( (fp=_tfopen(_T("DEBUG.TXT"),_T("a"))) != NULL )  {
+	wsprintf(ventabuffer,_T("\nLandable:\n"));
+	fprintf(fp,"%S",ventabuffer);
+	for ( int dbug=0; dbug<MAXBEST; dbug++) {
+		if ( sortedLandableIndex[dbug] <0 ) {
+			wsprintf(ventabuffer,_T("%d=empty\n"), dbug);
+			fprintf(fp,"%S",ventabuffer);
+		} else {
+			wsprintf(ventabuffer,_T("%d=%s (%dm)"), dbug, 
+			WayPointList[sortedLandableIndex[dbug]].Name, (int)sortedArrivalAltitude[dbug] );
+			fprintf(fp,"%S",ventabuffer);
+			if ( sortedLandableIndex[dbug] == HomeWaypoint )
+				wsprintf(ventabuffer,_T(":HOME") );
+			else
+				if ( WayPointCalc[sortedLandableIndex[dbug]].Preferred == TRUE )
+					wsprintf(ventabuffer,_T(":PREF") );
+				else
+					wsprintf(ventabuffer,_T("") );
+				fprintf(fp,"%S\n",ventabuffer);
+		}
+				
+	}
+	fclose(fp);
+  } else
+	DoStatusMessage(_T("CANNOT OPEN DEBUG FILE"));
+  #endif
+
+  bestalternate=-1;  // reset the good choice
+  double safecalc = Calculated->NavAltitude - SAFETYALTITUDEARRIVAL;
+  static double grpolar = GlidePolar::bestld *SAFELD_FACTOR; 
+  int curwp, curbestairport=-1, curbestoutlanding=-1;
+  double curgr=0, curbestgr=INVALID_GR;
+  if ( safecalc <= 0 ) {
+	/*
+	* We're under the absolute safety altitude at MSL, can't be any better elsewhere!
+	* Use the closer, hopefully you are landing on your airport
+	*/
+	#ifdef DEBUG_BESTALTERNATE
+	wsprintf(ventabuffer,TEXT("Under safety at MSL, using closer"));
+	if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL){;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+	// DoStatusMessage(ventabuffer);
+	#endif
+
+  } else
+	for (k=0;  k< MAXBEST; k++) {
+		curwp = sortedLandableIndex[k];
+
+		if ( !ValidWayPoint(curwp) ) {
+			//#ifdef DEBUG_BESTALTERNATE
+			//wsprintf(ventabuffer,TEXT("k=%d skip invalid waypoint curwp=%d"), k, curwp );
+			//if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL){;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+			//#endif
+			continue;
+			// break;  // that list is unsorted !
+		}
+
+		// At the first unsafe landing, stop searching down the list and use the best found or the first
+		double grsafe=safecalc - WayPointList[curwp].Altitude;
+		if ( grsafe <= 0 ) {
+			// We're under the safety altitude for this waypoint. 
+			break;  
+			//continue; 
+		}
+
+		WayPointCalc[curwp].GR = WayPointCalc[curwp].Distance / grsafe; grsafe = WayPointCalc[curwp].GR;
+		curgr=WayPointCalc[curwp].GR;
+
+		if ( grsafe > grpolar ) {
+			// Over degraded polar GR for this waypoint
+			#ifdef DEBUG_BESTALTERNATE
+			wsprintf(ventabuffer,TEXT("k=%d %s grsafe=%d > grpolar=%d, skipping. "), 
+			 k, WayPointList[curwp].Name, (int)grsafe, (int)grpolar );
+			if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+			  {;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+			#endif
+
+			continue; 
+			// break; 
+		}
+
+		// Anything now is within degraded glide ratio, so if our homewaypoint is safely reachable then 
+		// attempt to lock it even if we already have a valid best, even if it is preferred and even
+		// if it has a better GR
+
+		if ( (HomeWaypoint >= 0) && (curwp == HomeWaypoint) ) {
+			#ifdef DEBUG_BESTALTERNATE
+			wsprintf(ventabuffer,TEXT("k=%d locking Home"), k);
+			if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+			{;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+			#endif
+			bestalternate = curwp;
+			break;
+		}
+
+		// If we already found a preferred, stop searching for anything but home
+
+		if ( bestalternate >= 0 && WayPointCalc[bestalternate].Preferred) {
+			#ifdef DEBUG_BESTALTERNATE
+			wsprintf(ventabuffer,TEXT("Ignoring:[k=%d]%s because current best <%s> is a PREF"), k, 
+			WayPointList[curwp].Name, WayPointList[bestalternate].Name);
+			if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+			{;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+			#endif
+			continue;
+		}
+
+		// VENTA5 TODO: extend search on other preferred, choosing the closer one
+
+		// Preferred list has priority, first found is taken (could be smarted)
+
+		if ( WayPointCalc[ curwp ].Preferred ) {
+			bestalternate=curwp;
+			#ifdef DEBUG_BESTALTERNATE
+			wsprintf(ventabuffer,TEXT("k=%d PREFERRED bestalternate=%d,%s"), k,curwp,
+			WayPointList[curwp].Name );
+			if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+			{;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+			// DoStatusMessage(ventabuffer);
+			#endif
+			continue;
+		}
+
+		// else we remember the best landable GR found so far. We shall use this in case
+		// at the end of the search no home and no preferred were found.
+
+		if ( curgr < curbestgr ) {
+			#ifdef USEISLANDABLE
+			if ( WayPointCalc[curwp].IsAirport) {
+			#else
+			if ( ( WayPointList[curwp].Flags & AIRPORT) == AIRPORT) {
+			#endif
+				curbestairport=curwp;
+				curbestgr=curgr; // ONLY FOR AIRPORT! NOT FOR OUTLANDINGS!!
+				#ifdef DEBUG_BESTALTERNATE
+				wsprintf(ventabuffer,TEXT("[k=%d]<%s> (curgr=%d < curbestgr=%d) set as bestairport"), 
+				k, WayPointList[curwp].Name, (int)curgr, (int)curbestgr );
+				if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+				{;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+				#endif
+			} else {
+				curbestoutlanding=curwp;
+				#ifdef DEBUG_BESTALTERNATE
+				wsprintf(ventabuffer,TEXT("[k=%d]<%s> (curgr=%d < curbestgr=%d) set as bestoutlanding"), 
+				k, WayPointList[curwp].Name, (int)curgr, (int)curbestgr );
+				if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+				{;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+				#endif
+			}
+		}
+		continue;
+	} // for
+
+  if ( bestalternate <0 ) {
+
+	if ( curbestairport >= 0 ) {
+		#ifdef DEBUG_BESTALTERNATE
+		wsprintf(ventabuffer,TEXT("--> no bestalternate, choosing airport <%s> with gr=%d"), 
+		WayPointList[curbestairport].Name, (int)curbestgr );
+		if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+		{;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+		// DoStatusMessage(ventabuffer);
+		#endif
+		bestalternate=curbestairport;
+	} else {
+		if ( curbestoutlanding >= 0 ) {
+			#ifdef DEBUG_BESTALTERNATE
+			wsprintf(ventabuffer,TEXT("--> no bestalternate, choosing outlanding <%s> with gr=%d"), 
+			WayPointList[curbestoutlanding].Name, (int)curbestgr );
+			if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+			{;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+			// DoStatusMessage(ventabuffer);
+			#endif
+			bestalternate=curbestoutlanding;
+		} else {
+			/* 
+			 * Here we are in troubles, nothing really reachable, but we
+			 * might still be lucky to be within the "yellow" glide
+			 * path. In any case we select the best arrival altitude place
+			 * available, even if it is "red".
+			 */
+			if ( ValidWayPoint(sortedLandableIndex[0]) ) {
+				bestalternate=sortedLandableIndex[0];
+				#ifdef DEBUG_BESTALTERNATE
+				wsprintf(ventabuffer,TEXT("--> No bestalternate was found, and no good airport or outlanding!\n    Setting first available: <%s>"),
+				WayPointList[bestalternate].Name);
+				if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+				{;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+				// DoStatusMessage(ventabuffer);
+				#endif
+			} else {
+				/*
+			 	 * Else the Landable list is EMPTY, although we might be
+				 * near to a landable point but the terrain obstacles look
+				 * too high (or the DEM resolution is not high enough to
+				 * show a passage).
+				 * 
+				 * Still the old BestAlternate could simply be out of range,
+				 * but reachable...  These values have certainly just been
+				 * calculated by DoAlternates() , so they are usable.
+				 */
+				// Attempt to use the old best, but check there's one.. it
+				// might be empty for the first run
+				if ( ValidWayPoint(active_bestalternate_on_entry) ) {
+					bestalternate=active_bestalternate_on_entry;
+					if ( WayPointCalc[bestalternate].AltArriv[AltArrivMode] <0 ) {
+						#ifdef DEBUG_BESTALTERNATE
+						wsprintf(ventabuffer,TEXT("Landable list is empty and old bestalternate <%s> has Arrival=%d <0, NO good."),
+						WayPointList[bestalternate].Name, (int) WayPointCalc[bestalternate].AltArriv[AltArrivMode]);
+						if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+						{;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+						#endif
+						// Pick up the closest!
+						if ( ValidWayPoint( sortApproxIndex[0]) ) {
+							bestalternate=sortApproxIndex[0];
+							#ifdef DEBUG_BESTALTERNATE
+							wsprintf(ventabuffer,
+							TEXT(".. using the closer point found: <%s> distance=~%d Km, you need to climb!"),
+							WayPointList[bestalternate].Name, sortApproxDistance[0]);
+							if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+							{;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+							#endif
+						} else {
+							// CRITIC POINT
+							// Otherwise .. 
+							// nothing, either keep the old best or set it empty
+							// Put here "PULL-UP! PULL-UP! Boeing cockpit voice sound and possibly shake the stick.
+							#ifdef DEBUG_BESTALTERNATE
+							wsprintf(ventabuffer,TEXT("Out of ideas..good luck"));
+							if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+							{;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+							#endif
+						}
+					} else {
+						// MapWindow2 is checking for reachables separately,
+						// se let's see if this closest is reachable
+						if ( ValidWayPoint( sortApproxIndex[0] )) {
+							if ( WayPointList[sortApproxIndex[0]].Reachable ) {
+								bestalternate = sortApproxIndex[0];
+								#ifdef DEBUG_BESTALTERNATE
+								wsprintf(ventabuffer,
+								TEXT("Closer point found: <%s> distance=~%d Km, Reachable with arrival at %d!"),
+								WayPointList[bestalternate].Name, sortApproxDistance[0], 
+								(int) WayPointList[bestalternate].AltArivalAGL);
+								if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+								{;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+								#endif
+							} else {
+								#ifdef DEBUG_BESTALTERNATE
+								wsprintf(ventabuffer,
+								TEXT("Closer point found: <%s> distance=~%d Km, UNReachable"),
+								WayPointList[bestalternate].Name, sortApproxDistance[0]);
+								if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+								{;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+								#endif
+							}
+						} else {
+							#ifdef DEBUG_BESTALTERNATE
+							wsprintf(ventabuffer, _T("Landable list is empty, no Closer Approx, but old best %s is still reachable (arrival=%d)"),
+							WayPointList[bestalternate].Name, (int)WayPointCalc[bestalternate].AltArriv[AltArrivMode]);
+							if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+							{;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+							#endif
+						}
+					}
+				} else {
+					// CRITIC POINT
+					#ifdef DEBUG_BESTALTERNATE
+					wsprintf(ventabuffer,TEXT("Landable list is empty, and NO valid old bestalternate"));
+					if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+					{;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+					#endif
+				}
+			}
+			/*
+			 * Don't make any sound at low altitudes, pilot is either taking off
+			 * or landing, or searching for an immediate outlanding.  Do not disturb.
+			 * If safetyaltitude is 300m, then below 500m be quiet.
+			 * If there was no active alternate on entry, and nothing was found, then we
+			 * better be quiet since probably the user had already been alerted previously
+			 * and now he is low..
+			 */
+			if ( bestalternate >0 && ((safecalc-WayPointList[bestalternate].Altitude) >ALTERNATE_QUIETMARGIN)) {
+				if ( WayPointList[bestalternate].AltArivalAGL <100 )
+					AlertBestAlternate(2);
+			}
+		}
+	}
+  }
+
+  /* 
+   * If still invalid, it should mean we are just taking off
+   * in this case no problems, we set the very first bestalternate of the day as the home
+   * trusting the user to be home really!
+   */
+
+  if ( bestalternate < 0 ) {
+	if ( HomeWaypoint >= 0 ) {
+		#ifdef DEBUG_BESTALTERNATE
+		wsprintf(ventabuffer,TEXT("BESTALTERNATE HOME (%s)"), WayPointList[HomeWaypoint].Name );
+		if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+		{;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+		//DoStatusMessage(ventabuffer);
+		#endif
+		bestalternate=HomeWaypoint;
+	} 
+  } else {
+	// If still invalid, i.e. not -1, then there's a big problem
+	if ( !ValidWayPoint(bestalternate) ) {
+		//if (EnableSoundModes) PlayResource(TEXT("IDR_WAV_RED"));
+		AlertBestAlternate(2);
+		#ifdef DEBUG_BESTALTERNATE
+		wsprintf(ventabuffer,TEXT("WARNING ERROR INVALID BEST=%d"),bestalternate);
+		if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+		{;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+		#endif
+		DoStatusMessage(_T("ERR-051 invalid bestalternate"));
+		FailStore(_T("------ ERR-051 invalid bestalternate <%d>%s"),bestalternate,NEWLINE); // 091122
+		// todo: immediate disable function  
+	} 
+  }
+
+  if (active_bestalternate_on_entry != bestalternate) {
+	BestAlternate = bestalternate;
+	if ( bestalternate >0 && ((safecalc-WayPointList[bestalternate].Altitude) >ALTERNATE_QUIETMARGIN))
+		AlertBestAlternate(1);
+  }
+
+  UnlockTaskData();
+} // end of search for the holy grail
+
+
+
+/*
+ * Do not disturb too much. Play alert sound only once every x minutes, not more.
+ */
+void AlertBestAlternate(short soundmode) {
+#ifdef DEBUG_BESTALTERNATE
+  TCHAR ventabuffer[100];
+  FILE *fp;
+#endif
+  TCHAR mbuf[150];
+
+  static double LastAlertTime=0;
+
+  if (!BestWarning || !CALCULATED_INFO.Flying) return; // 091125
+
+  if ( GPS_INFO.Time > LastAlertTime + 120.0 ) { 
+	if (EnableSoundModes) {
+		LastAlertTime = GPS_INFO.Time; 
+		switch (soundmode) {
+			case 0:
+				break;
+			case 1:
+				#ifndef DISABLEAUDIO
+				PlayResource(TEXT("IDR_WAV_GREEN"));
+				#endif
+				_stprintf(mbuf,_T("BestAlternate: %s  @@%.0f%s"), WayPointList[BestAlternate].Name,
+				DISTANCEMODIFY*WayPointCalc[BestAlternate].Distance,
+				(Units::GetDistanceName()) );
+				Message::Lock(); // 091211
+				Message::AddMessage(5000, 3, mbuf);
+				Message::Unlock();
+				break;
+			case 2: 
+				#ifndef DISABLEAUDIO
+				PlayResource(TEXT("IDR_WAV_RED"));
+				#endif
+				wsprintf(mbuf,_T("BestAlternate: WARNING, NO LANDINGS"));
+				// Do NOT disturb the pilot for 5 minutes with useless further messages
+				LastAlertTime += 180.0;
+				Message::Lock(); // 091211
+				Message::AddMessage(10000, 3, mbuf);
+				Message::Unlock();
+	
+				break;
+			case 11:
+				#ifndef DISABLEAUDIO
+				PlayResource(TEXT("IDR_WAV_GREEN"));
+				PlayResource(TEXT("IDR_WAV_GREEN"));
+				#endif
+				break;
+			default:
+				break;
+		}
+		#ifdef DEBUG_BESTALTERNATE
+		wsprintf(ventabuffer,TEXT("(PLAYED ALERT SOUND, soundmode=%d)"), soundmode);
+		if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+		{;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+		#endif
+	} 
+  } else {
+	#ifdef DEBUG_BESTALTERNATE
+	wsprintf(ventabuffer,TEXT("(QUIET, NO PLAY ALERT SOUND, soundmode=%d)"), soundmode);
+	if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+	{;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+	#endif
+  }
+}
+
+// CAREFUL> SortedLandablexxx sized MAXNEAREST!!
+void DoNearest(NMEA_INFO *Basic, DERIVED_INFO *Calculated)
+{
+   int i,k,l;
+   int wp_index, inserted;
+   double wp_bearing, wp_distance, wp_value;
+   double sortedValue[MAXNEAREST+1];
+   int *p_sortedIndex;
+   int dstSortedIndex[MAXNEAREST+1];
+
+   // careful, consider MapSpaceMode could change while running!
+   short curmapspace=MapSpaceMode;
+
+   static double LastRunTime=0;
+
+   // Consider replay mode...
+   if (  LastRunTime > Basic->Time ) LastRunTime=Basic->Time;
+   if (  (Basic->Time < (LastRunTime+NEARESTUPDATETIME)) && !LKForceDoNearest) {
+	return;
+   }
+   if (  LastDoNearest > Basic->Time ) LastDoNearest=Basic->Time;
+   if ( Basic->Time < (LastDoNearest+PAGINGTIMEOUT)) {
+	return;
+   }
+   LastDoNearest = 0;
+   LKForceDoNearest=false;
+
+   if (!WayPointList) return;
+   // No need to check airports, cannot be better
+   if ( RangeLandableNumber==0) {
+	return;
+   }
+
+   for (i=0; i<MAXNEAREST;i++) {
+	SortedLandableIndex[i]=-1;
+	SortedAirportIndex[i]=-1;
+	sortedValue[i]=99999; 
+	dstSortedIndex[i]=-1;
+   }
+  
+   // Sort by distance in SortedLandableIndex
+   // We sample twice as much as needed values. 
+   // MAXNEAREST should really be the real number of displayed values and not a constant
+   for (i=0, inserted=0; i<MAXNEAREST*2; i++) { // was 1.5 FIX 090925
+
+	switch (curmapspace) {
+		case MSM_LANDABLE:
+			p_sortedIndex=SortedLandableIndex;
+			wp_index=RangeLandableIndex[i];
+			break;
+		case MSM_AIRPORTS:
+			p_sortedIndex=SortedAirportIndex;
+			wp_index=RangeAirportIndex[i];
+			break;
+		default:
+			p_sortedIndex=SortedLandableIndex;
+			wp_index=RangeLandableIndex[i];
+			break;
+	}
+
+
+	if (wp_index <0) {
+		// we should be at the end and could break out, however we do a failsafe forward
+		continue;
+	}
+
+	DistanceBearing(Basic->Latitude , Basic->Longitude , WayPointList[wp_index].Latitude,
+		WayPointList[wp_index].Longitude, &wp_distance, &wp_bearing);
+
+	// DISTANCE AND BEARING CALCULATED FOR WAYPOINT
+	WayPointCalc[wp_index].Distance = wp_distance;
+	WayPointCalc[wp_index].Bearing  = wp_bearing;
+
+	if (SortedMode[curmapspace] == 0) goto AlfaSortNearest;
+
+
+	// we calculate DoNearestAlternate only if really needed here, since we do it for MAXNEAREST*2
+	// which is TWICE what we really need. 
+	switch (SortedMode[curmapspace]) {
+		// wp name, should not happen
+		case 0:
+		case 1:
+			wp_value=wp_distance;
+			// requires later DoNearestAlternate!
+			break;
+		case 2:
+			if (DisplayMode == dmCircling) {
+				wp_value=wp_bearing; // 100328
+				break;
+			}
+			wp_value = wp_bearing -  GPS_INFO.TrackBearing;
+			if (wp_value < -180.0) wp_value += 360.0;
+			else
+				if (wp_value > 180.0) wp_value -= 360.0;
+			if (wp_value<0) wp_value*=-1;
+			// requires later DoNearestAlternate!
+			break;
+		case 3:
+			DoNearestAlternate(Basic,Calculated,wp_index); 
+			wp_value=WayPointCalc[wp_index].GR;
+			break;
+		case 4:
+			DoNearestAlternate(Basic,Calculated,wp_index); 
+			wp_value=WayPointCalc[wp_index].AltArriv[AltArrivMode];
+			// we sort lowest is better, so in this case we invert sign since higher is better
+			wp_value*=-1;
+			break;
+		default:
+			wp_value=wp_distance;
+			break;
+	}
+
+	// insert sorted value for Landfields and Airports
+	for (k=0; k< MAXNEAREST; k++)  {
+		// if wp is closer than this one or this one isn't filled and not replacing with same
+		if ( ((wp_value < sortedValue[k])	
+		|| (p_sortedIndex[k]== -1))
+		&& (p_sortedIndex[k] != wp_index) )
+		{
+			// ok, got new closer waypoint, put it into the slot.
+			for (l=MAXNEAREST-1; l>k; l--) {
+				if (l>0) {
+					sortedValue[l] = sortedValue[l-1];
+					p_sortedIndex[l] = p_sortedIndex[l-1];
+				}
+			}
+			sortedValue[k] = wp_value;
+			p_sortedIndex[k] = wp_index;
+
+			// Distance and eventually name sorted still need DoNearest to be done
+			if (SortedMode[curmapspace]<3) DoNearestAlternate(Basic,Calculated,wp_index);
+
+			k=MAXNEAREST*2; // should not be needed
+
+			// update number of items inserted so far 
+			inserted++;
+			break;
+		}
+	} // for k
+
+	continue;
+
+AlfaSortNearest:
+
+	// First we get the distance sorting
+	wp_value=wp_distance;
+	for (k=0; k< MAXNEAREST; k++)  {
+		if ( ( (wp_value < sortedValue[k]) || (dstSortedIndex[k]== -1) )
+			&& (dstSortedIndex[k] != wp_index) )
+		{
+			// ok, got new closer waypoint, put it into the slot.
+			for (l=MAXNEAREST-1; l>k; l--) {
+				if (l>0) {
+					sortedValue[l] = sortedValue[l-1];
+					dstSortedIndex[l] = dstSortedIndex[l-1];
+				}
+			}
+			sortedValue[k] = wp_value;
+			dstSortedIndex[k] = wp_index;
+
+			k=MAXNEAREST*2; // should not be needed
+
+			// update number of items inserted so far
+			inserted++;
+			break;
+		}
+	} // for k
+
+
+   } // for i
+
+   if (SortedMode[curmapspace] == 0 ) {
+
+	for (i=0; i<MAXNEAREST; i++) {
+		wp_index=dstSortedIndex[i];
+		if (wp_index<0) {
+			// There are less than 25 or whatever items available for sorting, no problems
+			// DoStatusMessage(_T("DBG-198 sorting nearest"));
+			break; // should be impossible
+		}
+		for (k=0; k< MAXNEAREST; k++)  {
+			// if unfilled position or filled with not the same item already
+			if ( (p_sortedIndex[k] < 0 ) || (p_sortedIndex[k] != wp_index) ) {
+				if ( p_sortedIndex[k]>=0 ) 
+					if ( wcscmp( WayPointList[wp_index].Name, WayPointList[p_sortedIndex[k]].Name) >0) continue;
+				for (l=MAXNEAREST-1; l>k; l--) {
+					if (l>0) {
+						p_sortedIndex[l] = p_sortedIndex[l-1];
+					}
+				}
+				p_sortedIndex[k] = wp_index;
+				// Distance and eventually name sorted still need DoNearest to be done
+				if (SortedMode[curmapspace]<3) DoNearestAlternate(Basic,Calculated,wp_index);
+				k=MAXNEAREST*2; // should not be needed
+				// update number of items inserted so far 
+				inserted++;
+			}
+		} // for k
+	} // for i
+
+   }
+
+   // Set flag dataready for LK8000. Reading functions will clear it!
+   NearestDataReady=true;
+   LastRunTime=Basic->Time;
+   // update items found so far, in public variable. We have looked for MAXNEAREST items from a list of MAXNEAREST*1.5
+   SortedNumber= inserted>MAXNEAREST ? MAXNEAREST : inserted;
+   return;
+}
+
+// REDUCE WAYPOINTLIST TO THOSE IN RANGE, ROUGHLY SORTED BY DISTANCE
+// Keep an updated list of in-range landable waypoints.
+// Attention: since this list is sorted only periodically, calling functions must sort data themselves.
+// DISTANCE IS ASSUMED ON A FLAT SURFACE, ONLY APPROXIMATED!
+
+bool DoRangeWaypointList(NMEA_INFO *Basic, DERIVED_INFO *Calculated) {
+
+   int rangeLandableDistance[MAXRANGELANDABLE];
+   int rangeAirportDistance[MAXRANGELANDABLE];
+   int rangeTurnpointDistance[MAXRANGETURNPOINT];
+   #if UNSORTEDRANGE
+   int i, kl, kt, ka;
+   #else
+   int i, k, l;
+   bool inserted;
+   #endif
+   //double arrival_altitude;
+   static bool DoInit=true;
+
+   if (!WayPointList) {
+	return false;
+   }
+
+   // Do init and RETURN, caution!
+   // We need a locked GPS position to proceed!
+
+   // TODO FIX LOCK DATA IN DRAWNEAREST when updating this list!
+   if (DoInit) {
+	for (i=0; i<MAXRANGELANDABLE; i++) {
+		RangeLandableIndex[i]= -1;
+		RangeAirportIndex[i]= -1;
+	}
+	for (i=0; i<MAXRANGETURNPOINT; i++) {
+		RangeTurnpointIndex[i]= -1;
+	}
+	RangeLandableNumber=0;
+	RangeAirportNumber=0;
+	RangeTurnpointNumber=0;
+	DoInit=false;
+	return false;
+   }
+
+   LockTaskData();
+
+   int scx_aircraft, scy_aircraft;
+   LatLon2Flat(Basic->Longitude, Basic->Latitude, &scx_aircraft, &scy_aircraft);
+
+  for (i=0; i<MAXRANGELANDABLE; i++) {
+	RangeLandableNumber=0;
+	RangeLandableIndex[i]= -1;
+	rangeLandableDistance[i] = 0;
+	RangeAirportNumber=0;
+	RangeAirportIndex[i]= -1;
+	rangeAirportDistance[i] = 0;
+  }
+  for (i=0; i<MAXRANGETURNPOINT; i++) {
+	RangeTurnpointNumber=0;
+	RangeTurnpointIndex[i]= -1;
+	rangeTurnpointDistance[i] = 0;
+  }
+
+  #if UNSORTEDRANGE
+  for (i=0, kt=0, kl=0, ka=0; i<(int)NumberOfWayPoints; i++) {
+  #else
+  for (i=0; i<(int)NumberOfWayPoints; i++) {
+  #endif
+
+	int approx_distance = CalculateWaypointApproxDistance(scx_aircraft, scy_aircraft, i);
+
+	// Size a reasonable distance, wide enough 
+	if ( approx_distance > DSTRANGETURNPOINT ) goto LabelLandables;
+
+	// Get only non landables
+	#ifdef USEISLANDABLE
+	if (
+		( (TpFilter==(TpFilter_t)TfNoLandables) && (!WayPointCalc[i].IsLandable ) ) ||
+		( (TpFilter==(TpFilter_t)TfAll) ) ||
+		( (TpFilter==(TpFilter_t)TfTps) && ((WayPointList[i].Flags & TURNPOINT) == TURNPOINT) ) 
+	 ) {
+	#else
+	if (! (((WayPointList[i].Flags & AIRPORT) == AIRPORT) || ((WayPointList[i].Flags & LANDPOINT) == LANDPOINT))) {
+	#endif
+		#if UNSORTEDRANGE
+		if (kt+1<MAXRANGETURNPOINT) { // never mind if we use maxrange-2
+			RangeTurnpointIndex[kt++]=i;
+			RangeTurnpointNumber++;
+		}
+		#else
+		for (k=0, inserted=false; k< MAXRANGETURNPOINT; k++)  {
+			if (((approx_distance < rangeTurnpointDistance[k]) 
+			|| (RangeTurnpointIndex[k]== -1))
+			&& (RangeTurnpointIndex[k]!= i))
+			{
+				// ok, got new biggest, put it into the slot.
+				for (l=MAXRANGETURNPOINT-1; l>k; l--) {
+					if (l>0) {
+						rangeTurnpointDistance[l] = rangeTurnpointDistance[l-1];
+						RangeTurnpointIndex[l] = RangeTurnpointIndex[l-1];
+					}
+				}
+				rangeTurnpointDistance[k] = approx_distance;
+				RangeTurnpointIndex[k] = i;
+				k=MAXRANGETURNPOINT;
+				inserted=true;
+			}
+		} // for k
+		if (inserted) RangeTurnpointNumber++;
+		#endif
+	}
+
+
+LabelLandables:
+
+	if ( approx_distance > DSTRANGELANDABLE ) continue;
+
+	// Skip non landable waypoints that are between DSTRANGETURNPOINT and DSTRANGELANDABLE
+	#ifdef USEISLANDABLE
+	if (!WayPointCalc[i].IsLandable )
+	#else
+	if (!(((WayPointList[i].Flags & AIRPORT) == AIRPORT) || ((WayPointList[i].Flags & LANDPOINT) == LANDPOINT))) 
+	#endif
+		continue; 
+
+	#if UNSORTEDRANGE
+	if (kl+1<MAXRANGELANDABLE) { // never mind if we use maxrange-2
+		RangeLandableIndex[kl++]=i;
+		RangeLandableNumber++;
+	}
+	#else
+	for (k=0, inserted=false; k< MAXRANGELANDABLE; k++)  {
+		if (((approx_distance < rangeLandableDistance[k]) 
+		|| (RangeLandableIndex[k]== -1))
+        	&& (RangeLandableIndex[k]!= i))
+        	{
+          		// ok, got new biggest, put it into the slot.
+          		for (l=MAXRANGELANDABLE-1; l>k; l--) {
+            			if (l>0) {
+              				rangeLandableDistance[l] = rangeLandableDistance[l-1];
+             				RangeLandableIndex[l] = RangeLandableIndex[l-1];
+            			}
+          		}
+         		rangeLandableDistance[k] = approx_distance;
+          		RangeLandableIndex[k] = i;
+          		k=MAXRANGELANDABLE;
+			inserted=true;
+        	}
+	} // for k
+	if (inserted) RangeLandableNumber++;
+	#endif
+
+
+	// If it's an Airport then we also take it into account separately
+	#ifdef USEISLANDABLE
+	if ( WayPointCalc[i].IsAirport )
+	#else
+	if ( ((WayPointList[i].Flags & AIRPORT) == AIRPORT) )
+	#endif
+	{
+		#if UNSORTEDRANGE
+		if (ka+1<MAXRANGELANDABLE) { // never mind if we use maxrange-2
+			RangeAirportIndex[ka++]=i;
+			RangeAirportNumber++;
+		}
+		#else
+		for (k=0, inserted=false; k< MAXRANGELANDABLE; k++)  {
+			if (((approx_distance < rangeAirportDistance[k]) 
+			|| (RangeAirportIndex[k]== -1))
+			&& (RangeAirportIndex[k]!= i))
+			{
+				// ok, got new biggest, put it into the slot.
+				for (l=MAXRANGELANDABLE-1; l>k; l--) {
+					if (l>0) {
+						rangeAirportDistance[l] = rangeAirportDistance[l-1];
+						RangeAirportIndex[l] = RangeAirportIndex[l-1];
+					}
+				}
+				rangeAirportDistance[k] = approx_distance;
+				RangeAirportIndex[k] = i;
+				k=MAXRANGELANDABLE;
+				inserted=true;
+			}
+		} // for k
+		if (inserted) RangeAirportNumber++;
+		#endif
+	}
+
+
+   } // for i
+
+	// We have filled the list... which was too small 
+	// this cannot happen with UNSORTED RANGE
+	if (RangeTurnpointNumber>MAXRANGETURNPOINT) RangeTurnpointNumber=MAXRANGETURNPOINT;
+	if (RangeAirportNumber>MAXRANGELANDABLE) RangeAirportNumber=MAXRANGELANDABLE;
+	if (RangeLandableNumber>MAXRANGELANDABLE) RangeLandableNumber=MAXRANGELANDABLE;
+
+   UnlockTaskData();
+   return true;
+}
+
+bool DoCommonList(NMEA_INFO *Basic, DERIVED_INFO *Calculated) {
+
+   int i;
+
+
+   CommonNumber=0;
+   for (i=0; i<MAXCOMMON; i++) {
+	CommonIndex[i]= -1;
+   }
+
+   if (!WayPointList) {
+        return false;
+   }
+
+   LockTaskData(); 
+
+   // first we look for home and place it in position 0
+   if (ValidWayPoint(HomeWaypoint)) {
+	CommonIndex[CommonNumber++]=HomeWaypoint;
+   }
+
+   // Then we insert the alternates, if existing
+   if (OnBestAlternate) InsertCommonList(BestAlternate);
+   if (OnAlternate1) InsertCommonList(Alternate1);
+   if (OnAlternate2) InsertCommonList(Alternate2);
+
+   // Then we insert active destination and task points
+   for (i=0; i< MAXTASKPOINTS; i++) {
+	if (ValidTaskPoint(i))
+		InsertCommonList(Task[i].Index);
+   }
+
+   UnlockTaskData();
+   return true;
+}
+
+// Only insert if not already existing in the list
+// and valid waypoint
+void InsertCommonList(int newwp) {
+    int i;
+
+    if ((CommonNumber+1) >=MAXCOMMON) return;
+    if ( !ValidWayPoint(newwp) ) return;
+
+    for (i=0; i<CommonNumber; i++) {
+	if ( CommonIndex[i] == newwp) return;
+    }
+    CommonIndex[CommonNumber++]=newwp;
+}
+
+// Load and save the recent list
+bool LoadRecentList() {
+
+   TCHAR buffer[100];
+   FILE *fp;
+   char st[100];
+//   int TmpIndex[MAXCOMMON+1];
+   int i=0, nwp;
+   unsigned int csum;
+
+#if (!defined(WINDOWSPC) || (WINDOWSPC <=0) )
+  LocalPath(buffer,TEXT(LKD_CONF));
+  _tcscat(buffer,TEXT("\\"));
+  _tcscat(buffer,_T(LKF_RECENTS)); // 091101
+
+#else
+  SHGetSpecialFolderPath(hWndMainWindow, buffer, CSIDL_PERSONAL, false);
+  _tcscat(buffer,TEXT("\\"));
+  _tcscat(buffer,TEXT(XCSDATADIR));
+  _tcscat(buffer,_T("\\"));
+  _tcscat(buffer,TEXT(LKD_CONF)); // 091101
+  _tcscat(buffer,_T("\\"));
+  _tcscat(buffer,_T(LKF_RECENTS)); // 091101
+#endif
+
+   RecentNumber=0;
+   for (i=0; i<MAXCOMMON; i++) {
+	RecentIndex[i]= -1;
+	RecentChecksum[i]=0;
+   }
+
+   if (!WayPointList) {
+   	StartupStore(_T("... Load RecentList: No Waypoint List available%s"),NEWLINE);
+        return false;
+   }
+
+   if ( (fp=_tfopen(buffer, _T("r"))) == NULL ) {
+	StartupStore(_T("... Cannot load recent wp history%s"),NEWLINE);
+	return false;
+   }
+
+   i=0;
+   while ( (fgets(st, 80, fp))!=NULL) {
+	if (st[0]=='#') continue; // skip comments
+	nwp=atoi(st);
+	if (!ValidWayPoint(nwp)) {
+		wsprintf(buffer,_T("---- Loading history. Found an invalid wp: <%d>%s"),nwp,NEWLINE); // BUGFIX 091122
+		StartupStore(buffer);
+		wsprintf(buffer,_T("---- History file could be corrupted or wp file changed abruptly. Discarded!%s"),NEWLINE);
+		StartupStore(buffer);
+		break;
+	}
+	if (i >=(MAXCOMMON)) {
+		StartupStore(_T("---- Too many history waypoints to load!%s"),NEWLINE);
+		break;
+	}
+	if ( (fgets(st,80,fp))==NULL) {
+		StartupStore(_T("---- Incomplete or broken history file%s"),NEWLINE);
+		break;
+	}
+	csum=atoi(st);
+	// takeoff recent is different from others and can be forced on
+	if (nwp!=RESWP_TAKEOFF) {
+		if ( GetWpChecksum(nwp) != csum ) {
+			StartupStore(_T("---- Loading history. Found an invalid checksum, aborting.%s"),NEWLINE);
+			break;
+		}
+	}
+	RecentIndex[i]=nwp;
+	RecentChecksum[i++]=csum;
+   }
+   fclose(fp);
+   RecentNumber=i;
+   wsprintf(buffer,_T(". LoadRecentList: loaded %d recent waypoints%s"),i,NEWLINE);
+   StartupStore(buffer);
+
+   return true;
+}
+
+bool SaveRecentList() {
+
+   TCHAR buffer[100];
+   FILE *fp;
+   int i;
+
+#if (!defined(WINDOWSPC) || (WINDOWSPC <=0) )
+  LocalPath(buffer,TEXT(LKD_CONF));
+  _tcscat(buffer,TEXT("\\"));
+  _tcscat(buffer,_T(LKF_RECENTS)); // 091101
+#else
+  SHGetSpecialFolderPath(hWndMainWindow, buffer, CSIDL_PERSONAL, false);
+  _tcscat(buffer,TEXT("\\"));
+  _tcscat(buffer,TEXT(XCSDATADIR));
+  _tcscat(buffer,_T("\\"));
+  _tcscat(buffer,TEXT(LKD_CONF)); // 091101
+  _tcscat(buffer,_T("\\"));
+  _tcscat(buffer,_T(LKF_RECENTS)); // 091101
+#endif
+
+   StartupStore(_T(". Save history to <%s>%s"),buffer,NEWLINE);  // 091122
+   if (!WayPointList) {
+   	StartupStore(_T(". No Waypoint List is available, cannot save history%s"),NEWLINE);
+        return false;
+   }
+   if (RecentNumber <0 || RecentNumber >(MAXCOMMON+1)) {
+	StartupStore(_T("---- Save history: RecentNumber=%d exceeds limit, something is wrong. Aborting%s"),RecentNumber,NEWLINE);
+	return false;
+   }
+   if ( (fp=_tfopen(buffer, _T("w"))) == NULL ) {
+	StartupStore(_T("---- SaveRecentList: OPEN FILE FAILED. Cannot save recent wp history%s"),NEWLINE);
+	return false;
+   }
+
+   fprintf(fp,"### LK8000 History of Goto Waypoints - DO NOT MODIFY THIS FILE! ###\r\n");
+   fprintf(fp,"### WPRECENT FORMAT 01T \r\n");
+   for (i=0; i<RecentNumber; i++)  {
+	#ifdef NEWTASKWP
+	if ( !ValidNotResWayPoint(RecentIndex[i])) {
+		StartupStore(_T("---- SaveHistory: invalid wp, maybe file has changed. Aborting.%s"),NEWLINE);
+		break;
+	}
+	if ( WayPointList[RecentIndex[i]].FileNum == -1) continue; // 100219
+	#endif
+	if ( GetWpChecksum(RecentIndex[i]) != RecentChecksum[i] ) {
+		StartupStore(_T("---- SaveHistory: invalid checksum for wp=%d checksum=%d oldchecksum=%d, maybe file has changed. Aborting.%s"),
+		i,GetWpChecksum(RecentIndex[i]), RecentChecksum[i],NEWLINE);
+		break;
+	}
+
+	fprintf(fp,"%d\n%d\n",RecentIndex[i], RecentChecksum[i]);
+   }
+   fclose(fp);
+
+   wsprintf(buffer,_T(". SaveRecentList: saved %d recent waypoints%s"),RecentNumber,NEWLINE);
+   StartupStore(buffer);
+   return true;
+}
+
+// Only insert if not already existing in the list
+// Insert a wp into the list: always put it on top. If already existing in the list, 
+// remove old existing one from the old position.
+void InsertRecentList(int newwp) {
+    int i,j;
+    int TmpIndex[MAXCOMMON+1];
+    unsigned int TmpChecksum[MAXCOMMON+1];
+    TCHAR buffer[100];
+
+    wsprintf(buffer,_T(". Insert WP=%d into recent waypoints%s"),newwp,NEWLINE);
+    StartupStore(buffer);
+
+    // j holding number of valid recents, excluded the new one to be put in position 0
+    for (i=0,j=0; i<RecentNumber; i++) {
+	if ( j >=(MAXCOMMON-2) ) break;
+	if (RecentIndex[i]==newwp) continue;
+	TmpIndex[++j]=RecentIndex[i];
+	TmpChecksum[j]=RecentChecksum[i];
+    }
+    RecentIndex[0]=newwp;
+    
+    RecentChecksum[0]= GetWpChecksum(newwp);
+    for (i=1; i<=j; i++) {
+	RecentIndex[i]=TmpIndex[i];
+	RecentChecksum[i]=TmpChecksum[i];
+    }
+    RecentNumber=j+1;
+}
+
+void RemoveRecentList(int newwp) {
+    int i,j;
+    int TmpIndex[MAXCOMMON+1];
+    unsigned int TmpChecksum[MAXCOMMON+1];
+
+    for (i=0,j=0;i<RecentNumber; i++) {
+	if (RecentIndex[i]==newwp) continue;
+	TmpIndex[j]=RecentIndex[i];
+	TmpChecksum[j++]=RecentChecksum[i];
+    }
+    RecentNumber=j;
+    for (i=0; i<=j; i++) {
+	RecentIndex[i]=TmpIndex[i];
+	RecentChecksum[i]=TmpChecksum[i];
+    }
+}
+
+void ResetRecentList() {
+   int i;
+
+   RecentNumber=0;
+   for (i=0; i<MAXCOMMON; i++) {
+	RecentIndex[i]= -1;
+	RecentChecksum[i]= 0;
+   }
+   StartupStore(_T(". ResetRecentList%s"),NEWLINE);
+
+}
+
+// Recent informations: called from Calculation task
+void DoRecent(NMEA_INFO *Basic, DERIVED_INFO *Calculated)
+{
+   int i;
+   static bool DoInit=true;
+   static double LastRunTime=0;
+
+   // Safe initialisation, passthrough mode
+   if (DoInit) {
+        //for (i=0; i<MAXCOMMON; i++) RecentIndex[i]=-1;
+	//RecentNumber=0;
+	//LoadRecentList();
+	// load recent file
+        DoInit=false;
+   }
+
+   if (!WayPointList) return;
+
+   // Consider replay mode...
+   if (  LastRunTime > Basic->Time ) LastRunTime=Basic->Time;
+   if (  (Basic->Time < (LastRunTime+NEARESTUPDATETIME)) && !LKForceDoRecent) {
+        return;
+   }
+   LKForceDoRecent=false;
+reload:
+   //DoRecentList(Basic,Calculated);  NO NEED TO RELOAD...
+   if (RecentNumber==0) return;
+
+   for (i=0; i<RecentNumber; i++) {
+	if (!ValidWayPoint(RecentIndex[i])) {
+		RemoveRecentList(RecentIndex[i]);
+		goto reload;
+	}
+	else
+		DoAlternates(Basic, Calculated, RecentIndex[i]);
+   }
+
+   LastRunTime=Basic->Time;
+   RecentDataReady=true;
+
+}
+
+// Common informations: home, best, alt1, alt2 and recent waypoints
+void DoCommon(NMEA_INFO *Basic, DERIVED_INFO *Calculated)
+{
+
+   int i;
+   static bool doinit=true;
+   static double LastRunTime=0;
+
+   // Safe initialisation, passthrough mode
+   if (doinit) {
+        for (i=0; i<MAXCOMMON; i++) CommonIndex[i]=-1;
+	CommonNumber=0;
+	DoCommonList(Basic,Calculated);
+        doinit=false;
+   }
+
+   if (!WayPointList) return;
+
+   // Consider replay mode...
+   if (  LastRunTime > Basic->Time ) LastRunTime=Basic->Time;
+   if (  (Basic->Time < (LastRunTime+NEARESTUPDATETIME)) && !LKForceDoCommon) {
+        return;
+   }
+   if (  LastDoCommon > Basic->Time ) LastDoCommon=Basic->Time;
+   if ( Basic->Time < (LastDoCommon+PAGINGTIMEOUT)) {
+	return;
+   }
+   LastDoCommon = 0;
+   LKForceDoCommon=false;
+
+   DoCommonList(Basic,Calculated);
+   if (CommonNumber==0) return;
+
+   for (i=0; i<CommonNumber; i++) {
+	DoAlternates(Basic, Calculated, CommonIndex[i]);
+   }
+
+   LastRunTime=Basic->Time;
+   CommonDataReady=true;
+} 
+
+
+// Nearest turnpoints
+// Running every n seconds ONLY when the nearest page is active and we are not drawing map.
+// This is measured to take 10ms cpu on a HP314
+// 120kmh = 33.3m/s     5s = 167m  consider altitude loss, assuming -5m/s * 5 = -25m QNH
+// So we calculate new values every 5 seconds.
+void DoNearestTurnpoint(NMEA_INFO *Basic, DERIVED_INFO *Calculated)
+{
+   int i,k,l;
+   int wp_index, inserted;
+   double wp_bearing, wp_distance, wp_value=-1;
+
+   double sortedValue[MAXNEARTURNPOINT+1];
+   int *p_sortedIndex;
+   int dstSortedIndex[MAXNEARTURNPOINT+1];
+
+   static double LastRunTime=0;
+
+/*
+   static bool DoInit=true;
+   if (DoInit) {
+	DoInit=false;
+   }
+*/
+
+   if (  LastRunTime > Basic->Time ) LastRunTime=Basic->Time;
+   if (  (Basic->Time < (LastRunTime+NEARESTUPDATETIME)) && !LKForceDoNearestTurnpoint) {
+	return;
+   }
+   if (  LastDoNearestTp > Basic->Time ) LastDoNearestTp=Basic->Time;
+   if ( Basic->Time < (LastDoNearestTp+PAGINGTIMEOUT)) {
+	return;
+   }
+   LastDoNearestTp = 0;
+
+   LKForceDoNearestTurnpoint=false;
+
+   if (!WayPointList) return;
+   if ( RangeTurnpointNumber==0) {
+	return;
+   }
+
+   // This is done also at startup from InitModeTable
+   for (i=0; i<MAXNEARTURNPOINT;i++) {
+	SortedTurnpointIndex[i]=-1;
+	sortedValue[i]=99999; 
+	dstSortedIndex[i]=-1;
+   }
+  
+   // We sample twice as much as needed values. 
+   for (i=0, inserted=0; i<MAXNEARTURNPOINT*2; i++) {
+
+	p_sortedIndex=SortedTurnpointIndex;
+	wp_index=RangeTurnpointIndex[i];
+
+	if (wp_index <0) {
+		continue;
+	}
+
+	DistanceBearing(Basic->Latitude , Basic->Longitude , WayPointList[wp_index].Latitude,
+		WayPointList[wp_index].Longitude, &wp_distance, &wp_bearing);
+
+
+	WayPointCalc[wp_index].Distance = wp_distance;
+	WayPointCalc[wp_index].Bearing  = wp_bearing;
+
+	if (SortedMode[MSM_NEARTPS] == 0 ) goto AlfaSort; 
+
+	switch (SortedMode[MSM_NEARTPS]) {
+		case 0:
+		case 1:
+			wp_value=wp_distance;
+			break;
+		case 2:
+			if (DisplayMode == dmCircling) {
+				wp_value=wp_bearing; // 100328
+				break;
+			}
+			wp_value = wp_bearing -  GPS_INFO.TrackBearing;
+			if (wp_value < -180.0) wp_value += 360.0;
+			else
+				if (wp_value > 180.0) wp_value -= 360.0;
+			if (wp_value<0) wp_value*=-1;
+			break;
+		case 3:
+			DoNearestAlternate(Basic,Calculated,wp_index); 
+			wp_value=WayPointCalc[wp_index].GR;
+			break;
+		case 4:
+			DoNearestAlternate(Basic,Calculated,wp_index); 
+			wp_value=WayPointCalc[wp_index].AltArriv[AltArrivMode];
+			wp_value*=-1;
+			break;
+		default:
+			wp_value=wp_distance;
+			break;
+	}
+
+	for (k=0; k< MAXNEARTURNPOINT; k++)  {
+		if ( ((wp_value < sortedValue[k])	
+		|| (p_sortedIndex[k]== -1))
+		&& (p_sortedIndex[k] != wp_index) )
+		{
+			for (l=MAXNEARTURNPOINT-1; l>k; l--) {
+				if (l>0) {
+					sortedValue[l] = sortedValue[l-1];
+					p_sortedIndex[l] = p_sortedIndex[l-1];
+				}
+			}
+			sortedValue[k] = wp_value;
+			p_sortedIndex[k] = wp_index;
+
+			if (SortedMode[MapSpaceMode]<3) DoNearestAlternate(Basic,Calculated,wp_index);
+
+			k=MAXNEARTURNPOINT*2; // should not be needed
+
+			inserted++;
+			break;
+		}
+	} // for k
+	continue;
+
+
+AlfaSort:
+	wp_value=wp_distance;
+	for (k=0; k< MAXNEARTURNPOINT; k++)  {
+		if ( ((wp_value < sortedValue[k])	
+		|| (dstSortedIndex[k]== -1))
+		&& (dstSortedIndex[k] != wp_index) )
+		{
+			for (l=MAXNEARTURNPOINT-1; l>k; l--) {
+				if (l>0) {
+					sortedValue[l] = sortedValue[l-1];
+					dstSortedIndex[l] = dstSortedIndex[l-1];
+				}
+			}
+			sortedValue[k] = wp_value;
+			dstSortedIndex[k] = wp_index;
+
+			k=MAXNEARTURNPOINT*2; // should not be needed
+
+			inserted++;
+			break;
+		}
+	} // for k
+
+
+   } // for i
+
+   if (SortedMode[MSM_NEARTPS] == 0 ) {
+
+   	p_sortedIndex=SortedTurnpointIndex;
+
+	for (i=0; i< MAXNEARTURNPOINT; i++) {
+
+		wp_index=dstSortedIndex[i];
+		if (wp_index<0) {
+			break;  // should be impossible
+		}
+
+		for (k=0; k< MAXNEARTURNPOINT; k++)  {
+			if ( (p_sortedIndex[k] < 0 ) || (p_sortedIndex[k] != wp_index) ) {
+				if ( p_sortedIndex[k]>=0 ) 
+					if ( wcscmp( WayPointList[wp_index].Name, WayPointList[p_sortedIndex[k]].Name) >0) continue;
+				for (l=MAXNEARTURNPOINT-1; l>k; l--) {
+					if (l>0) {
+						p_sortedIndex[l] = p_sortedIndex[l-1];
+					}
+				}
+				p_sortedIndex[k] = wp_index;
+				if (SortedMode[MapSpaceMode]<3) DoNearestAlternate(Basic,Calculated,wp_index);
+				k=MAXNEARTURNPOINT*2; // should not be needed
+			}
+		} // for k
+	} // for i
+   }
+
+   NearestTurnpointDataReady=true;
+   LastRunTime=Basic->Time;
+   SortedTurnpointNumber= inserted>MAXNEARTURNPOINT ? MAXNEARTURNPOINT : inserted;
+
+   return;
+}
+
+// AverageLD return 0 if invalid, or 999 if too high...
+// This function will return bestld if too high, and last valid average if invalid because on ground or circling
+double GetCurrentEfficiency(DERIVED_INFO *Calculated, short effmode) {
+
+   static double lastValidValue=GlidePolar::bestld;
+   double cruise=Calculated->AverageLD;
+
+   if ( cruise == INVALID_GR )		return GlidePolar::bestld;
+   if ( cruise == 0 )			return lastValidValue;
+   if ( cruise > 0 && cruise <1)	return 1.0;
+   if ( cruise < 0 || cruise >GlidePolar::bestld ) cruise = GlidePolar::bestld; 
+
+   lastValidValue=cruise;
+   return cruise;
+}
+
+static bool CheckLandableReachableTerrainNew(NMEA_INFO *Basic,
+                                          DERIVED_INFO *Calculated,
+                                          double LegToGo,
+                                          double LegBearing) {
+  double lat, lon;
+  bool out_of_range;
+  double distance_soarable =
+    FinalGlideThroughTerrain(LegBearing,
+                             Basic, Calculated,
+                             &lat,
+                             &lon,
+                             LegToGo, &out_of_range, NULL);
+
+  if ((out_of_range)||(distance_soarable> LegToGo)) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+// Warning: this is called from mapwindow Draw task , not from calculations!!
+// this is calling CheckLandableReachableTerrainNew
+void MapWindow::CalculateWaypointReachableNew(void)
+{
+  unsigned int i;
+  #if UNSORTEDRANGE
+  int j;
+  #endif
+  double waypointDistance, waypointBearing,altitudeRequired,altitudeDifference;
+  double dtmp;
+
+  // LandableReachable is used only by the thermal bar indicator in MapWindow2, after here
+  // apparently, is used to tell you if you are below final glide but in range for a landable wp
+  LandableReachable = false;
+
+  if (!WayPointList) return;
+
+  LockTaskData();
+
+  #if UNSORTEDRANGE
+  for(j=0;j<RangeLandableNumber;j++)
+  {
+	i=RangeLandableIndex[j];
+  #else
+  for(i=0;i<NumberOfWayPoints;i++)
+  {
+  #endif
+    #ifdef USEISLANDABLE
+    if ( ( ((WayPointCalc[i].AltArriv >=0)||(WayPointList[i].Visible)) && (WayPointCalc[i].IsLandable)) // 100307
+    #else
+    if ((WayPointList[i].Visible && ( ((WayPointList[i].Flags & AIRPORT) == AIRPORT) || ((WayPointList[i].Flags & LANDPOINT) == LANDPOINT) ))
+    #endif
+	|| WaypointInTask(i) ) {
+
+	DistanceBearing(DrawInfo.Latitude, DrawInfo.Longitude, WayPointList[i].Latitude, WayPointList[i].Longitude, &waypointDistance, &waypointBearing);
+
+	WayPointCalc[i].Distance=waypointDistance; 
+	WayPointCalc[i].Bearing=waypointBearing;
+
+	if (SafetyAltitudeMode==0 && !WayPointCalc[i].IsLandable)
+		dtmp=DerivedDrawInfo.NavAltitude - WayPointList[i].Altitude;
+	else
+		dtmp=DerivedDrawInfo.NavAltitude - SAFETYALTITUDEARRIVAL - WayPointList[i].Altitude;
+
+	if (dtmp>0) {
+		WayPointCalc[i].GR = waypointDistance / dtmp;
+		if (WayPointCalc[i].GR > INVALID_GR) WayPointCalc[i].GR=INVALID_GR; else
+		if (WayPointCalc[i].GR <1) WayPointCalc[i].GR=1;
+	} else
+		WayPointCalc[i].GR = INVALID_GR;
+
+	altitudeRequired = GlidePolar::MacCreadyAltitude (GetMacCready(i,0), waypointDistance, waypointBearing,  // 091221
+						DerivedDrawInfo.WindSpeed, DerivedDrawInfo.WindBearing, 0,0,true,0);
+
+	if (SafetyAltitudeMode==0 && !WayPointCalc[i].IsLandable)
+		altitudeRequired = altitudeRequired + WayPointList[i].Altitude ;
+	else
+		altitudeRequired = altitudeRequired + SAFETYALTITUDEARRIVAL + WayPointList[i].Altitude ;
+
+	WayPointCalc[i].AltReqd[AltArrivMode] = altitudeRequired; 
+
+	altitudeDifference = DerivedDrawInfo.NavAltitude - altitudeRequired; 
+	WayPointList[i].AltArivalAGL = altitudeDifference;
+      
+	if(altitudeDifference >=0){
+
+		WayPointList[i].Reachable = TRUE;
+
+	  	if (CheckLandableReachableTerrainNew(&DrawInfo, &DerivedDrawInfo, waypointDistance, waypointBearing)) {
+			if ((signed)i!=TASKINDEX) { 
+		  		LandableReachable = true;
+			}
+	  	} else {
+			WayPointList[i].Reachable = FALSE;
+		}
+	} else {
+		WayPointList[i].Reachable = FALSE;
+	}
+
+    } // for all landables or in task
+  } // for all waypoints
+
+  if (!LandableReachable) // 091203
+  #if UNSORTEDRANGE
+  for(j=0;j<RangeLandableNumber;j++) {
+	i = RangeLandableIndex[j];
+  #else
+  for(i=0;i<NumberOfWayPoints;i++) {
+  #endif
+    if(!WayPointList[i].Visible && WayPointList[i].FarVisible)  {
+	// visible but only at a distance (limit this to 100km radius)
+
+	#ifdef USEISLANDABLE
+	if(  WayPointCalc[i].IsLandable ) {
+	#else
+	if(  ((WayPointList[i].Flags & AIRPORT) == AIRPORT) || ((WayPointList[i].Flags & LANDPOINT) == LANDPOINT) ) {
+	#endif
+
+		DistanceBearing(DrawInfo.Latitude, 
+                                DrawInfo.Longitude, 
+                                WayPointList[i].Latitude, 
+                                WayPointList[i].Longitude,
+                                &waypointDistance,
+                                &waypointBearing);
+               
+		WayPointCalc[i].Distance=waypointDistance;  // VENTA6
+		WayPointCalc[i].Bearing=waypointBearing;
+
+		if (waypointDistance<100000.0) {
+
+			altitudeRequired = GlidePolar::MacCreadyAltitude (GetMacCready(i,0), waypointDistance, waypointBearing,  // 091221
+					DerivedDrawInfo.WindSpeed, DerivedDrawInfo.WindBearing, 0,0,true,0);
+                  
+			if (SafetyAltitudeMode==0 && !WayPointCalc[i].IsLandable)
+                		altitudeRequired = altitudeRequired + WayPointList[i].Altitude ;
+			else
+                		altitudeRequired = altitudeRequired + SAFETYALTITUDEARRIVAL + WayPointList[i].Altitude ;
+
+               		altitudeDifference = DerivedDrawInfo.NavAltitude - altitudeRequired;                                      
+                	WayPointList[i].AltArivalAGL = altitudeDifference;
+
+			WayPointCalc[i].AltReqd[AltArrivMode] = altitudeRequired; // VENTA6
+
+                	if(altitudeDifference >=0){
+
+                	    	WayPointList[i].Reachable = TRUE;
+
+                	    	if (CheckLandableReachableTerrainNew(&DrawInfo, &DerivedDrawInfo, waypointDistance, waypointBearing)) {
+                    	 		LandableReachable = true;
+                     		} else
+                    			WayPointList[i].Reachable = FALSE;
+                    	} 
+			else { 	
+                    		WayPointList[i].Reachable = FALSE;
+			}
+		} else {
+			WayPointList[i].Reachable = FALSE;
+		} // <100000
+
+	} // landable wp
+     } // visible or far visible
+   } // for all waypoint
+
+  UnlockTaskData(); 
+}
+
+
+double FarFinalGlideThroughTerrain(const double this_bearing, 
+				NMEA_INFO *Basic, 
+                                DERIVED_INFO *Calculated,
+                                double *retlat, double *retlon,
+                                const double max_range,
+				bool *out_of_range,
+				double myaltitude,
+				double *TerrainBase)
+{
+  double irange = GlidePolar::MacCreadyAltitude(MACCREADY, 
+						1.0, this_bearing, 
+						Calculated->WindSpeed, 
+						Calculated->WindBearing, 
+						0, 0, true, 0);
+  const double start_lat = Basic->Latitude;
+  const double start_lon = Basic->Longitude;
+  if (retlat && retlon) {
+    *retlat = start_lat;
+    *retlon = start_lon;
+  }
+  *out_of_range = false;
+
+  if ((irange<=0.0)||(myaltitude<=0)) {
+    // can't make progress in this direction at the current windspeed/mc
+    return 0;
+  }
+
+  const double glide_max_range = myaltitude/irange;
+
+  // returns distance one would arrive at altitude in straight glide
+  // first estimate max range at this altitude
+  double lat, lon;
+  double last_lat, last_lon;
+  double h=0.0, dh=0.0;
+//  int imax=0;
+  double last_dh=0;
+  double altitude;
+ 
+  RasterTerrain::Lock();
+  double retval = 0;
+  int i=0;
+  bool start_under = false;
+
+  // calculate terrain rounding factor
+
+  FindLatitudeLongitude(start_lat, start_lon, 0, 
+                        glide_max_range/NUMFINALGLIDETERRAIN, &lat, &lon);
+
+  double Xrounding = fabs(lon-start_lon)/2;
+  double Yrounding = fabs(lat-start_lat)/2;
+  RasterTerrain::SetTerrainRounding(Xrounding, Yrounding);
+
+  lat = last_lat = start_lat;
+  lon = last_lon = start_lon;
+
+  altitude = myaltitude;
+  h =  max(0, RasterTerrain::GetTerrainHeight(lat, lon)); 
+  if (h==TERRAIN_INVALID) h=0; //@@ 101027 FIX
+  dh = altitude - h - SAFETYALTITUDETERRAIN;
+  last_dh = dh;
+  if (dh<0) {
+    start_under = true;
+    // already below safety terrain height
+    //    retval = 0;
+    //    goto OnExit;
+  }
+
+  // find grid
+  double dlat, dlon;
+
+  FindLatitudeLongitude(lat, lon, this_bearing, glide_max_range, &dlat, &dlon);
+  dlat -= start_lat;
+  dlon -= start_lon;
+
+  double f_scale = 1.0/NUMFINALGLIDETERRAIN;
+  if ((max_range>0) && (max_range<glide_max_range)) {
+    f_scale *= max_range/glide_max_range;
+  }
+
+  double delta_alt = -f_scale*myaltitude;
+
+  dlat *= f_scale;
+  dlon *= f_scale;
+
+  for (i=1; i<=NUMFINALGLIDETERRAIN; i++) {
+    double f;
+    bool solution_found = false;
+    double fi = i*f_scale;
+    // fraction of glide_max_range
+
+    if ((max_range>0)&&(fi>=1.0)) {
+      // early exit
+      *out_of_range = true;
+      retval = max_range;
+      goto OnExit;
+    }
+
+    if (start_under) {
+      altitude += 2.0*delta_alt;
+    } else {
+      altitude += delta_alt;
+    }
+
+    // find lat, lon of point of interest
+
+    lat += dlat;
+    lon += dlon;
+
+    // find height over terrain
+    h =  max(0,RasterTerrain::GetTerrainHeight(lat, lon)); 
+    if (h==TERRAIN_INVALID) h=0;
+
+    dh = altitude - h - SAFETYALTITUDETERRAIN;
+
+    if (TerrainBase && (dh>0) && (h>0)) {
+      *TerrainBase = min(*TerrainBase, h);
+    }
+
+    if (start_under) {
+      if (dh>last_dh) {
+	// better solution found, ok to continue...
+	if (dh>0) {
+	  // we've now found a terrain point above safety altitude,
+	  // so consider rest of track to search for safety altitude
+	  start_under = false;
+	}
+      } else {
+	f= 0.0;
+	solution_found = true;
+      }
+    } else if (dh<=0) {
+      if ((dh<last_dh) && (last_dh>0)) {
+	if ( dh-last_dh==0 ) { // 091213
+		StartupStore(_T("++++++++ FarFinalGlide recovered from division by zero!%s"),NEWLINE); // 091213
+		f = 0.0;
+	} else
+        f = max(0,min(1,(-last_dh)/(dh-last_dh)));
+      } else {
+	f = 0.0;
+      }
+      solution_found = true;
+    }
+    if (solution_found) {
+      double distance;
+      lat = last_lat*(1.0-f)+lat*f;
+      lon = last_lon*(1.0-f)+lon*f;
+      if (retlat && retlon) {
+        *retlat = lat;
+        *retlon = lon;
+      }
+      DistanceBearing(start_lat, start_lon, lat, lon, &distance, NULL);
+      retval = distance;
+      goto OnExit;
+    }
+    last_dh = dh;
+    last_lat = lat;
+    last_lon = lon;
+  }
+
+  *out_of_range = true;
+  retval = glide_max_range;
+
+ OnExit:
+  RasterTerrain::Unlock();
+  return retval;
+}
+
+void ResetTask() {
+
+  CALCULATED_INFO.ValidFinish = false;
+  CALCULATED_INFO.ValidStart = false;
+  CALCULATED_INFO.TaskStartTime = 0;
+  CALCULATED_INFO.TaskStartSpeed = 0;
+  CALCULATED_INFO.TaskStartAltitude = 0;
+  CALCULATED_INFO.LegStartTime = 0;
+  CALCULATED_INFO.MinAltitude = 0;
+  CALCULATED_INFO.MaxHeightGain = 0;
+
+// TaskDistanceCovered
+// TaskDistanceToGo
+// TaskSpeedAchieved
+
+  ActiveWayPoint=0;
+  if (UseGates()) {
+	int i;
+	i=NextGate();
+	if (i<0 || i>PGNumberOfGates) { // just for safety we check also numbgates
+		i=RunningGate();
+		if (i<0) i=PGNumberOfGates-1;
+	}
+	ActiveGate=i;
+  }
+
+  DoStatusMessage(gettext(TEXT("TASK RESTART RESET")));
+
+}
+
+
+//
+// Running every n seconds ONLY when the nearest page is active and we are not drawing map.
+// We DONT use FLARM_Traffic after we copy inside LKTraffic!!
+// Returns true if did calculations, false if ok to use old values
+bool DoTraffic(NMEA_INFO *Basic, DERIVED_INFO *Calculated)
+{
+   int i,k,l;
+   double bearing, distance, sortvalue;
+   double sortedValue[MAXTRAFFIC+1];
+
+   static bool doinit=true;
+
+   if (doinit) {
+	#ifdef DEBUG_LKT
+	StartupStore(_T("... DoTraffic Init memset LKTraffic\n"));
+	#endif
+	memset(LKTraffic, 0, sizeof(LKTraffic));
+	LKNumTraffic=0;
+	#ifdef DEBUG_LKT
+	StartupStore(_T("... DoTraffic Init memset LKSortedTraffic\n"));
+	#endif
+	memset(LKSortedTraffic, -1, sizeof(LKSortedTraffic));
+	doinit=false;
+	return true;
+   }
+
+
+   // DoTraffic is called from MapWindow, in real time. We have enough CPU power there now
+   // Consider replay mode...
+   if (  LastDoTraffic > Basic->Time ) LastDoTraffic=Basic->Time;
+   if ( Basic->Time < (LastDoTraffic+PAGINGTIMEOUT) ) { 
+	return false;
+   }
+   LastDoTraffic=Basic->Time;
+
+   #ifdef DEBUG_LKT
+   StartupStore(_T("... DoTraffic Copy LKTraffic and reset LKSortedTraffic\n"));
+   #endif
+   LockFlightData();
+   memcpy(LKTraffic, Basic->FLARM_Traffic, sizeof(LKTraffic));
+   UnlockFlightData();
+
+   memset(LKSortedTraffic, -1, sizeof(LKSortedTraffic));
+   memset(sortedValue, -1, sizeof(sortedValue));
+
+   LKNumTraffic=0;
+   for (i=0; i<FLARM_MAX_TRAFFIC; i++) {
+	if ( LKTraffic[i].ID <=0 ) continue;
+	LKNumTraffic++;
+	DistanceBearing(Basic->Latitude, Basic->Longitude, 
+		LKTraffic[i].Latitude, LKTraffic[i].Longitude,
+		&distance, &bearing);
+	LKTraffic[i].Distance=distance;
+	LKTraffic[i].Bearing=bearing;
+   }
+   if (LKNumTraffic<1) return true;
+
+   // We know there is at least one traffic..
+   for (i=0; i<FLARM_MAX_TRAFFIC; i++) {
+
+	if ( LKTraffic[i].ID <=0 ) continue;
+
+	switch (SortedMode[MSM_TRAFFIC]) {
+		case 0:	
+			sortvalue=LKTraffic[i].Time_Fix;
+			// sort by highest: the highest the closer to now
+			sortvalue*=-1;
+			break;
+		case 1:
+			sortvalue=LKTraffic[i].Distance;
+			break;
+		case 2:
+			if (DisplayMode == dmCircling) {
+				sortvalue=LKTraffic[i].Bearing;
+				break;
+			}
+			sortvalue=LKTraffic[i].Bearing - GPS_INFO.TrackBearing;
+			if (sortvalue < -180.0) sortvalue += 360.0;
+			else
+				if (sortvalue > 180.0) sortvalue -= 360.0;
+			if (sortvalue<0) sortvalue*=-1;
+			break;
+		case 3:
+			sortvalue=LKTraffic[i].Average30s;
+			// sort by highest
+			sortvalue*=-1;
+			break;
+		case 4:
+			sortvalue=LKTraffic[i].Altitude;
+			// sort by highest
+			sortvalue*=-1;
+			break;
+		default:
+			sortvalue=LKTraffic[i].Distance;
+			break;
+	}
+
+	// MAXTRAFFIC is simply FLARM_MAX_TRAFFIC 
+	for (k=0; k< MAXTRAFFIC; k++)  {
+
+		// if new value is lower or index position is empty,  AND index position is not itself
+		// (just for safety, since it is not possible with traffic)
+		if ( ((sortvalue < sortedValue[k]) || (LKSortedTraffic[k]== -1))
+		&& (LKSortedTraffic[k] != i) )
+		{
+			// ok, got new lower value, put it into slot
+			for (l=MAXTRAFFIC-1; l>k; l--) {
+				if (l>0) {
+					sortedValue[l] = sortedValue[l-1];
+					LKSortedTraffic[l] = LKSortedTraffic[l-1];
+				}
+			}
+			sortedValue[k] = sortvalue;
+			LKSortedTraffic[k] = i;
+			//inserted++;
+			break;
+		}
+	} // for k
+	continue;
+
+   } // for i
+   #ifdef DEBUG_LKT
+   StartupStore(_T("... DoTraffic Sorted, LKNumTraffic=%d :\n"),LKNumTraffic);
+   for (i=0; i<MAXTRAFFIC; i++) {
+	if (LKSortedTraffic[i]>=0)
+		StartupStore(_T("... DoTraffic LKSortedTraffic[%d]=LKTraffic[%d] Id=%lx Name=<%s> Cn=<%s> Status=%d\n"), i, 
+			LKSortedTraffic[i],
+			LKTraffic[LKSortedTraffic[i]].ID,
+			LKTraffic[LKSortedTraffic[i]].Name,
+			LKTraffic[LKSortedTraffic[i]].Cn,
+			LKTraffic[LKSortedTraffic[i]].Status);
+   }
+   #endif
+
+   return true;
+}
+
+
+// Running every n seconds ONLY when the Target Infopage is active ( we are not drawing map).
+// We DONT use FLARM_Traffic after we copy inside LKTraffic!!
+// Returns true if did calculations, false if ok to use old values
+#define LKTARG LKTraffic[LKTargetIndex]
+bool DoTarget(NMEA_INFO *Basic, DERIVED_INFO *Calculated)
+{
+   double x0, y0, etas, ttgo=0;
+   double bearing, distance;
+
+   if (LKTargetIndex<0 || LKTargetIndex>=MAXTRAFFIC) return false;
+
+   // DoTarget is called from MapWindow, in real time. We have enough CPU power there now
+
+   #if 0
+   if (  LastDoTarget > Basic->Time ) LastDoTarget=Basic->Time;
+   // We calculate in real time, because PFLAA sentences are calculated too in real time
+   if ( Basic->Time < (LastDoTarget+3.0) ) { 
+	return false;
+   }
+   LastDoTarget=Basic->Time;
+   #endif
+
+   #ifdef DEBUG_LKT
+   StartupStore(_T("... DoTarget Copy LKTraffic\n"));
+   #endif
+   LockFlightData();
+   memcpy(LKTraffic, Basic->FLARM_Traffic, sizeof(LKTraffic));
+   UnlockFlightData();
+
+   if (LKTARG.ID <=0) return false;
+
+   DistanceBearing(Basic->Latitude, Basic->Longitude, 
+		LKTARG.Latitude, LKTARG.Longitude,
+		&distance, &bearing);
+   LKTARG.Distance=distance;
+   LKTARG.Bearing=bearing;
+
+   if (LKTARG.Speed>1) {
+	x0 = fastsine(LKTARG.TrackBearing)*LKTARG.Speed;
+	y0 = fastcosine(LKTARG.TrackBearing)*LKTARG.Speed;
+	x0 += fastsine(Calculated->WindBearing)*Calculated->WindSpeed;
+	y0 += fastcosine(Calculated->WindBearing)*Calculated->WindSpeed;
+	// LKTARG.Heading = AngleLimit360(atan2(x0,y0)*RAD_TLK_DEG); // 101210 check
+	etas = isqrt4((unsigned long)(x0*x0*100+y0*y0*100))/10.0;
+	LKTARG.EIAS = etas/AirDensityRatio(LKTARG.Altitude);
+   } else {
+	LKTARG.EIAS=0;
+   }
+
+
+   //double height_above_target = Calculated->NavAltitude - LKTARG.Altitude;
+
+   LKTARG.AltArriv = Calculated->NavAltitude - GlidePolar::MacCreadyAltitude(MACCREADY,
+	distance,
+	bearing,
+	Calculated->WindSpeed, Calculated->WindBearing,
+	0, 0,
+	// final glide, use wind
+	true, 
+	&ttgo) - LKTARG.Altitude;
+	
+   // We CANNOT use RelativeAltitude because when ghost or zombie, it wont be updated in real time in respect
+   // to OUR real position!! Lets use the last target altitude known.
+   double relalt=Calculated->NavAltitude - LKTARG.Altitude;
+   if (relalt==0)
+	LKTARG.GR=999;
+   else {
+	// we need thus to invert the relative altitude
+	LKTARG.GR=distance/(relalt);
+   }
+
+
+   return true;
+}
+
+
+double GetAzimuth() {
+  double sunazimuth=0;
+  if (!Shading) return 0;
+  if (CALCULATED_INFO.WindSpeed<1.7) { // below 6kmh the sun will prevail, for a guess.
+
+	#if 0
+	if (GPS_INFO.Latitude>=0)
+		// NORTHERN EMISPHERE
+		sunazimuth = MapWindow::GetDisplayAngle() + 135; //@@  -45+180=135
+	else
+		// SOUTHERN EMISPHERE
+		sunazimuth = MapWindow::GetDisplayAngle() + 45.0;
+	#else
+	int sunoffset=0; // 0 for southern emisphere, 180 for northern. 
+	if (GPS_INFO.Latitude>=0) sunoffset=180; 
+
+	int dd = abs(DetectCurrentTime()) % (3600*24);
+	int hours = (dd/3600);
+	int mins = (dd/60-hours*60);
+	hours = hours % 24;
+	#if NOSIM
+	if (SIMMODE) {
+		// for those who test the sim mode in the evening..
+		if (hours>21) hours-=12;
+		if (hours<7) hours+=12;
+	}
+	#else
+	#ifdef _SIM_
+	// for those who test the sim mode in the evening..
+	if (hours>21) hours-=12;
+	if (hours<7) hours+=12;
+	#endif
+	#endif
+	double h=(12-(double)hours)-((double)mins/60.0);
+
+	if (h>=0) {
+		if (h>5) h=5;
+		sunazimuth = MapWindow::GetDisplayAngle() +sunoffset + (h*12); //@@ 60 deg from east, max
+	} else {
+		h*=-1;
+		if (h>6) h=6;
+		sunazimuth = MapWindow::GetDisplayAngle() +sunoffset - (h*10);
+	}
+	#endif
+
+  } else {
+	// else we use wind direction for shading. 
+	sunazimuth = MapWindow::GetDisplayAngle()-CALCULATED_INFO.WindBearing;
+  }
+  return sunazimuth;
+}
+
+unsigned int GetWpChecksum(unsigned int index) { //@@ 101018
+
+  int clon, clat, csum;
+ 
+  if (index<NUMRESWP || index > NumberOfWayPoints) {
+	StartupStore(_T("...... Impossible waypoint number=%d for Checksum%s"),index,NEWLINE);
+	return 0;
+  }
+
+  clon=(int)WayPointList[index].Longitude;
+  clat=(int)WayPointList[index].Latitude;
+  if (clon<0) clon*=-1;
+  if (clat<0) clat*=-1;
+
+  csum= WayPointList[index].Name[0] + ((int)WayPointList[index].Altitude*100) + (clat*1000*clon);
+
+  return csum;
+}
+
+
+
+#define LKTH_LAT		Calculated->ThermalEstimate_Latitude
+#define LKTH_LON		Calculated->ThermalEstimate_Longitude
+#define LKTH_R			Calculated->ThermalEstimate_R
+#define LKTH_W			Calculated->ThermalEstimate_W
+#define LK_TURNRATE		Calculated->TurnRate
+#define LK_HEADING		Calculated->Heading
+#define LK_BANKING		Calculated->BankAngle
+#define LK_MYTRACK		GPS_INFO.TrackBearing
+#define LK_MYLAT		GPS_INFO.Latitude
+#define LK_MYLON		GPS_INFO.Longitude
+
+//#define DEBUG_ORBITER	1
+
+// Thermal orbiter by Paolo Ventafridda, November 2010
+void CalculateOrbiter(NMEA_INFO *Basic, DERIVED_INFO *Calculated) {
+
+  static unsigned int timepassed=0;
+  static bool alreadywarned=false;
+
+  if (!Calculated->Circling || !EnableSoundModes) return;
+  timepassed++;
+  if (LKTH_R <1) {
+	return;  // no thermal center available
+  }
+
+  // StartupStore(_T("*** Tlat=%f Tlon=%f R=%f W=%f  TurnRate=%f \n"), LKTH_LAT, LKTH_LON, LKTH_R, LKTH_W, LK_TURNRATE);
+  // StartupStore(_T("*** CalcHeading=%f Track=%f TurnRate=%f Bank=%f \n"), LK_HEADING, LK_MYTRACK,  LK_TURNRATE, LK_BANKING);
+
+  double th_center_distance, th_center_bearing;	// thermal center
+  double orbital_distance, orbital_bearing;	// orbital tangent 
+  double orbital_brgdiff;			// current difference between track and orbital_bearing
+  double orbital_warning_angle;			// warning angle difference
+
+  double alpha;					// alpha angle to the tangent relative to th_center_bearing
+  double circlesense=0;				// 1 for CW, -1 for CCW
+
+  // these parameters should be dynamically calculated for each thermal in the future
+  // th_angle should be correlated to IAS
+
+  double th_radius;				// thermal radius
+  double th_minoverradius, th_maxoverradius;	// radius+overradius is the minimal and max approach distance
+  double th_angle;				// deg/s default turning in the thermal. Pilot should turn with this 
+						// angolar speed.
+  double reactiontime;			// how many seconds pass before the pilot start turning
+  double turningcapacitypersecond;	// how many degrees can I change in my turnrate in a second?
+
+  // TODO: TUNE THEM IN REAL TIME!
+  if (ISPARAGLIDER) {
+	th_radius=50;
+	th_minoverradius=1;
+	th_maxoverradius=100;
+	th_angle=18;
+	turningcapacitypersecond=10;
+	reactiontime=1.0;
+  } else { 
+	th_radius=90;
+	th_minoverradius=5;
+	th_maxoverradius=160;
+	th_angle=16.5;
+	turningcapacitypersecond=10;
+	reactiontime=1.0;
+  }
+
+  circlesense=LK_TURNRATE>0 ? 1 : -1;	//@@ CCW: -1   CW: 1
+  if (circlesense==0 || (fabs(LK_TURNRATE)<8)) { // 8 deg/sec are 45 seconds per turn
+	alreadywarned=false;
+	return;
+  }
+
+  DistanceBearing(LK_MYLAT, LK_MYLON,LKTH_LAT,LKTH_LON,&th_center_distance,&th_center_bearing);
+
+  if (th_center_distance< (th_radius+th_minoverradius)) {
+	#if DEBUG_ORBITER
+	StartupStore(_T("*** Too near:  dist=%.0f < %.0f\n"), th_center_distance, th_radius+th_minoverradius);
+	#endif
+	return;
+  }
+  if (th_center_distance> (th_radius+th_maxoverradius)) {
+	#if DEBUG_ORBITER
+	StartupStore(_T("*** Too far:  dist=%.0f >  %.0f\n"), th_center_distance, th_radius+th_maxoverradius);
+	#endif
+	return;
+  }
+  // StartupStore(_T("*** distance to orbit %.0f (ratio:%0.f)\n"), 
+  // th_center_distance- th_radius , (th_center_distance - th_radius)/th_radius);
+
+  alpha= atan2(th_radius, th_center_distance)*RAD_TO_DEG;
+
+  orbital_bearing  = th_center_bearing - (alpha*circlesense); //@@ add for CCW
+  if (orbital_bearing>359) orbital_bearing-=360;
+  orbital_distance = th_radius / sin(alpha);
+
+  // StartupStore(_T("*** tc_dist=%f th_center_bearing=%f  orbital_distance=%f orbital_bearing=%f  alpha=%f  mydir=%f\n"),
+  // th_center_distance, th_center_bearing, orbital_distance, orbital_bearing, alpha, LK_HEADING );
+
+  if (circlesense==1) 
+	orbital_brgdiff = orbital_bearing-LK_HEADING; // CW
+  else
+	orbital_brgdiff = LK_HEADING - orbital_bearing; // CCW
+
+  if (orbital_brgdiff<0) {
+	#if DEBUG_ORBITER
+	StartupStore(_T("*** passed target orbit direction\n"));
+	#endif
+	return;
+  }
+  if (orbital_brgdiff>90) {
+	#if DEBUG_ORBITER
+	StartupStore(_T("*** wrong direction\n"));
+	#endif
+	return;
+  }
+
+  static int lasttimewarned=0;
+  double actionadvancetime;		// how many seconds are needed in advance, given the current turnrate?
+
+  // assuming circling with the same radius of the perfect thermal: 18deg/s, 20s turn rate approx.
+  actionadvancetime=(circlesense*(LK_TURNRATE/turningcapacitypersecond))+reactiontime;
+
+  // When circling with a radius greater than the default, we have a problem.
+  // We must correct the predicted angle threshold
+  orbital_warning_angle=actionadvancetime*(LK_TURNRATE*LK_TURNRATE)/th_angle;
+  #if DEBUG_ORBITER
+  StartupStore(_T("... LK_TURNRATE=%.0f  advancetime=%.2f  angle=%.1f \n"), LK_TURNRATE, actionadvancetime,orbital_warning_angle);
+  #endif
+
+  if (orbital_brgdiff<orbital_warning_angle) {
+	if (!alreadywarned && ((timepassed-lasttimewarned)>12) ) {
+
+		if (th_center_distance<(th_radius+(th_maxoverradius/2))) {
+			#if DEBUG_ORBITER
+			StartupStore(_T("****** GO STRAIGHT NOW FOR SHORT TIME ******\n"));
+			#endif
+			LKSound(_T("LK_ORBITER1.WAV"));
+		} else {
+			#if DEBUG_ORBITER
+			StartupStore(_T("****** GO STRAIGHT NOW FOR LONGER TIME ******\n"));
+			#endif
+			LKSound(_T("LK_ORBITER2.WAV"));
+		}
+		alreadywarned=true;
+		lasttimewarned=timepassed;
+	} else {
+		#if DEBUG_ORBITER
+		StartupStore(_T("****** GO STRAIGHT, already warned\n"));
+		#endif
+	}
+  } else {
+	alreadywarned=false;
+  }
+
+
+}
+
+@
+
+
+1.24
+log
+@*** empty log message ***
+@
+text
+@d2 3
+a4 1
+  Copyright_License {
+d6 1
+a6 32
+  LK8000 fork of XCSoar Glide Computer (http://xcsoar.sourceforge.net/
+  
+  Copyright (C) 2000 - 2010  
+
+  	M Roberts (original release)
+	Robin Birch <robinb@@ruffnready.co.uk>
+	Samuel Gisiger <samuel.gisiger@@triadis.ch>
+	Jeff Goodenough <jeff@@enborne.f2s.com>
+	Alastair Harrison <aharrison@@magic.force9.co.uk>
+	Scott Penrose <scottp@@dd.com.au>
+	John Wharington <jwharington@@gmail.com>
+	Lars H <lars_hn@@hotmail.com>
+	Rob Dunning <rob@@raspberryridgesheepfarm.com>
+	Russell King <rmk@@arm.linux.org.uk>
+	Paolo Ventafridda <coolwind@@email.it>
+	Tobias Lohner <tobias@@lohner-net.de>
+
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License
+  as published by the Free Software Foundation; either version 2
+  of the License, or (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+}
+a8 2
+///: $Id: LKCalculations.cpp,v 1.23 2010/10/03 20:51:17 root Exp root $
+
+a30 35
+/*
+static double SpeedHeight(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
+static void Vario(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
+static void LD(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
+static void Heading(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
+static void CruiseLD(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
+static void Average30s(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
+static void AverageThermal(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
+static void Turning(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
+static void PercentCircling(NMEA_INFO *Basic, DERIVED_INFO *Calculated, const double Rate);
+static void LastThermalStats(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
+static void ThermalGain(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
+static void MaxHeightGain(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
+static void DistanceToNext(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
+static void EnergyHeightNavAltitude(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
+static void TaskSpeed(NMEA_INFO *Basic, DERIVED_INFO *Calculated, const double this_maccready);
+static void AltitudeRequired(NMEA_INFO *Basic, DERIVED_INFO *Calculated, const double this_maccready);
+static void LDNext(NMEA_INFO *Basic, DERIVED_INFO *Calculated, const double LegToGo);
+static void TaskStatistics(NMEA_INFO *Basic, DERIVED_INFO *Calculated, const double this_maccready);
+static void InSector(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
+static bool  InFinishSector(NMEA_INFO *Basic, DERIVED_INFO *Calculated, const int i);
+static bool  InTurnSector(NMEA_INFO *Basic, DERIVED_INFO *Calculated, const int i);
+static void PredictNextPosition(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
+static void AirspaceWarning(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
+static void AATStats(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
+static void DoAutoMacCready(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
+static void ThermalBand(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
+static void TakeoffLanding(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
+static void TerrainHeight(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
+static void SortLandableWaypoints(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
+static void TerrainFootprint(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
+extern void ConditionMonitorsUpdate(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
+extern void BallastDump();
+*/
+
+a32 1
+//static bool CheckLandableReachableTerrain(NMEA_INFO *Basic, DERIVED_INFO *Calculated, double LegToGo, double LegBearing);
+a37 1
+///: 091123	
+d39 2
+a42 2
+ * VENTA3 Alternates destinations
+ *
+a43 1
+ *
+d49 1
+a49 1
+  ///: 100930 handle virtual wps as alternates
+d97 3
+a99 3
+///: Fill Calculated values for waypoint, assuming that DistanceBearing has already been performed!
+///: Assumes that waypoint IS VALID
+///: Currently called by DoNearest
+a102 7
+//  if (!ValidWayPoint(AltWaypoint)) {
+//    return;
+//  }
+//  double w1lat = WayPointList[AltWaypoint].Latitude;
+//  double w1lon = WayPointList[AltWaypoint].Longitude;
+//  double w0lat = Basic->Latitude;
+//  double w0lon = Basic->Longitude;
+a108 4
+//  DistanceBearing(w1lat, w1lon,
+//                  w0lat, w0lon,
+//                  altwp_dist, NULL);
+
+d134 1
+a134 5
+ * ===========================================
+ * VENTA3 SearchBestAlternate() beta
+ * based on SortLandableWaypoints and extended
+ * by Paolo Ventafridda
+ * ===========================================
+d139 2
+a140 3
+#define MAXBEST 10      // max number of reachable landing points
+			// searched for, among a preliminar list of
+			// MAXBEST * 2 - CPU HOGGING ALERT!
+d146 3
+a148 3
+  double SortedArrivalAltitude[MAXBEST];
+  int SortedApproxDistance[MAXBEST*2];
+  int SortedApproxIndex[MAXBEST*2];
+d150 3
+d157 1
+a157 1
+#ifdef DEBUG_BESTALTERNATE
+d159 1
+a159 1
+#endif
+a162 13
+  /*
+   * VENTA3 search in range of optimum gliding capability
+   * and in any case within an acceptable distance, say 100km.
+   * Anything else is not considered, since we want a safe landing not a long glide.
+   * Preferred waypoints and home are nevertheless checked in any case later.
+   * Notice that if you are over 100km away from the nearest non-preferred landing point you can't
+   * expect a computer to be helpful in case of troubles.
+   *
+   * ApproxDistance is in km, very approximate
+   */
+
+  ///: this is a search on landables, so we do use the safetyaltitude
+  ///: double searchrange=(GPS_INFO.Altitude-SAFETYALTITUDEARRIVAL)* GlidePolar::bestld /1000; 091023 BUGFIX NavAltitude
+d165 1
+a165 1
+    searchrange=2; // lock to home airport at once
+d167 1
+a167 1
+    searchrange=ALTERNATE_MAXRANGE;
+d178 2
+a179 2
+    SortedApproxIndex[i]= -1;
+    SortedApproxDistance[i] = 0;
+d181 4
+d192 3
+a194 2
+      continue; // ignore non-landable fields
+    }
+d196 1
+a196 2
+    int approx_distance = 
+      CalculateWaypointApproxDistance(scx_aircraft, scy_aircraft, i);
+d198 2
+a199 2
+    // Size a reasonable distance, wide enough VENTA3
+    if ( approx_distance > searchrange ) continue;
+d201 2
+a202 2
+    // see if this fits into slot
+    for (k=0; k< MAXBEST*2; k++)  {
+d204 19
+a222 19
+      if (((approx_distance < SortedApproxDistance[k]) 
+           // wp is closer than this one
+	   || (SortedApproxIndex[k]== -1))   // or this one isn't filled
+          && (SortedApproxIndex[k]!= i))    // and not replacing with same
+        {
+	  // ok, got new biggest, put it into the slot.
+          for (l=MAXBEST*2-1; l>k; l--) {
+            if (l>0) {
+	      SortedApproxDistance[l] = SortedApproxDistance[l-1];
+	      SortedApproxIndex[l] = SortedApproxIndex[l-1];
+            }
+          }
+
+          SortedApproxDistance[k] = approx_distance;
+          SortedApproxIndex[k] = i;
+          k=MAXBEST*2;
+        }
+    } // for k
+  } // for i
+d224 1
+a224 1
+#ifdef DEBUG_BESTALTERNATE
+d227 3
+a229 3
+    wsprintf(ventabuffer,TEXT("==================\n"));
+    fprintf(fp,"%S",ventabuffer);
+    wsprintf(ventabuffer,TEXT("[GPSTIME=%02d:%02d:%02d] Altitude=%dm searchrange=%dKm Curr.Best=%d\n\n"),
+a230 1
+	     ///: (int)GPS_INFO.Altitude, (int)searchrange, BestAlternate); 091023 BUGFIX NavAltitude
+d232 9
+a240 9
+    fprintf(fp,"%S",ventabuffer);
+    for ( int dbug=0; dbug<MAXBEST*2; dbug++) {
+      if ( SortedApproxIndex[dbug] <0 ) wsprintf(ventabuffer,_T("%d=empty\n"), dbug);
+      else
+	wsprintf(ventabuffer,TEXT("%d=%s(%d)\n"), dbug, 
+		 WayPointList[SortedApproxIndex[dbug]].Name, SortedApproxDistance[dbug] );
+      fprintf(fp,"%S",ventabuffer);
+    }
+    fclose(fp);
+d242 2
+a243 2
+    DoStatusMessage(_T("CANNOT OPEN DEBUG FILE"));
+#endif
+d248 2
+a249 2
+    sortedLandableIndex[i]= -1;
+    SortedArrivalAltitude[i] = 0;
+d254 1
+a254 3
+  for (int scan_airports_slot=0; 
+       scan_airports_slot<2; 
+       scan_airports_slot++) {
+d256 19
+a274 3
+    if (found_reachable_airport ) { 
+      continue; // don't bother filling the rest of the list
+    }
+d276 1
+a276 4
+    for (i=0; i<MAXBEST*2; i++) {
+      if (SortedApproxIndex[i]<0) { // ignore invalid points
+        continue;
+      }
+d278 2
+a279 9
+      if ((scan_airports_slot==0) && 
+	  #ifdef USEISLANDABLE
+	  (!WayPointCalc[SortedApproxIndex[i]].IsAirport)) {
+	  #else
+	  ((WayPointList[SortedApproxIndex[i]].Flags & AIRPORT) != AIRPORT)) {
+	  #endif
+        // we are in the first scan, looking for airports only
+        continue;
+      }
+d281 15
+a295 24
+      arrival_altitude = 
+        CalculateWaypointArrivalAltitude(Basic,
+                                         Calculated,
+                                         SortedApproxIndex[i]);
+
+	///: FIX use correct mode 091005
+      WayPointCalc[SortedApproxIndex[i]].AltArriv[AltArrivMode] = arrival_altitude; 
+      // This is holding the real arrival value
+
+      /* 
+       * We can't use degraded polar here, but we can't accept an
+       * arrival 1m over safety.  That is 2m away from being
+       * unreachable! So we higher this value to 100m.
+       */
+      arrival_altitude -= ALTERNATE_OVERSAFETY; 
+
+      if (scan_airports_slot==0) {
+        if (arrival_altitude<0) {
+          // in first scan, this airport is unreachable, so ignore it.
+          continue;
+        } else 
+          // this airport is reachable
+          found_reachable_airport = true;
+      }
+d297 13
+a309 22
+      // see if this fits into slot
+      for (k=0; k< MAXBEST; k++) {
+        if (((arrival_altitude > SortedArrivalAltitude[k]) 
+             // closer than this one
+             ||(sortedLandableIndex[k]== -1))
+            // or this one isn't filled
+	    &&(sortedLandableIndex[k]!= i))  // and not replacing
+	  // with same
+          {
+	    /*
+	      #ifdef DEBUG_BESTALTERNATE
+	      wsprintf(ventabuffer,TEXT("SAI[i=%d]=%s   SLI[k=%d]=n%d"), i, WayPointList[SortedApproxIndex[i]].Name,
+	      k, sortedLandableIndex[k] );
+	      if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+	        {;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+	      #endif
+	    */
+            double wp_distance, wp_bearing;
+            DistanceBearing(Basic->Latitude , Basic->Longitude ,
+                            WayPointList[SortedApproxIndex[i]].Latitude,
+                            WayPointList[SortedApproxIndex[i]].Longitude,
+                            &wp_distance, &wp_bearing);
+d311 2
+a312 2
+	    WayPointCalc[SortedApproxIndex[i]].Distance = wp_distance;
+	    WayPointCalc[SortedApproxIndex[i]].Bearing = wp_bearing;
+d314 3
+a316 7
+            bool out_of_range;
+            double distance_soarable =
+              FinalGlideThroughTerrain(wp_bearing, Basic, Calculated,
+                                       NULL,
+                                       NULL,
+                                       wp_distance,
+                                       &out_of_range, NULL);
+d318 5
+a322 5
+            if ((distance_soarable>= wp_distance)||(arrival_altitude<0)) {
+              // only put this in the index if it is reachable
+              // and doesn't go through terrain, OR, if it is unreachable
+              // it doesn't matter if it goes through terrain because
+              // pilot has to climb first anyway
+d324 7
+a330 19
+              // ok, got new biggest, put it into the slot.
+              for (l=MAXBEST-1; l>k; l--) {
+                if (l>0) {
+                  SortedArrivalAltitude[l] = SortedArrivalAltitude[l-1];
+                  sortedLandableIndex[l] = sortedLandableIndex[l-1];
+                }
+              }
+
+              SortedArrivalAltitude[k] = arrival_altitude;
+              sortedLandableIndex[k] = SortedApproxIndex[i];
+              k=MAXBEST;
+            } 
+          } // if (((arrival_altitude > SortedArrivalAltitude[k]) ...
+	/*
+	  #ifdef DEBUG_BESTALTERNATE
+	  else {
+	  wsprintf(ventabuffer,TEXT("  SAI[i=%d]=%s   SLI[k=%d]=n%d"), i, WayPointList[SortedApproxIndex[i]].Name,
+	  k, sortedLandableIndex[k] );
+	  if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL){;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+d332 7
+a338 5
+	  } 
+	  #endif
+	*/
+      } // for (k=0; k< MAXBEST; k++) {
+    }
+d341 1
+a341 3
+  // extended part by Paolo
+
+#ifdef DEBUG_BESTALTERNATE
+d343 1
+a343 5
+    wsprintf(ventabuffer,_T("\nLandable:\n"));
+    fprintf(fp,"%S",ventabuffer);
+    for ( int dbug=0; dbug<MAXBEST; dbug++) {
+      if ( sortedLandableIndex[dbug] <0 ) {
+	wsprintf(ventabuffer,_T("%d=empty\n"), dbug);
+d345 18
+a362 14
+      }
+      else
+	{
+	  wsprintf(ventabuffer,_T("%d=%s (%dm)"), dbug, 
+		   WayPointList[sortedLandableIndex[dbug]].Name, (int)SortedArrivalAltitude[dbug] );
+	  fprintf(fp,"%S",ventabuffer);
+	  if ( sortedLandableIndex[dbug] == HomeWaypoint )
+	    wsprintf(ventabuffer,_T(":HOME") );
+	  else
+	    if ( WayPointCalc[sortedLandableIndex[dbug]].Preferred == TRUE )
+	      wsprintf(ventabuffer,_T(":PREF") );
+	    else
+	      wsprintf(ventabuffer,_T("") );
+	  fprintf(fp,"%S\n",ventabuffer);
+d364 1
+a364 3
+				
+    }
+    fclose(fp);
+d366 2
+a367 2
+    DoStatusMessage(_T("CANNOT OPEN DEBUG FILE"));
+#endif
+d375 9
+a383 9
+    /*
+     * We're under the absolute safety altitude at MSL, can't be any better elsewhere!
+     * Use the closer, hopefully you are landing on your airport
+     */
+#ifdef DEBUG_BESTALTERNATE
+    wsprintf(ventabuffer,TEXT("Under safety at MSL, using closer"));
+    if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL){;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+    // DoStatusMessage(ventabuffer);
+#endif
+d386 2
+a387 2
+    for (k=0;  k< MAXBEST; k++) {
+      curwp = sortedLandableIndex[k];
+d389 8
+a396 8
+      if ( !ValidWayPoint(curwp) ) {
+	//#ifdef DEBUG_BESTALTERNATE
+	//		wsprintf(ventabuffer,TEXT("k=%d skip invalid waypoint curwp=%d"), k, curwp );
+	//		if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL){;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+	//#endif
+	continue;
+	// break;  // that list is unsorted !
+      }
+d398 7
+a404 16
+      // At the first unsafe landing, stop searching down the list and use the best found or the first
+      double grsafe=safecalc - WayPointList[curwp].Altitude;
+      if ( grsafe <= 0 ) {
+	/*
+	 * We're under the safety altitude for this waypoint. 
+	 */
+	/*
+	  #ifdef DEBUG_BESTALTERNATE
+	  wsprintf(ventabuffer,TEXT("N.%d=%s under safety."),k, WayPointList[curwp].Name);
+	  if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL){;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+	  DoStatusMessage(ventabuffer);
+	  #endif
+	*/
+	break;  
+	//continue; 
+      }
+d406 2
+a407 2
+      WayPointCalc[curwp].GR = WayPointCalc[curwp].Distance / grsafe; grsafe = WayPointCalc[curwp].GR;
+      curgr=WayPointCalc[curwp].GR;
+d409 8
+a416 13
+      if ( grsafe > grpolar ) {
+	/*
+	 * Over degraded polar GR for this waypoint
+	 */
+#ifdef DEBUG_BESTALTERNATE
+	wsprintf(ventabuffer,TEXT("k=%d %s grsafe=%d > grpolar=%d, skipping. "), 
+		 k, WayPointList[curwp].Name, (int)grsafe, (int)grpolar );
+	if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+	  {;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+#endif
+	continue; 
+	// break; 
+      }
+d418 3
+a420 3
+      // Anything now is within degraded glide ratio, so if our homewaypoint is safely reachable then 
+      // attempt to lock it even if we already have a valid best, even if it is preferred and even
+      // if it has a better GR
+d422 13
+a434 9
+      if ( (HomeWaypoint >= 0) && (curwp == HomeWaypoint) ) {
+#ifdef DEBUG_BESTALTERNATE
+	wsprintf(ventabuffer,TEXT("k=%d locking Home"), k);
+	if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+	  {;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+#endif
+	bestalternate = curwp;
+	break;
+      }
+d436 1
+a436 1
+      // If we already found a preferred, stop searching for anything but home
+d438 9
+a446 9
+      if ( bestalternate >= 0 && WayPointCalc[bestalternate].Preferred) {
+#ifdef DEBUG_BESTALTERNATE
+	wsprintf(ventabuffer,TEXT("Ignoring:[k=%d]%s because current best <%s> is a PREF"), k, 
+		 WayPointList[curwp].Name, WayPointList[bestalternate].Name);
+	if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+	  {;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+#endif
+	continue;
+      }
+d448 1
+a448 1
+      // VENTA5 TODO: extend search on other preferred, choosing the closer one
+d450 1
+a450 1
+      // Preferred list has priority, first found is taken (could be smarted)
+d452 11
+a462 11
+      if ( WayPointCalc[ curwp ].Preferred ) {
+	bestalternate=curwp;
+#ifdef DEBUG_BESTALTERNATE
+	wsprintf(ventabuffer,TEXT("k=%d PREFERRED bestalternate=%d,%s"), k,curwp,
+		 WayPointList[curwp].Name );
+	if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+	  {;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+	// DoStatusMessage(ventabuffer);
+#endif
+	continue;
+      }
+d464 2
+a465 2
+      // else we remember the best landable GR found so far. We shall use this in case
+      // at the end of the search no home and no preferred were found.
+d467 26
+a492 29
+      if ( curgr < curbestgr ) {
+	#ifdef USEISLANDABLE
+	if ( WayPointCalc[curwp].IsAirport) {
+	#else
+	if ( ( WayPointList[curwp].Flags & AIRPORT) == AIRPORT) {
+	#endif
+	  curbestairport=curwp;
+	  curbestgr=curgr; // ONLY FOR AIRPORT! NOT FOR OUTLANDINGS!!
+#ifdef DEBUG_BESTALTERNATE
+	  wsprintf(ventabuffer,TEXT("[k=%d]<%s> (curgr=%d < curbestgr=%d) set as bestairport"), 
+		   k, WayPointList[curwp].Name, (int)curgr, (int)curbestgr );
+	  if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+	    {;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+#endif
+	}
+	else {
+	  curbestoutlanding=curwp;
+#ifdef DEBUG_BESTALTERNATE
+	  wsprintf(ventabuffer,TEXT("[k=%d]<%s> (curgr=%d < curbestgr=%d) set as bestoutlanding"), 
+		   k, WayPointList[curwp].Name, (int)curgr, (int)curbestgr );
+	  if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+	    {;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+#endif
+	}
+      }
+
+      continue;
+
+    }
+d496 9
+a504 35
+    if ( curbestairport >= 0 ) {
+#ifdef DEBUG_BESTALTERNATE
+      wsprintf(ventabuffer,TEXT("--> no bestalternate, choosing airport <%s> with gr=%d"), 
+	       WayPointList[curbestairport].Name, (int)curbestgr );
+      if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+	{;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+      // DoStatusMessage(ventabuffer);
+#endif
+      bestalternate=curbestairport;
+    } else {
+      if ( curbestoutlanding >= 0 ) {
+#ifdef DEBUG_BESTALTERNATE
+	wsprintf(ventabuffer,TEXT("--> no bestalternate, choosing outlanding <%s> with gr=%d"), 
+		 WayPointList[curbestoutlanding].Name, (int)curbestgr );
+	if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+	  {;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+	// DoStatusMessage(ventabuffer);
+#endif
+	bestalternate=curbestoutlanding;
+      } else {
+	/* 
+	 * Here we are in troubles, nothing really reachable, but we
+	 * might still be lucky to be within the "yellow" glide
+	 * path. In any case we select the best arrival altitude place
+	 * available, even if it is "red".
+	 */
+	if ( ValidWayPoint(sortedLandableIndex[0]) ) {
+	  bestalternate=sortedLandableIndex[0];
+#ifdef DEBUG_BESTALTERNATE
+	  wsprintf(ventabuffer,TEXT("--> No bestalternate was found, and no good airport or outlanding!\n    Setting first available: <%s>"),
+		   WayPointList[bestalternate].Name);
+	  if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+	    {;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+	  // DoStatusMessage(ventabuffer);
+#endif
+d506 4
+a509 61
+	  /*
+	   * Else the Landable list is EMPTY, although we might be
+	   * near to a landable point but the terrain obstacles look
+	   * too high (or the DEM resolution is not high enough to
+	   * show a passage).
+	   * 
+	   * Still the old BestAlternate could simply be out of range,
+	   * but reachable...  These values have certainly just been
+	   * calculated by DoAlternates() , so they are usable.
+	   */
+	  // Attempt to use the old best, but check there's one.. it
+	  // might be empty for the first run
+	  if ( ValidWayPoint(active_bestalternate_on_entry) )
+	    {
+	      bestalternate=active_bestalternate_on_entry;
+	      if ( WayPointCalc[bestalternate].AltArriv[AltArrivMode] <0 ) {
+#ifdef DEBUG_BESTALTERNATE
+		wsprintf(ventabuffer,TEXT("Landable list is empty and old bestalternate <%s> has Arrival=%d <0, NO good."),
+			 WayPointList[bestalternate].Name, (int) WayPointCalc[bestalternate].AltArriv[AltArrivMode]);
+		if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+		  {;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+#endif
+		// Pick up the closest!
+		if ( ValidWayPoint( SortedApproxIndex[0]) ) {
+		  bestalternate=SortedApproxIndex[0];
+#ifdef DEBUG_BESTALTERNATE
+		  wsprintf(ventabuffer,
+			   TEXT(".. using the closer point found: <%s> distance=~%d Km, you need to climb!"),
+			   WayPointList[bestalternate].Name, SortedApproxDistance[0]);
+		  if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+		    {;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+#endif
+		} else {
+		  /// CRITIC POINT
+		  // Otherwise .. 
+		  // nothing, either keep the old best or set it empty
+		  // Put here "PULL-UP! PULL-UP! Boeing cockpit voice sound and possibly shake the stick.
+#ifdef DEBUG_BESTALTERNATE
+		  wsprintf(ventabuffer,TEXT("Out of ideas..good luck"));
+		  if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+		    {;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+#endif
+		}
+	      } else
+		{
+		  // MapWindow2 is checking for reachables separately,
+		  // se let's see if this closest is reachable
+		  if ( ValidWayPoint( SortedApproxIndex[0] )) {
+		    if ( WayPointList[SortedApproxIndex[0]].Reachable ) {
+		      bestalternate = SortedApproxIndex[0];
+#ifdef DEBUG_BESTALTERNATE
+		      wsprintf(ventabuffer,TEXT("Closer point found: <%s> distance=~%d Km, Reachable with arrival at %d!"),
+			       WayPointList[bestalternate].Name, SortedApproxDistance[0], (int) WayPointList[bestalternate].AltArivalAGL);
+		      if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+			{;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+#endif
+		    } else
+		      {
+#ifdef DEBUG_BESTALTERNATE
+			wsprintf(ventabuffer,TEXT("Closer point found: <%s> distance=~%d Km, UNReachable"),
+				 WayPointList[bestalternate].Name, SortedApproxDistance[0]);
+a510 9
+			  {;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+#endif
+		      }
+		  } else
+		    {
+#ifdef DEBUG_BESTALTERNATE
+		      wsprintf(ventabuffer,TEXT("Landable list is empty, no Closer Approx, but old best %s is still reachable (arrival=%d)"),
+			       WayPointList[bestalternate].Name, (int)WayPointCalc[bestalternate].AltArriv[AltArrivMode]);
+		      if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+d512 115
+a626 2
+#endif
+		    }
+a627 9
+	    } else
+	    {
+	      /// CRITIC POINT
+#ifdef DEBUG_BESTALTERNATE
+	      wsprintf(ventabuffer,TEXT("Landable list is empty, and NO valid old bestalternate"));
+	      if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+		{;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+#endif
+	    }
+a628 16
+	/*
+	 * Don't make any sound at low altitudes, pilot is either taking off
+	 * or landing, or searching for an immediate outlanding.  Do not disturb.
+	 * If safetyaltitude is 300m, then below 500m be quiet.
+	 * If there was no active alternate on entry, and nothing was found, then we
+	 * better be quiet since probably the user had already been alerted previously
+	 * and now he is low..
+	 */
+	if ( bestalternate >0 && 
+	     ((safecalc-WayPointList[bestalternate].Altitude) >ALTERNATE_QUIETMARGIN)) {
+	  if ( WayPointList[bestalternate].AltArivalAGL <100 )
+	    AlertBestAlternate(2);
+	  //	if (EnableSoundModes) PlayResource(TEXT("IDR_WAV_RED"));
+	}
+      }
+    }
+d638 9
+a646 10
+    if ( HomeWaypoint >= 0 ) {
+#ifdef DEBUG_BESTALTERNATE
+      wsprintf(ventabuffer,TEXT("BESTALTERNATE HOME (%s)"), 
+	       WayPointList[HomeWaypoint].Name );
+      if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+	{;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+      //DoStatusMessage(ventabuffer);
+#endif
+      bestalternate=HomeWaypoint;
+    } 
+d648 13
+a660 13
+    // If still invalid, i.e. not -1, then there's a big problem
+    if ( !ValidWayPoint(bestalternate) ) {
+      //if (EnableSoundModes) PlayResource(TEXT("IDR_WAV_RED"));
+      AlertBestAlternate(2);
+#ifdef DEBUG_BESTALTERNATE
+      wsprintf(ventabuffer,TEXT("WARNING ERROR INVALID BEST=%d"),bestalternate);
+      if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+	{;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+#endif
+      DoStatusMessage(_T("ERR-051 invalid bestalternate"));
+      FailStore(_T("------ ERR-051 invalid bestalternate <%d>%s"),bestalternate,NEWLINE); // 091122
+      // todo: immediate disable function  
+    } 
+d664 3
+a666 4
+    BestAlternate = bestalternate;
+    if ( bestalternate >0 && ((safecalc-WayPointList[bestalternate].Altitude) >ALTERNATE_QUIETMARGIN))
+      AlertBestAlternate(1);
+    //		if (EnableSoundModes) PlayResource(TEXT("IDR_WAV_GREEN"));
+d670 3
+a672 1
+}
+d689 26
+a714 26
+    if (EnableSoundModes) {
+      LastAlertTime = GPS_INFO.Time; 
+      switch (soundmode) {
+      case 0:
+	break;
+      case 1:
+#ifndef DISABLEAUDIO
+	PlayResource(TEXT("IDR_WAV_GREEN"));
+#endif
+	_stprintf(mbuf,_T("BestAlternate: %s  @@%.0f%s"), WayPointList[BestAlternate].Name,
+		DISTANCEMODIFY*WayPointCalc[BestAlternate].Distance,
+		(Units::GetDistanceName()) );
+	Message::Lock(); // 091211
+	Message::AddMessage(5000, 3, mbuf);
+	Message::Unlock();
+	break;
+      case 2: 
+#ifndef DISABLEAUDIO
+	PlayResource(TEXT("IDR_WAV_RED"));
+#endif
+	wsprintf(mbuf,_T("BestAlternate: WARNING, NO LANDINGS"));
+	///: Do NOT disturb the pilot for 5 minutes with useless further messages
+	LastAlertTime += 180.0;
+	Message::Lock(); // 091211
+	Message::AddMessage(10000, 3, mbuf);
+	Message::Unlock();
+d716 20
+a735 13
+	break;
+      case 11:
+#ifndef DISABLEAUDIO
+	PlayResource(TEXT("IDR_WAV_GREEN"));
+	PlayResource(TEXT("IDR_WAV_GREEN"));
+#endif
+	break;
+      default:
+	break;
+      }
+#ifdef DEBUG_BESTALTERNATE
+      wsprintf(ventabuffer,TEXT("(PLAYED ALERT SOUND, soundmode=%d)"), soundmode);
+      if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+d737 1
+a737 8
+#endif
+    } 
+  } else {
+#ifdef DEBUG_BESTALTERNATE
+    wsprintf(ventabuffer,TEXT("(QUIET, NO PLAY ALERT SOUND, soundmode=%d)"), soundmode);
+    if ((fp=_tfopen(_T("DEBUG.TXT"),_T("a")))!= NULL)
+      {;fprintf(fp,"%S\n",ventabuffer);fclose(fp);}
+#endif
+d741 1
+a741 8
+///:
+///: Nearest landings for LK8000 
+///: Running every n seconds ONLY when the nearest page is active and we are not drawing map.
+///: This is measured to take 10ms cpu on a HP314
+///: 120kmh = 33.3m/s     5s = 167m  consider altitude loss, assuming -5m/s * 5 = -25m QNH
+///: So we calculate new values every 5 seconds.
+///:
+///: CAREFUL> SortedLandablexxx sized MAXNEAREST!!
+d751 1
+a751 1
+   ///: careful, consider MapSpaceMode could change while running!
+d756 1
+a756 1
+   ///: Consider replay mode...
+a760 1
+   ///: 101003 LastDoNearest
+a767 2
+   ///: Now THIS is an old bug.. WayPointList is not empty because of a task, which loaded waypoints.. 
+   ///: even if there is no valid wp file configured! TODO FIX possible errors somewhere 090916
+d769 1
+a769 1
+   ///: No need to check airports, cannot be better
+a770 1
+	///: DoStatusMessage(_T("DoNearest WARNING: rangeLandableNumber = 0"));
+d781 3
+a783 3
+   ///: Sort by distance in SortedLandableIndex
+   ///: We sample twice as much as needed values. 
+   ///: MAXNEAREST should really be the real number of displayed values and not a constant
+d803 1
+a803 1
+		///: we should be at the end and could break out, however we do a failsafe forward
+d810 1
+a810 1
+	///: DISTANCE AND BEARING CALCULATED FOR WAYPOINT
+d817 2
+a818 2
+	///: we calculate DoNearestAlternate only if really needed here, since we do it for MAXNEAREST*2
+	///: which is TWICE what we really need. 
+d820 1
+a820 1
+		///: wp name, should not happen
+d824 1
+a824 1
+			///: requires later DoNearestAlternate!
+a827 1
+				///: wp_value=wp_distance; // 100328
+d836 1
+a836 1
+			///: requires later DoNearestAlternate!
+d845 1
+a845 1
+			///: we sort lowest is better, so in this case we invert sign since higher is better
+d853 1
+a853 1
+	///: insert sorted value for Landfields and Airports
+d855 1
+a855 3
+		///: if wp is closer than this one
+		///: or this one isn't filled
+		///: and not replacing with same
+d860 1
+a860 1
+			///: ok, got new closer waypoint, put it into the slot.
+d870 1
+a870 1
+			///: Distance and eventually name sorted still need DoNearest to be done
+d875 1
+a875 1
+			///: update number of items inserted so far 
+d885 1
+a885 1
+	///: First we get the distance sorting
+d891 1
+a891 1
+			///: ok, got new closer waypoint, put it into the slot.
+d903 1
+a903 1
+			///: update number of items inserted so far
+d917 2
+a918 2
+			///: There are less than 25 or whatever items available for sorting, no problems
+			///: DoStatusMessage(_T("DBG-198 sorting nearest"));
+d922 1
+a922 1
+			///: if unfilled position or filled with not the same item already
+d932 1
+a932 1
+				///: Distance and eventually name sorted still need DoNearest to be done
+d935 1
+a935 1
+				///: update number of items inserted so far 
+d943 1
+a943 1
+   ///: Set flag dataready for LK8000. Reading functions will clear it!
+d946 1
+a946 1
+   ///: update items found so far, in public variable. We have looked for MAXNEAREST items from a list of MAXNEAREST*1.5
+a947 1
+   ///: TCHAR venta[50]; _stprintf(venta,_T("donearest sortednumber=%d"),SortedNumber); DoStatusMessage(venta);
+d951 4
+a954 16
+///:
+///: REDUCE WAYPOINTLIST TO THOSE IN RANGE, ROUGHLY SORTED BY DISTANCE
+///: Keep an updated list of in-range landable waypoints.
+///: Since useful fields are searched in the near space, normally around 100km, we keep 150km range
+///: and we only need to update this list within the needed time to achieve 50km, at 200kmh is 15 minutes.
+///: We update every 10 minutes, it's way enough! // TODO EVERY MINUTE or TWO MINUTES!
+///: Nearest will use this list only.
+///: BestAlternate will soon do the same
+///: Exceptions such as preferred and home should be added by calling functions later on, not here.
+///: 
+///: Attention: since this list is sorted only periodically, calling functions must sort data themselves.
+///: AT ALL EFFECTS DATA MAY BE UNSORTED AFTER A FEW SECONDS!
+///: DISTANCE IS ASSUMED ON A FLAT SURFACE, ONLY APPROXIMATED!
+///:
+///: Updated 090820 now reset when waypoint files have changed (inside xcsoar.cpp)
+///: Updated 090924 now setting also turnpoint list
+d961 3
+a963 1
+///: TCHAR Buffer[90]; 
+d965 2
+a968 1
+   bool inserted;
+a970 1
+///:	DoStatusMessage(_T("DRLL !WayPointList"));
+d974 2
+a975 2
+   ///: Do init and RETURN, caution!
+   ///: We need a locked GPS position to proceed!
+a989 1
+///:	DoStatusMessage(_T("DRLL DoInit done"));
+a994 1
+   ///: get our current position
+a997 1
+   ///: Clear search lists
+d1012 3
+d1016 1
+a1016 4
+
+	///: Skip non landable waypoints
+//	if (!(((WayPointList[i].Flags & AIRPORT) == AIRPORT) || ((WayPointList[i].Flags & LANDPOINT) == LANDPOINT))) 
+//		continue; 
+d1020 1
+a1020 1
+	///: Size a reasonable distance, wide enough 
+d1023 1
+a1023 1
+	///: Get only non landables
+a1024 2
+	///: if (!WayPointCalc[i].IsLandable) {
+	///: 100419
+d1033 6
+a1039 1
+			///: if  wp is closer than this one
+a1040 1
+			///: or this one isn't filled
+a1041 1
+			///: and not replacing with same
+d1058 1
+d1066 1
+a1066 1
+	///: Skip non landable waypoints that are between DSTRANGETURNPOINT and DSTRANGELANDABLE
+d1074 6
+a1079 1
+	///: First we do it for all landables
+a1080 1
+		///: if  wp is closer than this one
+a1081 1
+		///: or this one isn't filled
+a1082 1
+		///: and not replacing with same
+d1099 1
+d1102 1
+a1102 1
+	///: If it's an Airport then we also take it into account separately
+d1109 6
+a1115 1
+			///: if  wp is closer than this one
+a1116 1
+			///: or this one isn't filled
+a1117 1
+			///: and not replacing with same
+d1134 1
+d1140 2
+a1141 1
+	///: We have filled the list... which was too small 
+a1145 5
+   ///: TCHAR Buffer[100]; 
+   ///: wsprintf(Buffer,_T("DRLL RUN: APT=%d LND=%d TP=%d"),RangeAirportNumber, RangeLandableNumber,RangeTurnpointNumber);
+   ///: DoStatusMessage(Buffer);
+
+
+a1149 3
+///:
+///: Create the common list
+///:
+a1163 1
+   ///: BUGFIX 090919 Always be sure to unlock before returning!
+d1166 1
+a1166 1
+   ///: first we look for home and place it in position 0
+d1171 1
+a1171 1
+   ///: Then we insert the alternates, if existing
+d1176 1
+a1176 1
+   ///: Then we insert active destination and task points
+a1180 5
+///:  TCHAR Buffer[200];
+///:  wsprintf(Buffer,_T("Num=%d Home=%d Best=%d Alt1=%d Alt2=%d 0=%d 1=%d 2=%d 3=%d 4=%d"),CommonNumber, HomeWaypoint,
+///:  BestAlternate,Alternate1,Alternate2,
+///:  CommonIndex[0], CommonIndex[1], CommonIndex[2], CommonIndex[3], CommonIndex[4]);
+///:  DoStatusMessage(Buffer);
+d1186 2
+a1187 2
+///: Only insert if not already existing in the list
+///: and valid waypoint
+a1196 1
+    ///: CommonNumber va incrementato solo dopo , se cn=3  index[2] !
+d1200 1
+a1200 3
+///:
+///: Load and save the recent list
+///:
+a1210 1
+  ///: LocalPath(buffer,TEXT(LKF_RECENTS)); TESTFIX 091101
+d1261 1
+a1261 1
+	///: 0911101 takeoff recent is different from others and can be forced on
+a1262 2
+		///: 101018 FIXED bug negative long and latitudes in csum
+		///: if ( (WayPointList[nwp].Name[0]+((int)WayPointList[nwp].Altitude*100)+((int)WayPointList[nwp].Latitude*1000*(int)WayPointList[nwp].Longitude)) != csum ) {	FIXED 101018
+a1285 1
+  ///: LocalPath(buffer,TEXT(LKF_RECENTS)); 091101
+a1299 1
+   ///: 100225
+a1316 4
+	///: 100219 do not save in history file task wps added from task files, since they
+	///: are NOT saved into Wp files as well
+	///: BUGFIX 100225 do not check a wp until we know it is still valid!! Waypointlist existance now checked also
+	///: at beginning, but we never know!
+a1322 3
+	///: 100225 previously we were saving wrong wp in case of file had changed
+	///: 101018 FIXED bug negative long and latitudes in csum
+	///: if ( (WayPointList[RecentIndex[i]].Name[0]+((int)WayPointList[RecentIndex[i]].Altitude*100)+((int)WayPointList[RecentIndex[i]].Latitude*1000*(int)WayPointList[RecentIndex[i]].Longitude)) != RecentChecksum[i] ) { FIXED 101018
+a1328 1
+	///: else we finally save the history wp
+d1338 3
+a1340 3
+///: Only insert if not already existing in the list
+///: Insert a wp into the list: always put it on top. If already existing in the list, 
+///: remove old existing one from the old position.
+d1350 1
+a1350 1
+    ///: j holding number of valid recents, excluded the new one to be put in position 0
+a1358 1
+    ///: RecentChecksum[0]= WayPointList[newwp].Name[0] + ((int)WayPointList[newwp].Altitude*100) + ((int)WayPointList[newwp].Latitude*1000*(int)WayPointList[newwp].Longitude); FIXED 101018
+d1396 1
+a1396 3
+///:
+///: Recent informations: called from Calculation task
+///:
+d1403 1
+a1403 1
+   ///: Safe initialisation, passthrough mode
+d1414 1
+a1414 1
+   ///: Consider replay mode...
+d1438 1
+a1438 2
+///: Common informations: home, best, alt1, alt2 and recent waypoints
+///:
+d1446 1
+a1446 1
+   ///: Safe initialisation, passthrough mode
+d1456 1
+a1456 1
+   ///: Consider replay mode...
+a1460 1
+   ///: 101003 LastDoCommon
+d1480 5
+a1484 7
+///:
+///: Nearest turnpoints
+///: Running every n seconds ONLY when the nearest page is active and we are not drawing map.
+///: This is measured to take 10ms cpu on a HP314
+///: 120kmh = 33.3m/s     5s = 167m  consider altitude loss, assuming -5m/s * 5 = -25m QNH
+///: So we calculate new values every 5 seconds.
+///:
+a1503 1
+   ///: Consider replay mode...
+a1507 1
+   ///: 101003 LastDoNearestTp
+a1515 2
+   ///: Now THIS is an old bug.. WayPointList is not empty because of a task, which loaded waypoints.. 
+   ///: even if there is no valid wp file configured! TODO FIX possible errors somewhere 090916
+a1517 1
+	///: DoStatusMessage(_T("DBG-065: rangeTurnpointNumber = 0"));
+d1521 1
+a1521 1
+   ///: This is done also at startup from InitModeTable
+d1528 1
+a1528 3
+   ///: Sort by distance in SortedTurnpointIndex
+   ///: We sample twice as much as needed values. 
+   ///: MAXNEARTURNPOINT should really be the real number of displayed values and not a constant
+a1534 1
+		///: we should be at the end and could break out, however we do a failsafe forward
+a1541 1
+	///: DISTANCE AND BEARING CALCULATED FOR WAYPOINT
+a1546 2
+	///: we calculate DoNearestAlternate only if really needed here, since we do it for MAXNEAREST*2
+	///: which is TWICE what we really need. 
+a1547 1
+		///: wp name, should not happen
+a1550 1
+			///: requires later DoNearestAlternate!
+a1553 1
+				///: wp_value=wp_distance; 100328
+a1561 1
+			///: requires later DoNearestAlternate!
+a1569 1
+			///: we sort lowest is better, so in this case we invert sign since higher is better
+a1577 3
+		///: if wp is closer than this one
+		///: or this one isn't filled
+		///: and not replacing with same
+a1581 1
+			///: ok, got new closer waypoint, put it into the slot.
+a1590 1
+			///: Distance and eventually name sorted still need DoNearest to be done
+a1594 1
+			///: update number of items inserted so far 
+a1602 2
+
+	///: First we get the distance sorting
+a1608 1
+			///: ok, got new closer waypoint, put it into the slot.
+a1617 3
+			///: Distance and eventually name sorted still need DoNearest to be done
+			//if (SortedMode[MapSpaceMode]<3) DoNearestAlternate(Basic,Calculated,wp_index);
+
+a1619 1
+			///: update number of items inserted so far 
+a1635 2
+			///: less than 25 or whatever items available, no problems
+			///: DoStatusMessage(_T("DBG-199 sorting tps"));
+a1639 1
+			///: if unfilled position or filled with not the same item already
+a1648 1
+				///: Distance and eventually name sorted still need DoNearest to be done
+a1655 1
+   ///: Set flag dataready for LK8000. Reading functions will clear it!
+a1657 1
+   ///: update items found so far, in public variable. We have looked for MAXNEARTURNPOINT items from a list of MAXNEARTURNPOINT*2
+a1659 3
+///:   TCHAR vBuffer[200];
+///:   wsprintf(vBuffer,_T("stpnumber=%d 1=%d 2=%d 3=%d"), SortedTurnpointNumber, p_sortedIndex[0], p_sortedIndex[1], p_sortedIndex[2]);
+///:   DoStatusMessage(vBuffer);
+d1663 2
+a1664 2
+///: AverageLD return 0 if invalid, or 999 if too high...
+///: This function will return bestld if too high, and last valid average if invalid because on ground or circling
+a1678 4
+
+
+///////////// TODO ////////////////////
+
+d1699 2
+a1700 6
+///: 091123 bugfix ActiveWayPoint !
+///: Warning: this is called from mapwindow Draw task , not from calculations!!
+///: this is calling CheckLandableReachableTerrainNew
+///:
+///: Calculating:
+///
+d1704 3
+d1710 2
+a1711 2
+  ///: LandableReachable is used only by the thermal bar indicator in MapWindow2, after here
+  ///: apparently, is used to tell you if you are below final glide but in range for a landable wp
+d1718 5
+d1725 1
+a1726 1
+    ///: if ((WayPointList[i].Visible && (WayPointCalc[i].IsLandable )) BUGFIX 100307
+a1737 1
+	///: this is necessary because the destination could also be a turnpoint not landable, inside a task
+a1749 4
+	// VENTA6 TODO set also AltArriv here	
+     
+	///: 091221 We use GetMacCready or we have different values boxed on map
+	///: altitudeRequired = GlidePolar::MacCreadyAltitude (GlidePolar::SafetyMacCready, waypointDistance, waypointBearing,  091221
+a1764 2
+		///: this landable waypoint (or taskpoint) has a positive arrival altitude, see if it has obstacles. No by default
+		///: Originally this check was made only for active waypoint or .. if it was a !LandableReachable ??
+d1768 1
+a1768 2
+			///: this is probably wrong, because it could be a turnpoint and not a landing point BUG! 091123
+			if ((signed)i!=TASKINDEX) {  // TESTFIX 091203
+a1770 1
+			///: no need to set WayPoint Reachable again, it is on by default here
+a1771 7
+
+	  	///: ] else if ((int)i==ActiveWayPoint) [ // buggy 091123 since 14.2.2008 
+		//	if (!WaypointInTask(i)) {  // BUGFIX 091123
+	    	//		WayPointList[i].Reachable = FALSE;
+	  	//	}
+
+			///: else this point is not reachable! 091203
+a1774 1
+		///: altitude difference is negative, not reachable 091203
+a1780 10
+  // if (!LandableReachable) { // 091123
+    // widen search to far visible waypoints 
+    // (only do this if can't see one at present)
+
+  ///: 091203 we extend the check also for far visibile landables, for the BestAlternate. It works also in low zoom,
+  ///: so it is not correlated to map viewing, and need to know if a landing point is really reachable
+
+  ///: However, we can assume that if a landablereachable was found, anything else is far away and will not be chosen by
+  ///: the BestAlternate !
+
+d1782 4
+d1787 1
+a1808 2
+			///: altitudeRequired = GlidePolar::MacCreadyAltitude (GlidePolar::SafetyMacCready, waypointDistance, waypointBearing, 
+			///: 091221 Using GetMacCready
+a1824 2
+                	    	///: if (!LandableReachable) [ BUG 091123
+			    	///: we want to check every landing point for obstacles!!
+d1831 1
+a1831 2
+			else { 	// 091203 BUGFIX
+				///: else it is clearly unreachable!
+a1834 1
+			///: 091203 not really unreachable, simply uncheck TODO fix
+a2012 1
+///: 100116 Reset Task 
+a2028 1
+  ///: 100507 ActiveGate 
+a2033 1
+		///: no next and out of last gate: we set the last nevertheless
+d2039 1
+a2039 1
+  DoStatusMessage(_T("TASK RESTART RESET"));
+d2044 4
+a2047 5
+///:
+///: Running every n seconds ONLY when the nearest page is active and we are not drawing map.
+///: We DONT use FLARM_Traffic after we copy inside LKTraffic!!
+///: Returns true if did calculations, false if ok to use old values
+///:
+a2055 1
+   ///: InitCalculations is running this at boot
+d2071 2
+a2072 2
+   ///: DoTraffic is called from MapWindow, in real time. We have enough CPU power there now
+   ///: Consider replay mode...
+a2081 1
+   ///: TODO Lock traffic
+a2089 1
+   ///: Fill with additional calculations 
+d2101 1
+a2101 19
+/*
+   ///: Unsorted test traffic
+   for (i=0,j=0; i<FLARM_MAX_TRAFFIC; i++) {
+	if ( LKTraffic[i].ID <=0 ) continue;
+	LKSortedTraffic[j++]=i;
+   }
+   #ifdef DEBUG_LKT
+   StartupStore(_T("... Num=%d SortedTraffic: [0]=%d [1]=%d [2]=%d [3]=%d [4]=%d\n"),
+	LKNumTraffic
+	LKSortedTraffic[0],
+	LKSortedTraffic[1],
+	LKSortedTraffic[2],
+	LKSortedTraffic[3],
+	LKSortedTraffic[4]
+	);
+   #endif
+*/  
+
+   ///: We know there is at least one traffic..
+d2109 1
+a2109 1
+			///: sort by highest: the highest the closer to now
+d2128 1
+a2128 1
+			///: sort by highest
+d2133 1
+a2133 1
+			///: sort by highest
+d2141 1
+a2141 1
+	///: MAXTRAFFIC is simply FLARM_MAX_TRAFFIC 
+d2144 2
+a2145 2
+		///: if new value is lower or index position is empty,  AND index position is not itself
+		///: (just for safety, since it is not possible with traffic)
+d2149 1
+a2149 1
+			///: ok, got new lower value, put it into slot
+d2182 3
+a2184 5
+///:
+///: Running every n seconds ONLY when the Target Infopage is active ( we are not drawing map).
+///: We DONT use FLARM_Traffic after we copy inside LKTraffic!!
+///: Returns true if did calculations, false if ok to use old values
+///:
+d2193 1
+a2193 1
+   ///: DoTarget is called from MapWindow, in real time. We have enough CPU power there now
+a2194 1
+   ///: Consider replay mode...
+d2197 1
+a2197 2
+   ///: #if 0  // 101003 LastDoTarget unused
+   ///: We calculate in real time, because PFLAA sentences are calculated too in real time
+a2200 1
+   ///: #endif
+a2206 1
+   ///: TODO Lock traffic
+a2211 1
+   ///: if (!Calculated->Flying) {
+a2212 1
+   ///: Now do all calculations for the current target
+d2224 1
+a2224 1
+	///: LKTARG.Heading = AngleLimit360(atan2(x0,y0)*RAD_TLK_DEG);
+d2239 1
+a2239 1
+	///: final glide, use wind
+d2243 2
+a2244 2
+   ///: We CANNOT use RelativeAltitude because when ghost or zombie, it wont be updated in real time in respect
+   ///: to OUR real position!! Lets use the last target altitude known.
+d2249 1
+a2249 1
+	///: we need thus to invert the relative altitude
+a2250 1
+	///: StartupStore(_T("distance=%f relalt=%f GR=%f\n"),distance,LKTARG.RelativeAltitude,LKTARG.GR);
+d2260 1
+d2265 1
+a2265 1
+		///: NORTHERN EMISPHERE
+d2268 1
+a2268 1
+		///: SOUTHERN EMISPHERE
+a2291 1
+	///: StartupStore(_T("... hours=%d mins=%d  h=%.1f\n"),hours,mins,h);
+a2295 2
+		///: StartupStore(_T("...   h=%.1f  deg=%.0f\n"),h,h*12);
+		///:StartupStore(_T("... %02d:%02d  h=%.1f deg=%.0f\n"),hours,mins,h, h*12);
+a2299 2
+		///: StartupStore(_T("...   h=%.1f  deg=%.0f\n"),h,h*12);
+		///: StartupStore(_T("... %02d:%02d  h=%.1f  deg=%.0f\n"),hours,mins,h, h*10);
+a2324 1
+  ///: StartupStore(_T("... WP=%d csum=%d\n"),index,csum);
+d2342 1
+a2342 1
+// #define DEBUG_ORBITER	1
+d2344 1
+d2348 1
+d2350 1
+a2350 1
+  if (!Calculated->Circling) return;
+a2363 2
+  double th_radius;				// thermal radius
+  double th_minoverradius, th_maxoverradius;	// radius+overradius is the minimal and max approach distance
+d2367 26
+a2392 3
+  th_radius=100;
+  th_minoverradius=5;
+  th_maxoverradius=150;
+d2395 2
+a2396 1
+  if (circlesense==0) {
+d2403 1
+d2405 1
+d2409 1
+d2411 1
+a2443 1
+  static bool alreadywarned=false;
+a2444 3
+
+  double turningcapacitypersecond;	// how many degrees can I change in my turnrate in a second?
+  double reactiontime;			// how many seconds pass before the pilot start turning
+d2447 2
+a2448 3
+  turningcapacitypersecond=10;
+  reactiontime=1.5;
+  actionadvancetime=(circlesense*(LK_TURNRATE/turningcapacitypersecond))+reactiontime;  // must be positive, in seconds
+d2450 6
+a2455 1
+  orbital_warning_angle=circlesense*actionadvancetime*LK_TURNRATE; 
+d2457 2
+d2460 11
+a2470 7
+  ///: StartupStore(_T("*** CCW orbital_brgdiff=%.0f orbital_warning_angle=%.0f  (alpha=%.0f)     heading=%.0f orbital_bearing=%.0f\n"), 
+  ///: orbital_brgdiff, orbital_warning_angle, alpha, LK_HEADING, orbital_bearing);
+
+  if (orbital_brgdiff<orbital_warning_angle) {
+	if (!alreadywarned && ((timepassed-lasttimewarned)>10) ) {
+		// StartupStore(_T("****** GO STRAIGHT NOW ******\n"));
+		if (EnableSoundModes) LKSound(_T("LK_SHORTHITONE.WAV"));
+d2474 3
+a2476 1
+		// StartupStore(_T("****** GO STRAIGHT, already warned\n"));
+@
+
+
+1.23
+log
+@*** empty log message ***
+@
+text
+@d38 1
+a38 1
+///: $Id: LKCalculations.cpp,v 1.22 2010/04/14 10:46:18 root Exp root $
+d906 1
+a906 1
+   if (  (Basic->Time < (LastRunTime+5.0)) && !LKForceDoNearest) {
+d909 6
+d1143 1
+a1143 1
+   ///: TODO FIX LOCK DATA IN DRAWNEAREST when updating this list!
+d1439 7
+a1445 4
+	if (nwp!=RESWP_TAKEOFF)
+	if ( (WayPointList[nwp].Name[0]+((int)WayPointList[nwp].Altitude*100)+((int)WayPointList[nwp].Latitude*1000*(int)WayPointList[nwp].Longitude)) != csum ) {
+		StartupStore(_T("---- Loading history. Found an invalid checksum, aborting.%s"),NEWLINE);
+		break;
+d1509 5
+a1513 2
+	if ( (WayPointList[RecentIndex[i]].Name[0]+((int)WayPointList[RecentIndex[i]].Altitude*100)+((int)WayPointList[RecentIndex[i]].Latitude*1000*(int)WayPointList[RecentIndex[i]].Longitude)) != RecentChecksum[i] ) {
+		StartupStore(_T("---- SaveHistory: invalid checksum wp, maybe file has changed. Aborting.%s"),NEWLINE);
+d1547 3
+a1549 1
+    RecentChecksum[0]= WayPointList[newwp].Name[0] + ((int)WayPointList[newwp].Altitude*100) + ((int)WayPointList[newwp].Latitude*1000*(int)WayPointList[newwp].Longitude);
+d1608 1
+a1608 1
+   if (  (Basic->Time < (LastRunTime+5.0)) && !LKForceDoRecent) {
+d1651 1
+a1651 1
+   if (  (Basic->Time < (LastRunTime+5.0)) && !LKForceDoCommon) {
+d1654 6
+d1702 6
+a1707 1
+   if (  (Basic->Time < (LastRunTime+5.0)) && !LKForceDoNearestTurnpoint) {
+d1710 2
+a2107 245
+#if 0
+/************************ UNUSED ******************************/
+
+///: 091209 returns the needed altitude to reach waypoint passing all obstacles
+///: sets FarObstacle_xxx with last obstacle position
+///:
+///: We are passing vector position by:  startpoint, bearing, distance.
+///: This function should be called ONLY when we have a positive arrival altitude, but there are obstacles.
+///: In this case we tell the pilot that we need more height to go there.
+///:
+double AltitudeNeededToPassObstacles(const double startLat, const double startLon, const double startAlt,
+				const double wpLat, const double wpLon, 
+				const double wpBearing, const double wpDistance,
+				DERIVED_INFO *Calculated)
+{
+
+//StartupStore(_T("startLat=%f lon=%f alt=%f wpLat=%f wpLon=%f\n"),
+//startLat,startLon,startAlt, wpLat, wpLon);
+
+//StartupStore(_T("wpBearing=%f wpDistance=%f AGL=%f\n"),
+//wpBearing,wpDistance, Calculated->AltitudeAGL);
+
+  /*
+  ///: altitude I shall loose to make 1 km
+  double irange = GlidePolar::MacCreadyAltitude(MACCREADY, 
+						1.0, wpbearing, 
+						Calculated->WindSpeed, 
+						Calculated->WindBearing, 
+						0, 0, true, 0);
+
+  if ((irange<=0.0)||(startAlt<=0)) {
+	// can't make progress in this direction at the current windspeed/mc
+	return 0;
+  }
+
+  */
+
+  const double start_lat = startLat;
+  const double start_lon = startLon;
+
+  double curAlt=startAlt;
+
+  ///:  kms ?
+  ///: we assume that glide_max_range is equal to wpDistance because we are calling this function only with a positive 
+  ///: altitude arrival...  so we use wpDistance now
+  //const double glide_max_range = startAlt/irange;
+
+  // returns distance one would arrive at altitude in straight glide
+  // first estimate max range at this altitude
+  double lat, lon;
+  double last_lat, last_lon;
+  double h=0.0, dh=0.0;
+  double last_dh=0;
+  double altitude;
+  double altitudeloop;
+ 
+  RasterTerrain::Lock();
+
+  // calculate terrain rounding factor
+  ///: pick a point North , 1/30 of distance out and use it as begin point
+  FindLatitudeLongitude(start_lat, start_lon, 0, wpDistance/NUMFINALGLIDETERRAIN, &lat, &lon);
+  ///: get the middle point between begin and end points
+  double Xrounding = fabs(lon-start_lon)/2;
+  double Yrounding = fabs(lat-start_lat)/2;
+  RasterTerrain::SetTerrainRounding(Xrounding, Yrounding);
+
+  double retval = 0;
+  int i=0;
+  bool start_under = false;
+  altitude = curAlt;
+  double dlat, dlon;
+  double f_scale; // valore fisso!
+  double delta_alt;
+  bool obstacle_found=false;
+
+
+/*
+  StartupStore(_T("f_scale=%f, h=%f
+  RasterTerrain::Unlock();
+  return 0;
+*/
+///: loop begin
+
+  for (altitudeloop=curAlt; altitudeloop<=curAlt*2; altitudeloop+=50) {
+
+  ///: h is 0-altitude of our point' terrain , init here
+  h =  max(0, RasterTerrain::GetTerrainHeight(start_lat, start_lon)); 
+
+  StartupStore(_T(".... next for altitude=%f\n"),altitudeloop);
+
+  obstacle_found=false;
+  start_under = false;
+  altitude=altitudeloop;
+  dh = altitude - h - SAFETYALTITUDETERRAIN;
+
+  ///: lat/lon reset
+  lat = start_lat;
+  lon = start_lon;
+  last_lat = start_lat;
+  last_lon = start_lon;
+  last_dh = dh;
+  if (dh<0) {
+	start_under = true;
+  }
+
+  // find grid
+
+  ///: lat and lon are my position startLat and startLon
+  ///: and I am finding  lat/lon of destination...
+  /*
+  FindLatitudeLongitude(lat, lon, wpbearing, wpDistance, &dlat, &dlon);
+  dlat -= start_lat;
+  dlon -= start_lon;
+  */
+  dlat = wpLat - start_lat;
+  dlon = wpLon - start_lon;
+
+  f_scale = 1.0/NUMFINALGLIDETERRAIN; // non cambia
+  /*
+  if ((wpDistance>0) && (wpDistance<wpDistance)) {
+	f_scale *= wpDistance/wpDistancce;
+  }
+  */
+
+  //double delta_alt = -f_scale*curAlt;
+  delta_alt = -f_scale*altitude;
+
+
+  dlat *= f_scale;
+  dlon *= f_scale;
+
+  for (i=1; i<=NUMFINALGLIDETERRAIN; i++) {
+	double f;
+	obstacle_found = false;
+
+	///: fraction of wpDistance, /30
+	double fi = i*f_scale;
+
+	if (fi>=1.0) {
+		StartupStore(_T(".... fi=%f exit no obstacles\n") ,fi);
+		goto NoObstacles;
+	}
+
+	///: altitude is out extimated altitude for our glide, in that point
+	if (start_under) {
+		altitude += 2.0*delta_alt;
+	} else {
+		altitude += delta_alt;
+	}
+
+	// find lat, lon of point of interest
+
+	lat += dlat;
+	lon += dlon;
+
+	// find height over terrain
+	h =  max(0,RasterTerrain::GetTerrainHeight(lat, lon)); 
+
+	///: difference of altitude extimated over or under terrain, in that point
+	dh = altitude - h - SAFETYALTITUDETERRAIN;
+
+	StartupStore(_T(".... checkn our alt=%f hterrain=%f diff dh=%f lastdh=%f\n"), altitude, h, dh, last_dh );
+
+	if (start_under) {
+		if (dh>last_dh) {
+			// better solution found, ok to continue...
+			if (dh>0) {
+				StartupStore(_T(".... startunder dh>lastdh>0 startunder is now false\n"));
+				// we've now found a terrain point above safety altitude,
+				// so consider rest of track to search for safety altitude
+				start_under = false;
+			}
+		} else {
+			f= 0.0;
+			StartupStore(_T(".... startunder dh<=lastdh obstacle found\n"));
+			obstacle_found = true; 
+      		}
+
+	} else if (dh<=0) {
+
+		if ((dh<last_dh) && (last_dh>0)) {
+			StartupStore(_T(".... !startunder, dh<lastdh && last_dh>0 obstacle found\n"));
+			f = max(0,min(1,(-last_dh)/(dh-last_dh)));
+		} else {
+			StartupStore(_T(".... !startunder, dh>=lastdh | last_dh<=0 obstacle found\n"));
+			f = 0.0;
+		}
+		obstacle_found = true;
+	}
+
+	///: obstacle found. Originally, stop at the first obstacle found.
+	///: now we raise altitude to bypass this obstacle 
+	if (obstacle_found) {
+		double distance;
+		lat = last_lat*(1.0-f)+lat*f;
+		lon = last_lon*(1.0-f)+lon*f;
+		CALCULATED_INFO.FarObstacle_Lat = lat;
+		CALCULATED_INFO.FarObstacle_Lon = lon;
+		///: distance from real position
+		DistanceBearing(start_lat, start_lon, lat, lon, &distance, NULL);
+		CALCULATED_INFO.FarObstacle_Dist = distance;
+		StartupStore(_T("..... obstacle: %f %f dist %f\n"),lat,lon,distance);
+		break;
+	}
+
+	///: else no obstacle, and we continue to check along the path until the end of the loop
+	last_dh = dh;
+	last_lat = lat;
+	last_lon = lon;
+
+  } // continue iterating for 30 guesses until the end of distance to cover
+
+  if (!obstacle_found) {
+	StartupStore(_T("...... found no obstacles, last latlon %f %f dist=%d\n"),
+		Calculated->FarObstacle_Lat, Calculated->FarObstacle_Lon, Calculated->FarObstacle_Dist);
+	break;
+  }
+
+  } // while loop
+
+  if (!obstacle_found) 
+	StartupStore(_T("...... out of while, found no obstacles, last latlon %f %f dist=%d\n"),
+		Calculated->FarObstacle_Lat, Calculated->FarObstacle_Lon, Calculated->FarObstacle_Dist);
+  else 
+	StartupStore(_T("...... out of while, STILL with  obstacles, last latlon %f %f dist=%d\n"),
+		Calculated->FarObstacle_Lat, Calculated->FarObstacle_Lon, Calculated->FarObstacle_Dist);
+
+  ///: if still obstacles, we give up. We shall return the last one found anyway. 
+  ///: The only difference, is that we don't know if this is the last obstacle, but probably it is 
+  ///: very far away so things will change a lot by just change route of a few degrees.
+
+NoObstacles:
+  ///: here we have no obstales, we return the altitude required to safe pass all obstacles along the way
+  RasterTerrain::Unlock();
+  Calculated->FarObstacle_AltArriv= altitude-curAlt;
+	StartupStore(_T("...... Far AltArriv=%f\n"),Calculated->FarObstacle_AltArriv);
+  retval = altitude-curAlt;
+  return retval;
+
+}
+#endif
+
+
+
+
+d2165 1
+d2218 1
+d2519 1
+a2519 1
+	///: LKTARG.Heading = AngleLimit360(atan2(x0,y0)*RAD_TO_DEG);
+d2554 196
+@
+
+
+1.22
+log
+@*** empty log message ***
+@
+text
+@d2 37
+a38 2
+ * $Id: LKCalculations.cpp,v 1.21 2010/03/23 15:37:29 root Exp root $
+ */
+d116 7
+a122 3
+void DoAlternates(NMEA_INFO *Basic, DERIVED_INFO *Calculated, int AltWaypoint) { // VENTA3
+  if (!ValidWayPoint(AltWaypoint)) {
+    return;
+d1188 7
+a1194 1
+	if (!WayPointCalc[i].IsLandable) {
+d2508 11
+d2557 1
+a2557 1
+   if ( Basic->Time < (LastDoTraffic+3.0) ) { // TODO SET VALUE CORRECT, OR MAKE IT CONFIGURABLE
+d2701 1
+d2703 1
+a2703 1
+   #if 0
+d2708 2
+a2710 1
+   LastDoTarget=Basic->Time;
+@
+
+
+1.21
+log
+@*** empty log message ***
+@
+text
+@d2 1
+a2 1
+ * $Id: LKCalculations.cpp,v 1.20 2010/02/25 22:45:18 root Exp root $
+d8 1
+d935 2
+a936 1
+				wp_value=wp_distance;
+d1691 2
+a1692 1
+				wp_value=wp_distance;
+d2469 241
+@
+
+
+1.20
+log
+@prefix
+@
+text
+@d2 1
+a2 1
+ * $Id: LKCalculations.cpp,v 1.19 2009/12/22 01:17:41 root Exp root $
+d238 5
+a242 2
+    if (!(((WayPointList[i].Flags & AIRPORT) == AIRPORT) ||
+          ((WayPointList[i].Flags & LANDPOINT) == LANDPOINT))) {
+d320 3
+d324 1
+d562 3
+d566 1
+d1146 3
+d1150 1
+d1181 3
+d1185 1
+d1214 3
+d1218 1
+d1424 5
+d1434 1
+a1434 1
+	StartupStore(_T("---- SaveRecentList: Cannot save recent wp history%s"),NEWLINE);
+d1438 1
+a1438 1
+   fprintf(fp,"### LK8000 Recent Waypoints - DO NOT MODIFY THIS FILE! ###\r\n");
+d1444 6
+d1452 7
+d1865 3
+d1884 4
+d1889 1
+d1972 3
+d1976 1
+@
+
+
+1.19
+log
+@*** empty log message ***
+@
+text
+@d2 1
+a2 1
+ * $Id: LKCalculations.cpp,v 1.18 2009/11/23 17:32:13 root Exp root $
+d749 1
+a749 1
+      StartupStore(_T("------ ERR-051 invalid bestalternate <%d>%s"),bestalternate,NEWLINE); // 091122
+d1229 3
+a1231 3
+
+///:   wsprintf(Buffer,_T("DRLL RUN: APT=%d LND=%d TP=%d"),RangeAirportNumber, RangeLandableNumber,RangeTurnpointNumber);
+///:   DoStatusMessage(Buffer);
+d1333 1
+a1400 2
+   // StartupStore(buffer);  REMOVE
+   // StartupStore(_T("\n"));
+d1402 1
+a1402 1
+	StartupStore(_T("---- Save history: RecentNumber exceeds limit, something is wrong. Aborting%s"),NEWLINE);
+d1413 5
+d1862 4
+a1865 2
+      
+	altitudeRequired = GlidePolar::MacCreadyAltitude (GlidePolar::SafetyMacCready, waypointDistance, waypointBearing, 
+d1937 3
+a1939 1
+			altitudeRequired = GlidePolar::MacCreadyAltitude (GlidePolar::SafetyMacCready, waypointDistance, waypointBearing, 
+d2390 25
+@
+
+
+1.18
+log
+@prebugfix
+@
+text
+@d2 1
+a2 1
+ * $Id: LKCalculations.cpp,v 1.17 2009/11/23 00:18:33 root Exp root $
+d20 1
+d26 1
+a27 1
+
+d35 1
+a35 2
+static void PercentCircling(NMEA_INFO *Basic, DERIVED_INFO *Calculated,
+                            const double Rate);
+d41 2
+a42 4
+static void TaskSpeed(NMEA_INFO *Basic, DERIVED_INFO *Calculated, 
+                      const double this_maccready);
+static void AltitudeRequired(NMEA_INFO *Basic, DERIVED_INFO *Calculated, 
+			     const double this_maccready);
+a43 1
+
+a53 2
+
+
+a55 1
+
+a56 1
+
+a57 1
+
+d59 1
+a59 1
+
+d69 3
+d776 1
+a776 1
+  if (!BestWarning) return; // 091122
+d788 1
+a788 1
+	_stprintf(mbuf,_T("BESTALTERNATE: %s  @@ %.1f %s"), WayPointList[BestAlternate].Name,
+d791 3
+a793 1
+	Message::AddMessage(15000, 3, mbuf);
+d799 1
+a799 1
+	wsprintf(mbuf,_T("BESTALTERNATE: WARNING, NO LANDINGS!"));
+d802 3
+a804 1
+	Message::AddMessage(15000, 3, mbuf);
+d1817 3
+a1819 1
+
+d1826 2
+d1836 1
+a1836 5
+    if ((WayPointList[i].Visible && 
+	 (
+	  ((WayPointList[i].Flags & AIRPORT) == AIRPORT) ||
+	  ((WayPointList[i].Flags & LANDPOINT) == LANDPOINT)
+	  ))
+d1839 4
+a1842 13
+      DistanceBearing(DrawInfo.Latitude, 
+		      DrawInfo.Longitude, 
+		      WayPointList[i].Latitude, 
+		      WayPointList[i].Longitude,
+		      &waypointDistance,
+		      &waypointBearing);
+
+      // We ought to start saving calculated values for later reusage, and save cpu.
+      // This is a good place to start from, since this function is called everytime
+      // the map is redrawn.
+      // VENTA6: TODO need to optimize bestalternate and many other functions, later... 090525
+      WayPointCalc[i].Distance=waypointDistance; 
+      WayPointCalc[i].Bearing=waypointBearing;
+d1844 1
+d1859 2
+a1860 8
+      altitudeRequired = 
+	GlidePolar::MacCreadyAltitude
+	(GlidePolar::SafetyMacCready, 
+	 waypointDistance,
+	 waypointBearing, 
+	 DerivedDrawInfo.WindSpeed, 
+	 DerivedDrawInfo.WindBearing,
+	 0,0,true,0);
+d1863 1
+a1863 1
+    	  altitudeRequired = altitudeRequired + WayPointList[i].Altitude ;
+d1865 1
+a1865 1
+    	  altitudeRequired = altitudeRequired + SAFETYALTITUDEARRIVAL + WayPointList[i].Altitude ;
+d1867 1
+a1867 1
+      WayPointCalc[i].AltReqd[AltArrivMode] = altitudeRequired; // VENTA6
+d1869 2
+a1870 2
+      altitudeDifference = DerivedDrawInfo.NavAltitude - altitudeRequired;                                      
+      WayPointList[i].AltArivalAGL = altitudeDifference;
+d1872 25
+a1896 11
+      if(altitudeDifference >=0){
+	WayPointList[i].Reachable = TRUE;
+	if (!LandableReachable || ((int)i==ActiveWayPoint)) {
+	  if (CheckLandableReachableTerrainNew(&DrawInfo, 
+					    &DerivedDrawInfo,
+					    waypointDistance, 
+					    waypointBearing)) {
+	    LandableReachable = true;
+	  } else if ((int)i==ActiveWayPoint) {
+	    WayPointList[i].Reachable = FALSE;
+	  }
+a1897 5
+      } else {
+	WayPointList[i].Reachable = FALSE;
+      }
+    }
+  }
+d1899 4
+a1902 1
+  if (!LandableReachable) {
+d1906 14
+a1919 9
+    for(i=0;i<NumberOfWayPoints;i++)
+      {
+        if(!WayPointList[i].Visible && WayPointList[i].FarVisible) 
+          // visible but only at a distance (limit this to 100km radius)
+          {
+            if(  ((WayPointList[i].Flags & AIRPORT) == AIRPORT) 
+                 || ((WayPointList[i].Flags & LANDPOINT) == LANDPOINT) )
+              {
+                DistanceBearing(DrawInfo.Latitude, 
+d1926 4
+a1929 2
+      WayPointCalc[i].Distance=waypointDistance;  // VENTA6
+      WayPointCalc[i].Bearing=waypointBearing;
+d1931 2
+a1932 9
+                if (waypointDistance<100000.0) {
+                  altitudeRequired = 
+                    GlidePolar::MacCreadyAltitude
+                    (GlidePolar::SafetyMacCready, 
+                     waypointDistance,
+                     waypointBearing, 
+                     DerivedDrawInfo.WindSpeed, 
+                     DerivedDrawInfo.WindBearing,
+                     0,0,true,0);
+d1934 430
+a2363 26
+		if (SafetyAltitudeMode==0 && !WayPointCalc[i].IsLandable)
+                  altitudeRequired = altitudeRequired + WayPointList[i].Altitude ;
+		else
+                  altitudeRequired = altitudeRequired + SAFETYALTITUDEARRIVAL + WayPointList[i].Altitude ;
+
+                  altitudeDifference = DerivedDrawInfo.NavAltitude - altitudeRequired;                                      
+                  WayPointList[i].AltArivalAGL = altitudeDifference;
+
+      WayPointCalc[i].AltReqd[AltArrivMode] = altitudeRequired; // VENTA6
+
+                  if(altitudeDifference >=0){
+                    WayPointList[i].Reachable = TRUE;
+                    if (!LandableReachable) {
+                      if (CheckLandableReachableTerrainNew(&DrawInfo, 
+                                                        &DerivedDrawInfo,
+                                                        waypointDistance, 
+                                                        waypointBearing)) {
+                        LandableReachable = true;
+                      }
+                    }
+                  } else {
+                    WayPointList[i].Reachable = FALSE;
+                  }
+                }
+              }     
+          }
+d2365 7
+d2374 6
+a2379 1
+  UnlockTaskData(); 
+@
+
+
+1.17
+log
+@*** empty log message ***
+@
+text
+@d2 1
+a2 1
+ * $Id: LKCalculations.cpp,v 1.16 2009/11/01 11:01:42 root Exp root $
+d753 2
+a754 1
+      DoStatusMessage(_T("WARNING ERROR INVALID BEST!"));
+d781 2
+d1338 1
+a1338 1
+	StartupStore(_T("... Cannot load recent wp history\n"));
+d1347 1
+a1347 1
+		wsprintf(buffer,_T("---- Loading history. Found an invalid wp: %d\n"));
+d1349 1
+a1349 1
+		wsprintf(buffer,_T("---- History file could be corrupted or wp file changed abruptly. Discarded!\n"));
+d1354 1
+a1354 1
+		StartupStore(_T("---- Too many history waypoints to load!\n"));
+d1358 1
+a1358 1
+		StartupStore(_T("---- Incomplete or broken history file\n"));
+d1365 1
+a1365 1
+		StartupStore(_T("---- Loading history. Found an invalid checksum, aborting.\n"));
+d1373 1
+a1373 1
+   wsprintf(buffer,_T(". LoadRecentList: loaded %d recent waypoints\n"),i);
+d1400 3
+a1402 3
+   StartupStore(_T(". Save history to: ")); 
+   StartupStore(buffer); 
+   StartupStore(_T("\n"));
+d1404 1
+a1404 1
+	StartupStore(_T("---- Save history: RecentNumber exceeds limit, something is wrong. Aborting\n"));
+d1408 1
+a1408 1
+	StartupStore(_T("---- SaveRecentList: Cannot save recent wp history\n"));
+d1419 1
+a1419 1
+   wsprintf(buffer,_T(". SaveRecentList: saved %d recent waypoints\n"),RecentNumber);
+d1433 1
+a1433 1
+    wsprintf(buffer,_T(". Insert WP=%d into recent waypoints\n"),newwp);
+d1477 1
+a1477 1
+   StartupStore(_T(". ResetRecentList\n"));
+@
+
+
+1.16
+log
+@1.15b
+@
+text
+@d2 1
+a2 1
+ * $Id: LKCalculations.cpp,v 1.15 2009/10/23 11:17:10 root Exp root $
+d7 1
+d1309 5
+a1313 1
+  LocalPath(buffer,TEXT(LKF_RECENTS));
+d1319 3
+a1321 1
+  _tcscat(buffer,_T(LKF_RECENTS));
+d1335 1
+a1335 1
+	StartupStore(_T("Cannot load recent wp history\n"));
+d1359 2
+d1370 1
+a1370 1
+   wsprintf(buffer,_T("LoadRecentList: loaded %d recent waypoints\n"),i);
+d1383 4
+a1386 1
+  LocalPath(buffer,TEXT(LKF_RECENTS));
+d1392 3
+a1394 1
+  _tcscat(buffer,_T(LKF_RECENTS));
+d1397 2
+a1398 1
+   StartupStore(buffer); // TODO FIX 090925 REMOVE QUI
+d1401 1
+a1401 1
+	StartupStore(_T("---- Loading history: RecentNumber exceeds limit, something is wrong. Aborting\n"));
+d1405 1
+a1405 1
+	StartupStore(_T("Cannot save recent wp history\n"));
+d1416 1
+a1416 1
+   wsprintf(buffer,_T("SaveRecentList: saved %d recent waypoints\n"),RecentNumber);
+d1430 1
+a1430 1
+    wsprintf(buffer,_T("*** Insert WP=%d into recent waypoints\n"),newwp);
+d1474 1
+a1474 1
+   StartupStore(_T("******* ResetRecentList *******\n"));
+@
+
+
+1.15
+log
+@*** empty log message ***
+@
+text
+@d2 1
+a2 1
+ * $Id: LKCalculations.cpp,v 1.14 2009/10/19 19:12:58 root Exp root $
+d221 2
+a222 1
+  double searchrange=(GPS_INFO.Altitude-SAFETYALTITUDEARRIVAL)* GlidePolar::bestld /1000;
+d283 2
+a284 1
+	     (int)GPS_INFO.Altitude, (int)searchrange, BestAlternate);
+@
+
+
+1.14
+log
+@1.14b
+@
+text
+@d2 1
+a2 1
+ * $Id: LKCalculations.cpp,v 1.13 2009/10/12 13:24:50 root Exp root $
+d977 23
+a999 24
+        ///: First we get the distance sorting
+        wp_value=wp_distance;
+        for (k=0; k< MAXNEAREST; k++)  {
+                if ( ((wp_value < sortedValue[k])
+                || (dstSortedIndex[k]== -1))
+                && (dstSortedIndex[k] != wp_index) )
+                {
+                        ///: ok, got new closer waypoint, put it into the slot.
+                        for (l=MAXNEAREST-1; l>k; l--) {
+                                if (l>0) {
+                                        sortedValue[l] = sortedValue[l-1];
+                                        dstSortedIndex[l] = dstSortedIndex[l-1];
+                                }
+                        }
+                        sortedValue[k] = wp_value;
+                        dstSortedIndex[k] = wp_index;
+
+                        k=MAXNEAREST*2; // should not be needed
+
+                        ///: update number of items inserted so far
+                        inserted++;
+                        break;
+                }
+        } // for k
+d1009 2
+a1010 1
+			DoStatusMessage(_T("DBG-198 sorting nearest"));
+d1722 2
+a1723 1
+			DoStatusMessage(_T("DBG-199 sorting tps"));
+@
+
+
+1.13
+log
+@1.12b
+@
+text
+@d2 1
+a2 1
+ * $Id: LKCalculations.cpp,v 1.12 2009/10/07 21:06:58 root Exp root $
+d22 1
+d773 1
+d777 1
+a777 1
+  if ( GPS_INFO.Time > LastAlertTime + 180.0 ) { 
+d787 4
+d796 5
+d1757 18
+@
+
+
+1.12
+log
+@prefix sorted
+@
+text
+@d2 1
+a2 1
+ * $Id: LKCalculations.cpp,v 1.11 2009/10/06 12:10:58 root Exp root $
+d193 1
+a193 1
+  int SortedLandableIndex[MAXBEST];
+d298 1
+a298 1
+    SortedLandableIndex[i]= -1;
+d352 1
+a352 1
+             ||(SortedLandableIndex[k]== -1))
+d354 1
+a354 1
+	    &&(SortedLandableIndex[k]!= i))  // and not replacing
+d360 1
+a360 1
+	      k, SortedLandableIndex[k] );
+d392 1
+a392 1
+                  SortedLandableIndex[l] = SortedLandableIndex[l-1];
+d397 1
+a397 1
+              SortedLandableIndex[k] = SortedApproxIndex[i];
+d405 1
+a405 1
+	  k, SortedLandableIndex[k] );
+d422 1
+a422 1
+      if ( SortedLandableIndex[dbug] <0 ) {
+d429 1
+a429 1
+		   WayPointList[SortedLandableIndex[dbug]].Name, (int)SortedArrivalAltitude[dbug] );
+d431 1
+a431 1
+	  if ( SortedLandableIndex[dbug] == HomeWaypoint )
+d434 1
+a434 1
+	    if ( WayPointCalc[SortedLandableIndex[dbug]].Preferred == TRUE )
+d465 1
+a465 1
+      curwp = SortedLandableIndex[k];
+d609 2
+a610 2
+	if ( ValidWayPoint(SortedLandableIndex[0]) ) {
+	  bestalternate=SortedLandableIndex[0];
+@
+
+
+1.11
+log
+@*** empty log message ***
+@
+text
+@d2 1
+a2 1
+ * $Id: LKCalculations.cpp,v 1.10 2009/10/04 21:59:25 root Exp root $
+d1029 1
+d1055 1
+a1055 1
+   TCHAR Buffer[50]; // TEST
+d1057 1
+a1057 1
+   double arrival_altitude;
+d1257 5
+a1261 5
+//   TCHAR Buffer[200];
+//   wsprintf(Buffer,_T("Num=%d Home=%d Best=%d Alt1=%d Alt2=%d 0=%d 1=%d 2=%d 3=%d 4=%d"),CommonNumber, HomeWaypoint,
+//   BestAlternate,Alternate1,Alternate2,
+//   CommonIndex[0], CommonIndex[1], CommonIndex[2], CommonIndex[3], CommonIndex[4]);
+//   DoStatusMessage(Buffer);
+d1264 1
+d1500 1
+a1500 1
+   static bool DoInit=true;
+d1504 1
+a1504 1
+   if (DoInit) {
+d1508 1
+a1508 1
+        DoInit=false;
+d1740 3
+a1742 3
+//   TCHAR vBuffer[200];
+//   wsprintf(vBuffer,_T("stpnumber=%d 1=%d 2=%d 3=%d"), SortedTurnpointNumber, p_sortedIndex[0], p_sortedIndex[1], p_sortedIndex[2]);
+//   DoStatusMessage(vBuffer);
+d1772 1
+a1772 1
+  double WaypointDistance, WaypointBearing,AltitudeRequired,AltitudeDifference;
+d1794 2
+a1795 2
+		      &WaypointDistance,
+		      &WaypointBearing);
+d1801 2
+a1802 2
+      WayPointCalc[i].Distance=WaypointDistance; 
+      WayPointCalc[i].Bearing=WaypointBearing;
+d1810 1
+a1810 1
+		WayPointCalc[i].GR = WaypointDistance / dtmp;
+d1818 1
+a1818 1
+      AltitudeRequired = 
+d1821 2
+a1822 2
+	 WaypointDistance,
+	 WaypointBearing, 
+d1828 1
+a1828 1
+    	  AltitudeRequired = AltitudeRequired + WayPointList[i].Altitude ;
+d1830 1
+a1830 1
+    	  AltitudeRequired = AltitudeRequired + SAFETYALTITUDEARRIVAL + WayPointList[i].Altitude ;
+d1832 1
+a1832 1
+      WayPointCalc[i].AltReqd[AltArrivMode] = AltitudeRequired; // VENTA6
+d1834 2
+a1835 2
+      AltitudeDifference = DerivedDrawInfo.NavAltitude - AltitudeRequired;                                      
+      WayPointList[i].AltArivalAGL = AltitudeDifference;
+d1837 1
+a1837 1
+      if(AltitudeDifference >=0){
+d1842 2
+a1843 2
+					    WaypointDistance, 
+					    WaypointBearing)) {
+d1871 2
+a1872 2
+                                &WaypointDistance,
+                                &WaypointBearing);
+d1874 2
+a1875 2
+      WayPointCalc[i].Distance=WaypointDistance;  // VENTA6
+      WayPointCalc[i].Bearing=WaypointBearing;
+d1877 2
+a1878 2
+                if (WaypointDistance<100000.0) {
+                  AltitudeRequired = 
+d1881 2
+a1882 2
+                     WaypointDistance,
+                     WaypointBearing, 
+d1888 1
+a1888 1
+                  AltitudeRequired = AltitudeRequired + WayPointList[i].Altitude ;
+d1890 1
+a1890 1
+                  AltitudeRequired = AltitudeRequired + SAFETYALTITUDEARRIVAL + WayPointList[i].Altitude ;
+d1892 2
+a1893 2
+                  AltitudeDifference = DerivedDrawInfo.NavAltitude - AltitudeRequired;                                      
+                  WayPointList[i].AltArivalAGL = AltitudeDifference;
+d1895 1
+a1895 1
+      WayPointCalc[i].AltReqd[AltArrivMode] = AltitudeRequired; // VENTA6
+d1897 1
+a1897 1
+                  if(AltitudeDifference >=0){
+d1902 2
+a1903 2
+                                                        WaypointDistance, 
+                                                        WaypointBearing)) {
+@
+
+
+1.10
+log
+@pre safetyaltitude
+@
+text
+@d2 1
+a2 1
+ * $Id: LKCalculations.cpp,v 1.9 2009/09/29 10:33:58 root Exp root $
+d93 1
+a93 1
+  double *altwp_arrival = &WayPointCalc[AltWaypoint].AltArriv;
+d95 1
+d101 4
+a104 1
+  double GRsafecalc = Calculated->NavAltitude - (WayPointList[AltWaypoint].Altitude + SAFETYALTITUDEARRIVAL);
+d144 1
+a144 1
+  double *altwp_arrival = &WayPointCalc[AltWaypoint].AltArriv;
+d146 1
+d152 4
+a155 1
+  double GRsafecalc = Calculated->NavAltitude - (WayPointList[AltWaypoint].Altitude + SAFETYALTITUDEARRIVAL);
+d219 1
+d328 2
+a329 1
+      WayPointCalc[SortedApproxIndex[i]].AltArriv = arrival_altitude; 
+d634 1
+a634 1
+	      if ( WayPointCalc[bestalternate].AltArriv <0 ) {
+d637 1
+a637 1
+			 WayPointList[bestalternate].Name, (int) WayPointCalc[bestalternate].AltArriv);
+d688 1
+a688 1
+			       WayPointList[bestalternate].Name, (int)WayPointCalc[bestalternate].AltArriv);
+d923 1
+a923 1
+			wp_value=WayPointCalc[wp_index].AltArriv;
+d1628 1
+a1628 1
+			wp_value=WayPointCalc[wp_index].AltArriv;
+d1802 5
+a1806 1
+	dtmp=DerivedDrawInfo.NavAltitude - SAFETYALTITUDEARRIVAL - WayPointList[i].Altitude;
+a1823 2
+      AltitudeRequired = AltitudeRequired + SAFETYALTITUDEARRIVAL 
+	+ WayPointList[i].Altitude ;
+d1825 6
+a1830 1
+      WayPointCalc[i].AltReqd = AltitudeRequired; // VENTA6
+d1885 5
+a1889 2
+                  AltitudeRequired = AltitudeRequired + SAFETYALTITUDEARRIVAL 
+                    + WayPointList[i].Altitude ;
+d1893 1
+a1893 1
+      WayPointCalc[i].AltReqd = AltitudeRequired; // VENTA6
+@
+
+
+1.9
+log
+@*** empty log message ***
+@
+text
+@d2 1
+a2 1
+ * $Id: LKCalculations.cpp,v 1.8 2009/09/25 14:38:26 root Exp root $
+d820 4
+a824 1
+//   static bool DoInit=true;
+a826 10
+   ///: Safe initialisation, passthrough mode
+/*
+   if (DoInit) {
+	///: set Distance as default mode, never the name
+	///for (i=0; i<MAXNUMPAGES; i++) SortedMode[i]=1;  BUG!!
+	//for (i=0; i<=MSM_TOP; i++) SortedMode[i]=1;  FIX 090924 no more needed, done in InitModeTable
+	DoInit=false;
+   }
+*/
+
+a845 2
+//	SortedLandableDistance[i]=99999;  // should not be necessary CHECK VENTA TODO
+//	SortedAirportDistance[i]=99999; 
+d847 1
+a849 6
+
+   ///: get our current position
+   //   int scx_aircraft, scy_aircraft;
+   //  LatLon2Flat(Basic->Longitude, Basic->Latitude, &scx_aircraft, &scy_aircraft);
+
+
+d855 1
+a855 1
+	switch (MapSpaceMode) {
+d883 1
+a883 1
+	if (SortedMode[MapSpaceMode] == 0) goto AlfaSortNearest;
+d888 1
+a888 1
+	switch (SortedMode[MapSpaceMode]) {
+d942 1
+a942 1
+			if (SortedMode[MapSpaceMode]<3) DoNearestAlternate(Basic,Calculated,wp_index);
+d955 46
+a1000 8
+	for (k=0; k< MAXNEAREST; k++)  {
+		///: if unfilled position or filled with not the same item already
+		if ( (p_sortedIndex[k] < 0 ) || (p_sortedIndex[k] != wp_index) ) {
+			if ( p_sortedIndex[k]>=0 ) 
+				if ( wcscmp( WayPointList[wp_index].Name, WayPointList[p_sortedIndex[k]].Name) >0) continue;
+			for (l=MAXNEAREST-1; l>k; l--) {
+				if (l>0) {
+					p_sortedIndex[l] = p_sortedIndex[l-1];
+d1002 6
+d1009 2
+a1010 8
+			p_sortedIndex[k] = wp_index;
+			///: Distance and eventually name sorted still need DoNearest to be done
+			if (SortedMode[MapSpaceMode]<3) DoNearestAlternate(Basic,Calculated,wp_index);
+			k=MAXNEAREST*2; // should not be needed
+			///: update number of items inserted so far 
+			inserted++;
+		}
+	} // for k
+d1012 1
+a1012 1
+   } // for i
+a1282 1
+  //_stprintf(buffer,TEXT("%s%S\\%s"),LocalPath(), XCSDATADIR,LKF_RECENTS );
+a1348 1
+  //_stprintf(buffer,TEXT("%s%S\\%S"),LocalPath(), XCSDATADIR,LKF_RECENTS );
+d1535 1
+d1557 1
+a1557 1
+	DoStatusMessage(_T("DoNearest DEBUG: rangeTurnpointNumber = 0"));
+d1565 1
+a1567 6
+
+   ///: get our current position
+   //   int scx_aircraft, scy_aircraft;
+   //  LatLon2Flat(Basic->Longitude, Basic->Latitude, &scx_aircraft, &scy_aircraft);
+
+
+d1657 1
+d1659 3
+d1663 5
+a1667 4
+		///: if unfilled position or filled with not the same item already
+		if ( (p_sortedIndex[k] < 0 ) || (p_sortedIndex[k] != wp_index) ) {
+			if ( p_sortedIndex[k]>=0 ) 
+				if ( wcscmp( WayPointList[wp_index].Name, WayPointList[p_sortedIndex[k]].Name) >0) continue;
+d1670 2
+a1671 2
+					//sortedValue[l] = sortedValue[l-1];
+					p_sortedIndex[l] = p_sortedIndex[l-1];
+d1674 3
+a1676 1
+			p_sortedIndex[k] = wp_index;
+d1678 2
+a1679 1
+			if (SortedMode[MapSpaceMode]<3) DoNearestAlternate(Basic,Calculated,wp_index);
+d1681 1
+d1684 1
+d1691 31
+@
+
+
+1.8
+log
+@TPTS
+@
+text
+@d2 1
+a2 1
+ * $Id: LKCalculations.cpp,v 1.7 2009/09/19 11:01:45 root Exp $
+d818 2
+a819 4
+//   double SortedLandableDistance[MAXNEAREST+1];
+//   double SortedAirportDistance[MAXNEAREST+1];
+   double SortedValue[MAXNEAREST+1];
+   int *SortedIndex;
+d821 1
+a821 1
+   static bool DoInit=true;
+d825 1
+d832 1
+d855 1
+a855 1
+	SortedValue[i]=99999; 
+d867 1
+a867 1
+   for (i=0, inserted=0; i<MAXNEAREST*1.5; i++) {
+d871 1
+a871 1
+			SortedIndex=SortedLandableIndex;
+d875 1
+a875 1
+			SortedIndex=SortedAirportIndex;
+d879 1
+a879 1
+			SortedIndex=SortedLandableIndex;
+a892 1
+
+d897 3
+a913 1
+//			wp_value=wp_bearing;
+d941 3
+a943 3
+		if ( ((wp_value < SortedValue[k])	
+		|| (SortedIndex[k]== -1))
+		&& (SortedIndex[k] != wp_index) )
+d948 2
+a949 2
+					SortedValue[l] = SortedValue[l-1];
+					SortedIndex[l] = SortedIndex[l-1];
+d952 2
+a953 2
+			SortedValue[k] = wp_value;
+			SortedIndex[k] = wp_index;
+d966 21
+d1289 1
+a1289 1
+		wsprintf(buffer,_T("Invalid wp: %d\n"));
+d1291 3
+a1293 1
+		continue;
+d1296 1
+a1296 1
+		StartupStore(_T("Too many recent waypoints to load!\n"));
+d1300 1
+a1300 1
+		StartupStore(_T("Incomplete or broken recent file\n"));
+d1305 2
+a1306 2
+		StartupStore(_T("Invalid recent wp csum\n"));
+		continue;
+d1336 1
+a1336 1
+   StartupStore(buffer); // VENTA FIX REMOVE QUI
+d1338 4
+d1346 2
+a1347 1
+   fprintf(fp,"### XCSoar/LK8000 Recent Waypoints - DO NOT MODIFY THIS FILE! ###\r\n");
+d1509 1
+a1509 1
+   double wp_bearing, wp_distance, wp_value;
+d1571 2
+d1637 22
+@
+
+
+1.7
+log
+@bugfix lock
+@
+text
+@d2 1
+a2 1
+ * $Id: LKCalculations.cpp,v 1.6 2009/09/19 01:23:03 root Exp root $
+d829 2
+a830 2
+	//for (i=0; i<MAXNUMPAGES; i++) SortedMode[i]=1;  BUG!!
+	for (i=0; i<=MSM_TOP; i++) SortedMode[i]=1; 
+d912 1
+a912 1
+			wp_value=wp_bearing;
+d991 1
+d993 1
+a993 1
+bool DoRangeLandableList(NMEA_INFO *Basic, DERIVED_INFO *Calculated) {
+d995 3
+a997 3
+
+   int RangeLandableDistance[MAXRANGELANDABLE];
+   int RangeAirportDistance[MAXRANGELANDABLE];
+d1002 1
+d1011 2
+d1018 3
+d1023 1
+d1039 1
+a1039 1
+	RangeLandableDistance[i] = 0;
+d1042 6
+a1047 1
+	RangeAirportDistance[i] = 0;
+d1051 1
+d1053 3
+a1055 2
+	if (!(((WayPointList[i].Flags & AIRPORT) == AIRPORT) || ((WayPointList[i].Flags & LANDPOINT) == LANDPOINT))) 
+		continue; 
+d1059 31
+d1092 4
+d1097 1
+a1097 1
+	for (k=0; k< MAXRANGELANDABLE; k++)  {
+d1099 1
+a1099 1
+		if (((approx_distance < RangeLandableDistance[k]) 
+d1108 1
+a1108 1
+              				RangeLandableDistance[l] = RangeLandableDistance[l-1];
+d1112 1
+a1112 1
+         		RangeLandableDistance[k] = approx_distance;
+d1115 1
+d1118 1
+a1118 1
+	RangeLandableNumber++;
+d1124 22
+a1145 21
+	for (k=0; k< MAXRANGELANDABLE; k++)  {
+		///: if  wp is closer than this one
+		if (((approx_distance < RangeAirportDistance[k]) 
+		///: or this one isn't filled
+		|| (RangeAirportIndex[k]== -1))
+		///: and not replacing with same
+        	&& (RangeAirportIndex[k]!= i))
+        	{
+          		// ok, got new biggest, put it into the slot.
+          		for (l=MAXRANGELANDABLE-1; l>k; l--) {
+            			if (l>0) {
+              				RangeAirportDistance[l] = RangeAirportDistance[l-1];
+             				RangeAirportIndex[l] = RangeAirportIndex[l-1];
+            			}
+          		}
+         		RangeAirportDistance[k] = approx_distance;
+          		RangeAirportIndex[k] = i;
+          		k=MAXRANGELANDABLE;
+        	}
+	} // for k
+	RangeAirportNumber++;
+d1151 7
+a1157 1
+///:   wsprintf(Buffer,_T("DRLL RUN: APT=%d LND=%d"),RangeAirportNumber, RangeLandableNumber);
+d1160 1
+d1468 154
+@
+
+
+1.6
+log
+@ok
+@
+text
+@d2 1
+a2 1
+ * $Id: LKCalculations.cpp,v 1.5 2009/09/07 19:08:35 root Exp root $
+a1112 1
+   LockTaskData();
+d1123 3
+@
+
+
+1.5
+log
+@ok
+@
+text
+@d2 1
+a2 1
+ * $Id: LKCalculations.cpp,v 1.4 2009/07/30 13:38:23 root Exp root $
+d841 2
+d846 1
+a846 1
+	DoStatusMessage(_T("DoNearest WARNING: rangeLandableNumber = 0"));
+@
+
+
+1.4
+log
+@9i
+@
+text
+@d2 1
+a2 1
+ * $Id: LKCalculations.cpp,v 1.3 2009/07/21 13:26:31 root Exp $
+d18 1
+d69 1
+d71 3
+d807 2
+a808 3
+///: Running realtime each second ONLY when the nearest page is active and we are not drawing map.
+///: This is CPU intensive.
+///: Maybe we could run it every 5  seconds? 
+d810 1
+d816 1
+a816 1
+   int wp_index;
+d829 2
+a830 1
+	for (i=0; i<MAXNUMPAGES; i++) SortedMode[i]=1; 
+d865 1
+a865 1
+   for (i=0; i<MAXNEAREST*1.5; i++) {
+d952 1
+d956 3
+d969 2
+d987 2
+d1104 464
+@
+
+
+1.3
+log
+@ok
+@
+text
+@d2 1
+a2 1
+ * $Id: LKCalculations.cpp,v 1.2 2009/07/17 15:25:41 root Exp root $
+d812 1
+a812 1
+   double wp_bearing, wp_distance;
+d815 2
+a816 1
+   double SortedDistance[MAXNEAREST+1];
+d823 2
+d847 1
+a847 1
+	SortedDistance[i]=99999; 
+d859 17
+a875 5
+   for (i=0; i<MAXNEAREST*2; i++) {
+	if (MapSpaceMode==2)
+		wp_index=RangeLandableIndex[i];
+	else
+		wp_index=RangeAirportIndex[i];
+d885 1
+d888 1
+a888 1
+	WayPointCalc[wp_index].Bearing = wp_bearing;
+d890 13
+a902 16
+	if (MapSpaceMode==2)
+	///: insert sorted value for Landfields
+	for (k=0; k< MAXNEAREST; k++)  {
+		///: if wp is closer than this one
+		///: or this one isn't filled
+		///: and not replacing with same
+		if ( ((wp_distance < SortedDistance[k])	
+		|| (SortedLandableIndex[k]== -1))
+		&& (SortedLandableIndex[k] != wp_index) )
+		{
+			///: ok, got new closer waypoint, put it into the slot.
+			for (l=MAXNEAREST-1; l>k; l--) {
+				if (l>0) {
+					SortedDistance[l] = SortedDistance[l-1];
+					SortedLandableIndex[l] = SortedLandableIndex[l-1];
+				}
+d904 20
+a923 6
+			SortedDistance[k] = wp_distance;
+			SortedLandableIndex[k] = wp_index;
+
+			DoNearestAlternate(Basic,Calculated,wp_index);
+
+			k=MAXNEAREST*2; // should not be needed
+d925 1
+a925 2
+		}
+	} // for k
+d927 1
+a927 2
+	if (MapSpaceMode==3)
+	///: insert sorted value for Landfields
+d932 3
+a934 3
+		if ( ((wp_distance < SortedDistance[k])	
+		|| (SortedAirportIndex[k]== -1))
+		&& (SortedAirportIndex[k] != wp_index) )
+d939 2
+a940 2
+					SortedDistance[l] = SortedDistance[l-1];
+					SortedAirportIndex[l] = SortedAirportIndex[l-1];
+d943 2
+a944 2
+			SortedDistance[k] = wp_distance;
+			SortedAirportIndex[k] = wp_index;
+d946 1
+a946 1
+			DoNearestAlternate(Basic,Calculated,wp_index);
+@
+
+
+1.2
+log
+@ok
+@
+text
+@d2 1
+a2 1
+ * $Id: LKCalculations.cpp,v 1.1 2009/07/14 23:12:55 root Exp root $
+a69 3
+#define LKRLI RangeLandableIndex[i]
+#define LKSLI SortedLandableIndex[i]
+
+d813 3
+a815 1
+   double SortedLandableDistance[MAXNEAREST+1];
+d827 1
+a827 1
+   if (  Basic->Time < (LastRunTime+5.0)) {
+d830 1
+d833 1
+d835 1
+a835 1
+	DoStatusMessage(_T("DoNearest: rangeLandableNumber==0"));
+d841 4
+a846 1
+//	SortedLandableDistance[i]=99999; // should be unnecessary
+d857 4
+a860 1
+	wp_index=RangeLandableIndex[i];
+d874 2
+a875 1
+	///: insert sorted value
+a876 1
+
+d880 1
+a880 1
+		if ( ((wp_distance < SortedLandableDistance[k])	
+d887 1
+a887 1
+					SortedLandableDistance[l] = SortedLandableDistance[l-1];
+d891 1
+a891 1
+			SortedLandableDistance[k] = wp_distance;
+d900 29
+d939 1
+a939 1
+///: Keep an updated list of in-range landable waypoints, and include also exceptions such as Home.
+d955 1
+d962 1
+a962 1
+//	DoStatusMessage(_T("DRLL !WayPointList"));
+d971 1
+d974 1
+d976 1
+a976 1
+//	DoStatusMessage(_T("DRLL DoInit done"));
+d991 3
+d1005 1
+a1006 1
+
+d1027 29
+d1058 2
+a1059 2
+//   wsprintf(Buffer,_T("DRLL RUN, USING %d LANDABLES"),RangeLandableNumber);
+//   DoStatusMessage(Buffer);
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d2 1
+a2 1
+ * $Id$
+d70 3
+d121 32
+d154 10
+a163 1
+	
+a165 1
+
+d803 191
+@

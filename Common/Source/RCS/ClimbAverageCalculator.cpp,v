@@ -1,0 +1,142 @@
+head	8.2;
+access;
+symbols
+	beta8:8.1;
+locks
+	root:8.2; strict;
+comment	@// @;
+
+
+8.2
+date	2010.12.10.23.46.41;	author root;	state Exp;
+branches;
+next	8.1;
+
+8.1
+date	2009.06.19.20.28.25;	author venta;	state Exp;
+branches;
+next	;
+
+
+desc
+@none
+@
+
+
+8.2
+log
+@*** empty log message ***
+@
+text
+@/*
+   LK8000 Tactical Flight Computer -  WWW.LK8000.IT
+   Released under GNU/GPL License v.2
+   See CREDITS.TXT file for authors and copyrights
+
+   $Id$
+*/
+
+#include "ClimbAverageCalculator.h"
+
+ClimbAverageCalculator::ClimbAverageCalculator(void)
+{
+	newestValIndex = -1;
+
+	for(int i=0; i<MAX_HISTORY; i++)
+	{
+		history[i].altitude = -99999;
+		history[i].time = -99999;
+	}
+}
+
+ClimbAverageCalculator::~ClimbAverageCalculator(void)
+{
+}
+
+
+double ClimbAverageCalculator::GetAverage(double curTime, double curAltitude, int averageTime)
+{	  
+  double result = 0;
+  int i;
+  int bestHistory;
+  int oldestValIndex = 0;
+  
+  
+  newestValIndex = newestValIndex < MAX_HISTORY-1 ? newestValIndex+1 : 0;
+  oldestValIndex = bestHistory =  newestValIndex < MAX_HISTORY-1 ? newestValIndex+1 : 0;
+  
+  // add the new sample
+  history[newestValIndex].time = curTime;
+  history[newestValIndex].altitude = curAltitude;
+  
+  // initialy bestHistory is the current...
+  bestHistory = newestValIndex;
+  
+  // now run through the history and find the best sample for average period within the average time period
+  for(i=0; i<MAX_HISTORY; i++)
+    {
+      if (history[i].time != -99999)
+	{
+	  if (history[i].time + averageTime >= curTime) // inside the period ?
+	    {
+	      if (history[i].time < history[bestHistory].time) // is the sample older (and therefore better) than the current found ?
+		{
+		  bestHistory = i;
+		}
+	    }
+	}
+    }	
+  
+  // calculate the average !
+  if (bestHistory != newestValIndex)
+    {
+      result = (curAltitude - history[bestHistory].altitude) / (curTime - history[bestHistory].time);
+    }
+  
+  return result;
+}
+@
+
+
+8.1
+log
+@beta8
+@
+text
+@d2 3
+a4 1
+Copyright_License {
+d6 1
+a6 29
+  XCSoar Glide Computer - http://xcsoar.sourceforge.net/
+  Copyright (C) 2000 - 2008  
+
+  	M Roberts (original release)
+	Robin Birch <robinb@@ruffnready.co.uk>
+	Samuel Gisiger <samuel.gisiger@@triadis.ch>
+	Jeff Goodenough <jeff@@enborne.f2s.com>
+	Alastair Harrison <aharrison@@magic.force9.co.uk>
+	Scott Penrose <scottp@@dd.com.au>
+	John Wharington <jwharington@@gmail.com>
+	Lars H <lars_hn@@hotmail.com>
+	Rob Dunning <rob@@raspberryridgesheepfarm.com>
+	Russell King <rmk@@arm.linux.org.uk>
+
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License
+  as published by the Free Software Foundation; either version 2
+  of the License, or (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+}
+a8 1
+
+@

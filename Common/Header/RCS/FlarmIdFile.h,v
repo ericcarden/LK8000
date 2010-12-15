@@ -1,0 +1,63 @@
+head	8.1;
+access;
+symbols
+	beta8:8.1;
+locks
+	root:8.1; strict;
+comment	@ * @;
+
+
+8.1
+date	2009.06.21.13.29.13;	author venta;	state Exp;
+branches;
+next	;
+
+
+desc
+@none
+@
+
+
+8.1
+log
+@beta8
+@
+text
+@#ifndef FLARMIDFILE_H
+#define FLARMIDFILE_H
+
+#include <map>
+#include <stdio.h>
+
+class FlarmId
+{
+public:
+  TCHAR id[7];          //Id 6 bytes
+  TCHAR name[22];        //Name 15 bytes
+  TCHAR airfield[22];    //Airfield 4 bytes
+  TCHAR type[22];        //Unknown 1 byte
+  TCHAR reg[8];         //Reg 7 bytes
+  TCHAR cn[4];          //CN 3 bytes
+  TCHAR freq[8];        //Freq 6 bytes
+  long GetId();
+};
+
+typedef FlarmId* FlarmIdptr;
+typedef std::map< long, FlarmIdptr > FlarmIdMap;
+
+class FlarmIdFile
+{
+private:
+  FlarmIdMap flarmIds;
+  void GetAsString(HANDLE hFile, int charCount, TCHAR *res);
+  void GetItem(HANDLE hFile, FlarmId *flarmId);
+public:
+  FlarmIdFile(void);
+  ~FlarmIdFile(void);
+  FlarmId* GetFlarmIdItem(long id);
+  FlarmId* GetFlarmIdItem(TCHAR *cn);
+};
+
+#endif
+
+@
