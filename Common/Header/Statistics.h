@@ -1,3 +1,11 @@
+/*
+   LK8000 Tactical Flight Computer -  WWW.LK8000.IT
+   Released under GNU/GPL License v.2
+   See CREDITS.TXT file for authors and copyrights
+
+   $Id: Statistics.h,v 1.1 2011/12/21 10:35:29 root Exp root $
+*/
+
 #ifndef STATISTICS_H
 #define STATISTICS_H
 
@@ -5,9 +13,10 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
-#include <windows.h>
 #include "leastsqs.h"
-#include "Task.h"
+
+
+
 
 class Statistics {
  public:
@@ -15,9 +24,13 @@ class Statistics {
   enum {
     STYLE_BLUETHIN,
     STYLE_REDTHICK,
+    STYLE_ORANGETHICK,
+    STYLE_GREENTHICK,
+    STYLE_GREENMEDIUM,
     STYLE_DASHGREEN,
     STYLE_MEDIUMBLACK,
-    STYLE_THINDASHPAPER
+    STYLE_THINDASHPAPER,
+    STYLE_WHITETHICK
   };
 
   LeastSquares ThermalAverage;
@@ -30,8 +43,8 @@ class Statistics {
   double LegStartTime[MAXTASKPOINTS];
   LeastSquares Altitude_Terrain;
 
-  void Reset();
 
+  void Reset();
   static void DrawBarChart(HDC hdc, const RECT rc, LeastSquares* lsdata);
 
   static void DrawFilledLineGraph(HDC hdc, const RECT rc, 
@@ -58,6 +71,8 @@ class Statistics {
   static void ScaleMakeSquare(const RECT rc);
 
   static void StyleLine(HDC hdc, const POINT l1, const POINT l2, const int Style, const RECT rc);
+
+
 
   static double yscale;
   static double xscale;
@@ -96,6 +111,8 @@ class Statistics {
     static void RenderTemperature(HDC hdc, const RECT rc);
     static void RenderTask(HDC hdc, const RECT rc, const bool olcmode);
     static void RenderSpeed(HDC hdc, const RECT rc);
+
+    static void RenderNearAirspace(HDC hdc, const RECT rc) ;
 
 };
 

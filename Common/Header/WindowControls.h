@@ -3,18 +3,15 @@
    Released under GNU/GPL License v.2
    See CREDITS.TXT file for authors and copyrights
 
-   $Id$
+   $Id: WindowControls.h,v 1.1 2011/12/21 10:35:29 root Exp root $
 */
 
 #if !defined(__WINDOWSCONTROL_H)
 #define __WINDOWSCONTROL_H
 
-#include <malloc.h>
-#include "Units.h"
-#include "XCSoar.h"
-#include "Utils.h"
-#include "LKUtils.h"
 #define IsEmptyString(x)        ((x==NULL) || (x[0]=='\0'))
+
+#define MAXSETCAPTION 254	// max chars in SetCaption, autolimited
 
 #define BORDERTOP    (1<<bkTop)
 #define BORDERRIGHT  (1<<bkRight)
@@ -155,6 +152,8 @@ class DataField{
   void SetDetachGUI(bool bDetachGUI) {mDetachGUI=bDetachGUI;}  // allows combolist to iterate all values w/out triggering external events
   bool GetDetachGUI(void) {return mDetachGUI;}
   virtual int CreateComboList(void) {return 0;};
+  virtual int CreateKeyboard(void) {return FALSE;};
+
   ComboList* GetCombo(void) { return &mComboList;}
   virtual int SetFromCombo(int iDataFieldIndex, TCHAR *sValue) {return SetAsInteger(iDataFieldIndex);};
   void CopyString(TCHAR * szStringOut, bool bFormatted);
@@ -268,6 +267,7 @@ class DataFieldEnum: public DataField {
   int CreateComboList(void);
 
   void addEnumText(const TCHAR *Text);
+  void addEnumTextNoLF(const TCHAR *Text);
 
   int GetAsInteger(void);
   TCHAR *GetAsString(void);
@@ -286,7 +286,7 @@ class DataFieldEnum: public DataField {
   void Sort(int startindex=0);
 };
 
-#define DFE_MAX_FILES 200
+#define DFE_MAX_FILES 300
 
 typedef struct {
   TCHAR *mTextFile;
@@ -450,6 +450,7 @@ class DataFieldFloat:public DataField{
   void Inc(void);
   void Dec(void);
   int CreateComboList(void);
+  int CreateKeyboard(void);
   int SetFromCombo(int iDataFieldIndex, TCHAR *sValue);
 
   bool GetAsBoolean(void);
@@ -526,18 +527,11 @@ class WindowControl {
     WindowControl *mOwner;
     WindowControl *mTopOwner;
     HDC  mHdc;
-    #ifndef FIXDC
-    HDC  mHdcTemp;
-    #endif
     HBITMAP mBmpMem;
     int  mBorderKind;
     COLORREF mColorBack;
     COLORREF mColorFore;
-    #if FIXGDI
-    static HBRUSH mhBrushBk;
-    #else
     HBRUSH mhBrushBk;
-    #endif
     HPEN mhPenBorder;
     HPEN mhPenSelector;
     RECT mBoundRect;
@@ -567,7 +561,7 @@ class WindowControl {
 
     HWND mHWnd;
     bool mCanFocus;
-    TCHAR mCaption[254];
+    TCHAR mCaption[MAXSETCAPTION+1]; // +1 just for safety!
     bool mDontPaintSelector;
 
     WindowControl *mClients[50];
@@ -671,10 +665,6 @@ class WindowControl {
     HWND GetParent(void){return(mParent);};
     HDC  GetDeviceContext(void){return(mHdc);};
 
-    #if FIXDC
-    #else
-    HDC  GetTempDeviceContext(void){return(mHdcTemp);};
-    #endif
     WindowControl *GetOwner(void){return(mOwner);};
 
     void SetParentHandle(HWND hwnd);
@@ -758,7 +748,7 @@ class WndFrame:public WindowControl{
     int mLastDrawTextHeight;
     UINT mCaptionStyle;
 
-    void Paint(HDC hDC);
+    virtual void Paint(HDC hDC);
 
 };
 
@@ -821,7 +811,7 @@ class WndListFrame:public WndFrame{
     OnListCallback_t mOnListCallback;
     OnListCallback_t mOnListEnterCallback;
     ListInfo_t mListInfo;
-    void Paint(HDC hDC);
+    virtual void Paint(HDC hDC);
 	  RECT rcScrollBarButton;
 	  RECT rcScrollBar;
     int mMouseScrollBarYOffset; // where in the scrollbar button was mouse down at
@@ -858,7 +848,7 @@ class WndOwnerDrawFrame:public WndFrame{
   protected:
 
     OnPaintCallback_t mOnPaintCallback;
-    void Paint(HDC hDC);
+    virtual void Paint(HDC hDC);
 
 };
 
@@ -892,7 +882,7 @@ class WndForm:public WindowControl{
 
     int OnUnhandledMessage(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
-    void Paint(HDC hDC);
+    virtual void Paint(HDC hDC);
     int cbTimerID;
 
   public:
@@ -955,7 +945,7 @@ class WndButton:public WindowControl{
 
   private:
 
-    void Paint(HDC hDC);
+    virtual void Paint(HDC hDC);
     bool mDown;
     bool mDefault;
     int mLastDrawTextHeight;
@@ -990,8 +980,6 @@ class WndProperty:public WindowControl{
 
   private:
 
-    static HBITMAP hBmpLeft32;
-    static HBITMAP hBmpRight32;
     static int InstCount;
 
     HWND mhEdit;
@@ -1005,8 +993,9 @@ class WndProperty:public WindowControl{
     RECT mHitRectDown;
     bool mDownDown;
     bool mUpDown;
+    bool mUseKeyboard;
 
-    void Paint(HDC hDC);
+    virtual void Paint(HDC hDC);
     void (*mOnClickUpNotify)(WindowControl * Sender);
     void (*mOnClickDownNotify)(WindowControl * Sender);
 
@@ -1038,6 +1027,7 @@ class WndProperty:public WindowControl{
     bool SetFocused(bool Value, HWND FromTo);
 
     bool SetReadOnly(bool Value);
+    bool SetUseKeyboard(bool Value);
 
     void RefreshDisplay(void);
 
@@ -1059,7 +1049,6 @@ class WndProperty:public WindowControl{
 
 };
 
-#ifndef ALTAIRSYNC
 
 typedef void (*webpt2Event)(const TCHAR *);
 
@@ -1078,7 +1067,6 @@ class WndEventButton:public WndButton {
 };
 
 
-#endif
 
 #endif
 

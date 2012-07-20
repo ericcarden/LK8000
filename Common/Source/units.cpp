@@ -14,18 +14,13 @@
 //distance      km   nm   ml   nm
 
 
-#include "StdAfx.h"
-
-#include <stdio.h>
-//#include <assert.h>
-
-#include "Units.h"
 #include "externs.h"
+
 
 CoordinateFormats_t Units::CoordinateFormat;
 
 #ifndef __MINGW32__
-#define DEG "°"
+#define DEG "ï¿½"
 #else
 #define DEG "Â°"
 #endif
@@ -107,6 +102,30 @@ void Units::LatitudeToDMS(double Latitude,
   }
   *north = (sign==1);
 }
+
+extern void LatLonToUtmWGS84 (int& utmXZone, char& utmYZone, double& easting, double& northing, double lat, double lon);
+
+bool Units::CoordinateToString(double Longitude, double Latitude, TCHAR *Buffer, size_t size) {
+	if(CoordinateFormat == cfUTM) {
+		int utmzone=0;
+		char utmchar=0;
+		double easting=0, northing=0;
+		LatLonToUtmWGS84 ( utmzone, utmchar, easting, northing, Latitude, Longitude );
+		_stprintf(Buffer,_T("UTM %d%c  %.0f  %.0f"), utmzone, utmchar, easting, northing);
+
+		return true;
+	} else {
+		TCHAR sLongitude[16] = {0};
+		TCHAR sLatitude[16] = {0};
+
+		Units::LongitudeToString(Longitude, sLongitude, sizeof(sLongitude)-1);
+		Units::LatitudeToString(Latitude, sLatitude, sizeof(sLatitude)-1);
+
+		_stprintf(Buffer,_T("%s  %s"), sLatitude, sLongitude);
+		return true;
+	}
+}
+
 
 bool Units::LongitudeToString(double Longitude, TCHAR *Buffer, size_t size){
   (void)size;
@@ -422,8 +441,7 @@ bool Units::FormatUserAltitude(double Altitude, TCHAR *Buffer, size_t size){
     _tcscpy(Buffer, sTmp);
     return(true);
   } else {
-    _tcsncpy(Buffer, sTmp, size);
-    Buffer[size-1] = '\0';
+    LK_tcsncpy(Buffer, sTmp, size-1);
     return(false);
   }
 
@@ -449,8 +467,7 @@ bool Units::FormatAlternateUserAltitude(double Altitude, TCHAR *Buffer, size_t s
 	_tcscpy(Buffer, sTmp);
 	return(true);
   } else {
-	_tcsncpy(Buffer, sTmp, size);
-	Buffer[size-1] = '\0';
+	LK_tcsncpy(Buffer, sTmp, size-1);
 	return(false);
   }
 }
@@ -492,8 +509,7 @@ bool Units::FormatUserArrival(double Altitude, TCHAR *Buffer, size_t size){
     _tcscpy(Buffer, sTmp);
     return(true);
   } else {
-    _tcsncpy(Buffer, sTmp, size);
-    Buffer[size-1] = '\0';
+    LK_tcsncpy(Buffer, sTmp, size-1);
     return(false);
   }
 
@@ -541,8 +557,7 @@ bool Units::FormatUserDistance(double Distance, TCHAR *Buffer, size_t size){
     _tcscpy(Buffer, sTmp);
     return(true);
   } else {
-    _tcsncpy(Buffer, sTmp, size);
-    Buffer[size-1] = '\0';
+    LK_tcsncpy(Buffer, sTmp, size-1);
     return(false);
   }
 
@@ -562,7 +577,7 @@ bool Units::FormatUserMapScale(Units_t *Unit, double Distance, TCHAR *Buffer, si
 
   if (value >= 9.999)
     prec = 0;
-  else if ((UserDistanceUnit == unKiloMeter && value >= 0.999) || (UserDistanceUnit != unKiloMeter && value >= 0.160))
+  else if (value >= 0.999)
     prec = 1;
   else {
     prec = 2;
@@ -573,8 +588,7 @@ bool Units::FormatUserMapScale(Units_t *Unit, double Distance, TCHAR *Buffer, si
       pU = &UnitDescriptors[unMeter];
       value = Distance * pU->ToUserFact;
     }
-    if (UserDistanceUnit == unNauticalMiles 
-        || UserDistanceUnit == unStatuteMiles){
+    if ((UserDistanceUnit == unNauticalMiles || UserDistanceUnit == unStatuteMiles) && (value < 0.160)) {
       prec = 0;
       if (Unit != NULL)
         *Unit = unFeet;
@@ -583,15 +597,13 @@ bool Units::FormatUserMapScale(Units_t *Unit, double Distance, TCHAR *Buffer, si
     }
   }
 
-//  _stprintf(sTmp, TEXT("%.*f%s"), prec, value, pU->Name);
-  _stprintf(sTmp, TEXT("%.*f"), prec, value);
+  _stprintf(sTmp, TEXT("%.*f%s"), prec, value, pU->Name);
 
   if (_tcslen(sTmp) < size-1){
     _tcscpy(Buffer, sTmp);
     return(true);
   } else {
-    _tcsncpy(Buffer, sTmp, size);
-    Buffer[size-1] = '\0';
+    LK_tcsncpy(Buffer, sTmp, size-1);
     return(false);
   }
 
@@ -631,55 +643,6 @@ double Units::ToSysDistance(double Distance){
   return(Distance);
 }
 
-
-void Units::setupUnitBitmap(Units_t Unit, HINSTANCE lhInst, WORD IDB, int Width, int Height){
-
-  UnitDescriptors[Unit].hBitmap = LoadBitmap(lhInst, MAKEINTRESOURCE(IDB));
-  UnitDescriptors[Unit].BitMapSize.x = Width;
-  UnitDescriptors[Unit].BitMapSize.y = Height;
-
-}
-
-
-bool Units::LoadUnitBitmap(HINSTANCE lhInst){
-
-  UnitDescriptors[unUndef].hBitmap = NULL;
-  UnitDescriptors[unUndef].BitMapSize.x = 0;
-  UnitDescriptors[unUndef].BitMapSize.y = 0;
-
-  setupUnitBitmap(unKiloMeter, lhInst, IDB_UNIT_KM, 5, 11);
-  setupUnitBitmap(unNauticalMiles, lhInst, IDB_UNIT_NM, 5, 11);
-  setupUnitBitmap(unStatuteMiles, lhInst, IDB_UNIT_SM, 5, 11);
-  setupUnitBitmap(unKiloMeterPerHour, lhInst, IDB_UNIT_KMH, 10, 11);
-  setupUnitBitmap(unKnots, lhInst, IDB_UNIT_KT, 5, 11);
-  setupUnitBitmap(unStatuteMilesPerHour, lhInst, IDB_UNIT_MPH, 10, 11);
-  setupUnitBitmap(unMeterPerSecond, lhInst, IDB_UNIT_MS, 5, 11);
-  setupUnitBitmap(unFeetPerMinutes, lhInst, IDB_UNIT_FPM, 5, 11); // FPM
-  setupUnitBitmap(unMeter, lhInst, IDB_UNIT_M, 5, 11);
-  setupUnitBitmap(unFeet, lhInst, IDB_UNIT_FT, 5, 11);
-  setupUnitBitmap(unFligthLevel, lhInst, IDB_UNIT_FL, 5, 11);
-  setupUnitBitmap(unKelvin, lhInst, IDB_UNIT_DegK, 5, 11);
-  setupUnitBitmap(unGradCelcius, lhInst, IDB_UNIT_DegC, 5, 11);
-  setupUnitBitmap(unGradFahrenheit, lhInst, IDB_UNIT_DegF, 5, 11);
-  // setupUnitBitmap(unFeetPerSecond, lhInst, IDB_UNIT_FPS, 5, 11); // problems
-
-  return(true);
-
-}
-
-bool Units::UnLoadUnitBitmap(void){
-
-  unsigned int i;
-
-  for (i=1; i<sizeof(UnitDescriptors)/sizeof(UnitDescriptors[0]); i++){
-    if (UnitDescriptors[unUndef].hBitmap != NULL)
-      DeleteObject(UnitDescriptors[unUndef].hBitmap);
-  }
-
-  return(true);
-
-}
-
 void Units::TimeToText(TCHAR* text, int d) {
   int hours, mins;
   bool negative = (d<0);
@@ -692,6 +655,22 @@ void Units::TimeToText(TCHAR* text, int d) {
               hours, mins);
   } else {
     _stprintf(text, TEXT("%02d:%02d"),		  
+              hours, mins);
+  }
+}
+
+void Units::TimeToTextSimple(TCHAR* text, int d) {
+  int hours, mins;
+  bool negative = (d<0);
+  int dd = abs(d) % (3600*24);
+  hours = (dd/3600);
+  mins = (dd/60-hours*60);
+  hours = hours % 24;
+  if (negative) {
+    _stprintf(text, TEXT("-%02d%02d"),		  
+              hours, mins);
+  } else {
+    _stprintf(text, TEXT("%02d%02d"),		  
               hours, mins);
   }
 }
@@ -747,37 +726,5 @@ void Units::TimeToTextS(TCHAR* text, int d) {
   } else {
 	_stprintf(text, TEXT("%d:%02d:%02d"),  hours, mins, seconds);
   }
-}
-
-
-bool Units::GetUnitBitmap(Units_t Unit, HBITMAP *HBmp, POINT *Org, POINT *Size, int Kind){
-
-  if (HideUnits==(HideUnits_t)huEnabled) return false; // VNT
-
-  UnitDescriptor_t *pU = &UnitDescriptors[Unit];
-
-  *HBmp = pU->hBitmap;
-
-  Size->x = pU->BitMapSize.x;
-  Size->y = pU->BitMapSize.y;
-
-  Org->y = 0;
-  switch (Kind){
-    case 1:  // inverse
-      Org->x = pU->BitMapSize.x;
-    break;
-    case 2:  // gray
-      Org->x = pU->BitMapSize.x * 2;
-    break;
-    case 3:  // inverse gray
-      Org->x = pU->BitMapSize.x * 3;
-    break;
-    default:
-      Org->x = 0;
-    break;
-  }
-
-  return(pU->hBitmap != NULL);
-
 }
 

@@ -2,14 +2,10 @@
 #ifndef	DEVICE_H
 #define	DEVICE_H
  
-#include <windows.h>
-#include "Sizes.h"
-#include "Port.h"
-#include "MapWindow.h"
 
 #define DEVNAMESIZE  32
 #define	NUMDEV		 2
-#define	NUMREGDEV	 25 // Max number of registered devices
+#define	NUMREGDEV	 29 // Max number of registered devices
 
 #define	devA()	    (&DeviceList[0])
 #define	devB()	    (&DeviceList[1])
@@ -32,6 +28,8 @@ typedef	struct DeviceDescriptor_t{
   FILE  *fhLogFile;
   ComPort *Com;
   TCHAR	Name[DEVNAMESIZE+1];
+
+  BOOL (*DirectLink)(DeviceDescriptor_t *d, BOOL	bLinkEnable);
   BOOL (*ParseNMEA)(DeviceDescriptor_t *d, TCHAR *String, NMEA_INFO *GPS_INFO);
   BOOL (*PutMacCready)(DeviceDescriptor_t	*d,	double McReady);
   BOOL (*PutBugs)(DeviceDescriptor_t *d, double	Bugs);
@@ -52,9 +50,11 @@ typedef	struct DeviceDescriptor_t{
   BOOL (*OnSysTicker)(DeviceDescriptor_t *d);
   BOOL (*PutVoice)(DeviceDescriptor_t *d, TCHAR *Sentence);
   BOOL (*IsCondor)(DeviceDescriptor_t	*d);
+  BOOL (*Config)();
   DeviceDescriptor_t *pDevPipeTo;
 
   int PortNumber;
+  bool Disabled;
 }DeviceDescriptor_t;
 
 typedef	DeviceDescriptor_t *PDeviceDescriptor_t;
@@ -63,7 +63,6 @@ typedef	DeviceDescriptor_t *PDeviceDescriptor_t;
 #define Port2WriteNMEA(s)	devWriteNMEAString(devB(), s)
 
 void devWriteNMEAString(PDeviceDescriptor_t d, const TCHAR *Text);
-void VarioWriteNMEA(const TCHAR *Text);
 void VarioWriteSettings(void);
 PDeviceDescriptor_t devVarioFindVega(void);
 
@@ -89,7 +88,9 @@ BOOL devCloseAll(void);
 PDeviceDescriptor_t devGetDeviceOnPort(int Port);
 BOOL ExpectString(PDeviceDescriptor_t d, const TCHAR *token);
 BOOL devHasBaroSource(void);
+bool devIsDisabled(int devindex);
 
+BOOL devDirectLink(PDeviceDescriptor_t d,	BOOL bLink);
 BOOL devParseNMEA(int portNum, TCHAR *String,	NMEA_INFO	*GPS_INFO);
 BOOL devPutMacCready(PDeviceDescriptor_t d,	double MacCready);
 BOOL devPutBugs(PDeviceDescriptor_t	d, double	Bugs);

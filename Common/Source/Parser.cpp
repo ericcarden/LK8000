@@ -7,36 +7,18 @@
 
 */
 
-#include "StdAfx.h"
-
-#include "options.h"
-#include "externs.h"
-#include "Utils.h"
-#include "Utils2.h"
 #include "externs.h"
 #include "Logger.h"
-#ifndef NOFLARMGAUGE
-#include "GaugeFLARM.h"
-#endif
-#include "Parser.h"
-#include "device.h"
 #include "Geoid.h"
-//#include "FlarmIdFile.h"
-#include "TeamCodeCalculation.h"
-#include "Message.h"
-#include "Cpustats.h"
+
+#ifdef PNA
+#include "LKHolux.h"
+#include "LKRoyaltek3200.h"
+#endif
 
 #include "FlarmCalculations.h"
 FlarmCalculations flarmCalculations;
 
-#ifdef __MINGW32__
-#ifndef max
-#define max(x, y)   (x > y ? x : y)
-#define min(x, y)   (x < y ? x : y)
-#endif
-#endif
-
-extern bool EnableCalibration;
 
 static double EastOrWest(double in, TCHAR EoW);
 static double NorthOrSouth(double in, TCHAR NoS);
@@ -45,8 +27,159 @@ static double MixedFormatToDegrees(double mixed);
 static int NAVWarn(TCHAR c);
 void CheckBackTarget(int flarmslot);
 
+// #define DEBUGSEQ	1
+// #define DEBUGBARO	1
+
+static double LastRMZHB=0;	 // common to both devA and devB.
+
 NMEAParser nmeaParser1;
 NMEAParser nmeaParser2;
+
+/*
+ * We update only if incoming from PrimaryBaroSource, or if it is without a device (parserid>0).
+ * FLARM has the highest priority since it is the most common used Baro device (hopefully)
+ *
+ * We must consider the case of multiplexers sending mixed devices, and the special case when
+ * one of these devices stop sending baro altitude, 
+ *
+ * UpdateMonitor is already setting baroaltitude off if no data is coming from that nmea port.
+ *
+ * CAUTION do not use devicedescriptor's pointers to functions without LockComm!!
+ */
+
+//
+// Parser's IDs
+//
+#define BARO__RMZ		1
+#define BARO__RMZ_FLARM		2	// RMZ coming from a Flarm device. 
+#define BARO__RMA		3
+#define BARO__CUSTOMFROM	4
+#define BARO__GM130		4
+#define BARO__ROYALTEK3200	5
+#define BARO__TASMAN		6
+//#define BARO__CPROBE		7
+#define BARO__CUSTOMTO		7
+#define BARO__END		8	// marking the limit
+
+bool UpdateBaroSource( NMEA_INFO* GPS_INFO, const short parserid, const PDeviceDescriptor_t d, const double fAlt)
+{
+
+  //static double	lastBaroHB=0;		// updated only when baro is assigned as valid
+  static bool notifyErr=true;
+  static bool	haveRMZfromFlarm=false;
+  static double lastRMZfromFlarmHB=0;
+  static bool	havePrimaryBaroSource=false;
+  static double lastPrimaryBaroSourceHB=0;
+
+
+  #if DEBUGBARO
+  if (parserid>0 && d) StartupStore(_T(".... Abnormal call of updatebarosource!\n"));
+
+  if (parserid>0) {
+	StartupStore(_T("... UpdateBaroSource: from internal parser type <%d>, alt=%.1f\n"),parserid,fAlt);
+  } else {
+	StartupStore(_T("... UpdateBaroSource: port=%d <%s> primary=%d secondary=%d disabled=%d alt=%.1f\n"),
+	d->PortNumber, d->Name, d==pDevPrimaryBaroSource, d==pDevSecondaryBaroSource, d->Disabled, fAlt);
+  }
+  #endif
+  if (fAlt>30000 || fAlt<-1000) {
+	if (notifyErr) {
+		StartupStore(_T("... RECEIVING INVALID BARO ALTITUDE: %f\n"),fAlt);
+		DoStatusMessage(_T("INVALID BARO ALTITUDE!"));
+		notifyErr=false;
+	}
+  }
+
+  // First we keep memory of what we got so far.
+  // RMZ_FLARM must be granted to be real (not a ghost baro), all checks in calling function.
+  if ( parserid == BARO__RMZ_FLARM ) {
+	#if DEBUGBARO
+	StartupStore(_T("... we have RMZ from Flarm\n"));
+	#endif
+	haveRMZfromFlarm=true;
+	lastRMZfromFlarmHB=LKHearthBeats;
+  }
+  if ( (d!=NULL) && (d == pDevPrimaryBaroSource)) {
+	#if DEBUGBARO
+	StartupStore(_T("... we have PrimaryBaroSource\n"));
+	#endif
+	havePrimaryBaroSource=true;
+	lastPrimaryBaroSourceHB=LKHearthBeats;
+  }
+
+  // Then we update for missing sentences from broken comms
+  if (haveRMZfromFlarm && (LKHearthBeats > (lastRMZfromFlarmHB+9))) { // 9 is 9 HBs = 4.5s
+	// For some reason the RMZ is not coming anymore. So we want to use any other baro available.
+	StartupStore(_T("... Flarm baro altitude missing since 5 seconds, fallback required\n"));
+	haveRMZfromFlarm=false;
+  }
+  if (havePrimaryBaroSource && (LKHearthBeats > (lastPrimaryBaroSourceHB+9))) {
+	StartupStore(_T("... Primary baro altitude missing since 5 seconds, fallback required\n"));
+	havePrimaryBaroSource=false;
+  }
+
+  // If RMZ from flarm, we ony want that!
+  // A multiplexer can filter flarm RMZ, this is why we ensure that we have one available.
+  if (haveRMZfromFlarm) {
+	if ( parserid == BARO__RMZ_FLARM) {
+		#if DEBUGBARO
+		StartupStore(_T("....> Using RMZ from Flarm:  %.1f\n"),fAlt);
+		#endif
+		GPS_INFO->BaroAltitudeAvailable = true;
+		GPS_INFO->BaroAltitude = fAlt;
+		//lastBaroHB=LKHearthBeats;
+		return true;
+	}
+
+	// When Flarm is available, we only use its RMZ. Nothing else.
+	// We must also consider the case of dual RMZ from dual port. Only one if from flarm.
+	#if DEBUGBARO
+	StartupStore(_T("....> Discarding baro altitude  %.1f, not from Flarm\n"),fAlt);
+	#endif
+	return false;
+  }
+
+  // Special devices that have internal custom driver as RMZ
+  // They are supposed to be lone and unmixed
+  if ( (parserid>=BARO__CUSTOMFROM) && (parserid<=BARO__CUSTOMTO)) {
+	#if DEBUGBARO
+	StartupStore(_T("....> Using custom device <%d>, alt=%.1f\n"),parserid,fAlt);
+	#endif
+	GPS_INFO->BaroAltitudeAvailable = true;
+	GPS_INFO->BaroAltitude = fAlt;
+	//lastBaroHB=LKHearthBeats;
+	return true;
+  }
+
+  // Otherwise we go for primary device
+  if (havePrimaryBaroSource ) {
+	if ((d!=NULL) && (d == pDevPrimaryBaroSource)) {
+		#if DEBUGBARO
+		StartupStore(_T("....> Using Primary alt=%.1f\n"),fAlt);
+		#endif
+		GPS_INFO->BaroAltitudeAvailable = true;
+		GPS_INFO->BaroAltitude = fAlt;
+		//lastBaroHB=LKHearthBeats;
+		return true;
+  	}
+	#if DEBUGBARO
+	StartupStore(_T("....> Discarding not-primary baro alt=%.1f\n"),fAlt);
+	#endif
+	return false;
+  }
+
+  // .. else we use the baro, probably from RMA, or from SecondaryBaroSource
+  #if DEBUGBARO
+  StartupStore(_T("....> Using fallback baro alt=%.1f\n"),fAlt);
+  #endif
+  GPS_INFO->BaroAltitudeAvailable = true;
+  GPS_INFO->BaroAltitude = fAlt;
+  //lastBaroHB=LKHearthBeats;
+  return true;
+
+
+}
+
 
 
 int NMEAParser::StartDay = -1;
@@ -67,9 +200,11 @@ void NMEAParser::_Reset(void) {
   RMCAvailable = false;
   TASAvailable = false; // 100411
   RMAAltitude = 0;
-  
+ 
+  GGAtime=0;
+  RMCtime=0;
+  GLLtime=0; 
   LastTime = 0;
-  NmeaTime=0;
 }
 
 void NMEAParser::Reset(void) {
@@ -88,11 +223,11 @@ void NMEAParser::Reset(void) {
 // run every 5 seconds, approx.
 void NMEAParser::UpdateMonitor(void) 
 {
-  short active;
+  short active; // active port number for gps
   static short lastactive=0;
   static bool  lastvalidBaro=false;
   short invalidGps=0;
-  // short invalidBaro=0;  // not really used now
+  short invalidBaro=0;
   short validBaro=0; 
 
   // does anyone have GPS?
@@ -108,19 +243,28 @@ void NMEAParser::UpdateMonitor(void)
 		active= nmeaParser1.activeGPS ? 1 : 2;
 	}
   } else {
-	// assume device 1 is active
-	nmeaParser2.activeGPS = false;
-	nmeaParser1.activeGPS = true;
-	active=1;
+	// No valid fix on any port. We use the first port with at least some data going through!
+	// This will keep probably at least the time updated since the gps may still be receiving a 
+	// valid time, good for us.
+	if ( (LKHearthBeats-ComPortHB[0])<10 ) active=1;
+	else 
+		if ( (LKHearthBeats-ComPortHB[1])<10 ) active=2;
+		else
+			active=1;	// lets keep waiting for the first port
+
+	if (active==1) {
+		nmeaParser1.activeGPS = true;
+		nmeaParser2.activeGPS = false;
+	} else {
+		nmeaParser1.activeGPS = false;
+		nmeaParser2.activeGPS = true;
+	}
   }
- #if 1	// TODO better check if ok
   if (nmeaParser2.activeGPS==true && active==1) {
-	StartupStore(_T("... GPS Update error: port 1 and 2 are active!%s"),NEWLINE);
-	FailStore(_T("... GPS Update error: port 1 and 2 are active!%s"),NEWLINE);
+	StartupStore(_T(".... GPS Update error: port 1 and 2 are active!%s"),NEWLINE);
 	nmeaParser2.activeGPS=false; // force it off
 	active=1; 
   }
- #endif
 
   // wait for some seconds before monitoring, after startup
   if (LKHearthBeats<20) return;
@@ -135,6 +279,20 @@ void NMEAParser::UpdateMonitor(void)
 	}
 	nmeaParser1.gpsValid=false;
 	invalidGps=1;
+	// We want to be sure that if this device is silent, and it was providing Baro altitude,
+	// now it is set to off.
+	if (GPS_INFO.BaroAltitudeAvailable==TRUE) {
+		if ( devA() == pDevPrimaryBaroSource || nmeaParser1.RMZAvailable 
+		  || nmeaParser1.RMAAvailable || nmeaParser1.TASAvailable ) {
+			invalidBaro=1;
+		}
+	}
+	GPS_INFO.AirspeedAvailable=false;
+	GPS_INFO.VarioAvailable=false;
+	GPS_INFO.NettoVarioAvailable=false;
+	GPS_INFO.AccelerationAvailable = false;
+	EnableExternalTriggerCruise = false;
+	nmeaParser1._Reset();
   } else {
 	// We have hearth beats, is baro available?
 	if ( devIsBaroSource(devA()) || nmeaParser1.RMZAvailable || nmeaParser1.RMAAvailable || nmeaParser1.TASAvailable ) // 100411
@@ -150,6 +308,18 @@ void NMEAParser::UpdateMonitor(void)
 	}
 	nmeaParser2.gpsValid=false;
 	invalidGps++;
+	if (GPS_INFO.BaroAltitudeAvailable==TRUE) {
+		if ( devB() == pDevPrimaryBaroSource || nmeaParser2.RMZAvailable 
+		  || nmeaParser2.RMAAvailable || nmeaParser2.TASAvailable ) {
+			invalidBaro++;
+		}
+	}
+	GPS_INFO.AirspeedAvailable=false;
+	GPS_INFO.VarioAvailable=false;
+	GPS_INFO.NettoVarioAvailable=false;
+	GPS_INFO.AccelerationAvailable = false;
+	EnableExternalTriggerCruise = false;
+	nmeaParser2._Reset();
   } else {
 	// We have hearth beats, is baro available?
 	if ( devIsBaroSource(devB()) || nmeaParser2.RMZAvailable || nmeaParser2.RMAAvailable || nmeaParser2.TASAvailable   )  // 100411
@@ -160,7 +330,11 @@ void NMEAParser::UpdateMonitor(void)
   if (invalidGps==2) {
 	StartupStore(_T("... GPS no gpsValid available on port 1 and 2, active=%d%s"),active,NEWLINE);
   }
+  if (invalidBaro>0) {
+	StartupStore(_T("... Baro altitude just lost, current status=%d%s"),GPS_INFO.BaroAltitudeAvailable,NEWLINE);
+  }
   #endif
+
 
   // do we really still have a baro altitude available?
   // If some baro source disappeared, let's reset it for safety. Parser will re-enable them immediately if available.
@@ -170,31 +344,70 @@ void NMEAParser::UpdateMonitor(void)
 	if ( GPS_INFO.BaroAltitudeAvailable ) {
 		StartupStore(_T("... GPS no active baro source, and still BaroAltitudeAvailable, forced off%s"),NEWLINE);
 		if (EnableNavBaroAltitude) {
-	// LKTOKEN  _@M122_ = "BARO ALTITUDE NOT AVAILABLE, USING GPS ALTITUDE" 
-			DoStatusMessage(gettext(TEXT("_@M122_")));
-			PortMonitorMessages++;	// 100911
-		} else
-	// LKTOKEN  _@M121_ = "BARO ALTITUDE NOT AVAILABLE" 
-			DoStatusMessage(gettext(TEXT("_@M121_")));
+			// LKTOKEN  _@M122_ = "BARO ALTITUDE NOT AVAILABLE, USING GPS ALTITUDE" 
+			DoStatusMessage(MsgToken(122));
+			PortMonitorMessages++;
+		} else {
+			// LKTOKEN  _@M121_ = "BARO ALTITUDE NOT AVAILABLE" 
+			DoStatusMessage(MsgToken(121));
+		}
 		GPS_INFO.BaroAltitudeAvailable=false;
+		// We alse reset these values, just in case we are through a mux
 		GPS_INFO.AirspeedAvailable=false;
 		GPS_INFO.VarioAvailable=false;
 		GPS_INFO.NettoVarioAvailable=false;
+		GPS_INFO.AccelerationAvailable = false;
+		EnableExternalTriggerCruise = false;
+		nmeaParser1._Reset();
+		nmeaParser2._Reset();
 		lastvalidBaro=false;
 	}
   } else {
 	if ( lastvalidBaro==false) {
+		#if DEBUGBARO
+		TCHAR devname[50];
+		if (pDevPrimaryBaroSource) {
+			LK_tcsncpy(devname,pDevPrimaryBaroSource->Name,49);
+		} else {
+			_tcscpy(devname,_T("unknown"));
+		}
+		StartupStore(_T("... GPS baro source back available from <%s>%s"),devname,NEWLINE);
+		#else
 		StartupStore(_T("... GPS baro source back available%s"),NEWLINE);
-		if (EnableNavBaroAltitude)
-	// LKTOKEN  _@M755_ = "USING AVAILABLE BARO ALTITUDE" 
-			DoStatusMessage(gettext(TEXT("_@M755_")));
-		else
-	// LKTOKEN  _@M120_ = "BARO ALTITUDE IS AVAILABLE" 
-			DoStatusMessage(gettext(TEXT("_@M120_")));
+		#endif
+
+		if (EnableNavBaroAltitude) {
+			DoStatusMessage(MsgToken(1796)); // USING BARO ALTITUDE
+		} else {
+			DoStatusMessage(MsgToken(1795)); // BARO ALTITUDE IS AVAILABLE
+		}
+
 		lastvalidBaro=true;
+	} 
+	else {
+		// last baro was Ok, currently we still have a validbaro, but no HBs...
+		// Probably it is a special case when no gps fix was found on the secondary baro source.
+		if (invalidBaro) {
+			GPS_INFO.BaroAltitudeAvailable=FALSE;
+			#ifdef DEBUGNPM
+			StartupStore(_T(".... We still have valid baro, resetting BaroAltitude OFF\n"));
+			#endif
+		}
 	}
+  }
 
-
+  // Very important check for multiplexers: if RMZ did not get through in the past seconds, we want to
+  // be very sure that there still is one incoming, otherwise we shall be UpdatingBaroSource using the old one,
+  // never really updated!! This is because GGA and RMC are using RMZAvailable to UpdateBaroSource, no matter if
+  // there was a real RMZ in the NMEA stream lately.
+  // Normally RMZAvailable, RMCAvailable, GGA etc.etc. are reset to false when the com port is silent.
+  // But RMZ is special, because it can be sent through the multiplexer from a flarm box.
+  if ( (nmeaParser1.RMZAvailable || nmeaParser2.RMZAvailable) && (LKHearthBeats > (LastRMZHB+5))) {
+	#if DEBUGBARO
+	StartupStore(_T(".... RMZ not updated recently, resetting HB\n"));
+	#endif
+	nmeaParser1.RMZAvailable = FALSE;
+	nmeaParser2.RMZAvailable = FALSE;
   }
 
   // Following diagnostics only
@@ -334,6 +547,10 @@ BOOL NMEAParser::ParseNMEAString_Internal(TCHAR *String, NMEA_INFO *GPS_INFO)
 	{
 	  return RMZ(&String[7], params + 1, n_params, GPS_INFO);
 	}
+      if(_tcscmp(params[0] + 1,TEXT("PLKAS"))==0)
+        {
+          return PLKAS(&String[7], params + 1, n_params, GPS_INFO);
+        }
       return FALSE;
     }
 
@@ -421,16 +638,6 @@ double NorthOrSouth(double in, TCHAR NoS)
     return in;
 }
 
-/*
-double LeftOrRight(double in, TCHAR LoR)
-{
-  if(LoR == 'L')
-    return -in;
-  else
-    return in;
-}
-*/
-
 int NAVWarn(TCHAR c)
 {
   if(c=='A')
@@ -459,7 +666,10 @@ double MixedFormatToDegrees(double mixed)
   return degrees+mins;
 }
 
-// AND.. what if your gps is sending a 00:00 date and time?? 091129
+//
+// Make time absolute, over 86400seconds when day is changing
+// We need a valid date to use it. We are relying on StartDay.
+//
 double NMEAParser::TimeModify(double FixTime, NMEA_INFO* GPS_INFO)
 {
   double hours, mins,secs;
@@ -494,52 +704,15 @@ double NMEAParser::TimeModify(double FixTime, NMEA_INFO* GPS_INFO)
   return FixTime;
 }
 
-// convert to double , missing wraparound midnight
-double NMEAParser::TimeConvert(double FixTime, NMEA_INFO* GPS_INFO)
-{
-  double hours, mins,secs;
-  hours = FixTime / 10000;
-  NmeaHours = (int)hours;
-  mins = FixTime / 100;
-  mins = mins - (NmeaHours*100);
-  NmeaMinutes = (int)mins;
-  secs = FixTime - (NmeaHours*10000) - (NmeaMinutes*100);
-  NmeaSeconds = (int)secs;
-  FixTime = secs + (NmeaMinutes*60) + (NmeaHours*3600);
-
-  if ((StartDay== -1) && (GPS_INFO->Day != 0)) {
-	StartDay = GPS_INFO->Day;
-  }
-  if (StartDay != -1) {
-	if (GPS_INFO->Day < StartDay) {
-		// detect change of month (e.g. day=1, startday=31)
-		StartDay = GPS_INFO->Day-1;
-	}
-	int day_difference = GPS_INFO->Day-StartDay;
-	if (day_difference>0) {
-		FixTime += day_difference * 86400;
-	}
-  }
-
-  return FixTime;
-}
-
-// set time to GPS struct
-void NMEAParser::TimeSet(NMEA_INFO* GPS_INFO)
-{
-
-  GPS_INFO->Hour = NmeaHours;
-  GPS_INFO->Minute = NmeaMinutes;
-  GPS_INFO->Second = NmeaSeconds;
-
-}
-
 bool NMEAParser::TimeHasAdvanced(double ThisTime, NMEA_INFO *GPS_INFO) {
 
-  // If simulating, we might be in the future already...
+  // If simulating, we might be in the future already.
+  // We CANNOT check for <= because this check may be done by several GGA RMC GLL etc. sentences
+  // among the same quantum time
   if(ThisTime< LastTime) {
     LastTime = ThisTime;
     StartDay = -1; // reset search for the first day
+    MasterTimeReset();
     return false;
   } else {
     GPS_INFO->Time = ThisTime;
@@ -552,8 +725,8 @@ BOOL NMEAParser::GSA(TCHAR *String, TCHAR **params, size_t nparams, NMEA_INFO *G
 {
   int iSatelliteCount =0;
 
-  GSAAvailable = TRUE; // 100213 MISSING BUGFIX 
-  if (!activeGPS) return TRUE; // 100213 BUGFIX
+  GSAAvailable = TRUE;
+  if (!activeGPS) return TRUE;
 
   if (ReplayLogger::IsEnabled()) {
     return TRUE;
@@ -582,40 +755,18 @@ BOOL NMEAParser::GLL(TCHAR *String, TCHAR **params, size_t nparams, NMEA_INFO *G
   if (!activeGPS) return TRUE;
 
   if (ReplayLogger::IsEnabled()) {
-    // block actual GPS signal
-	InterfaceTimeoutReset();
 	return TRUE;
   }
   
   GPS_INFO->NAVWarning = !gpsValid;
   
   // use valid time with invalid fix
-  double glltime = StrToDouble(params[4],NULL);
-  if (glltime>0) {
-	#ifdef NEWTRIGGERGPS
-	double ThisTime = TimeConvert(glltime, GPS_INFO); // 091208
-	#else
-	double ThisTime = TimeModify(glltime, GPS_INFO);
-	#endif
-
-	#ifndef NEWTRIGGERGPS
-	if (!TimeHasAdvanced(ThisTime, GPS_INFO)) return FALSE; // 091208
-	#endif
-
-	#ifdef NEWTRIGGERGPS
-	// is time advanced to a new quantum?
-	if (ThisTime >NmeaTime) {
-		// yes so lets trigger the gps event
-		TriggerGPSUpdate();
-		Sleep(50); // 091208
-		NmeaTime=ThisTime;
-		TimeSet(GPS_INFO); // 091208
-		TimeHasAdvanced(ThisTime,GPS_INFO); // 091208
-		//StartupStore(_T(".............. trigger from GLL\n"));
-	}
-	#endif
+  GLLtime = StrToDouble(params[4],NULL);
+  if (!RMCAvailable &&  !GGAAvailable && (GLLtime>0)) {
+	double ThisTime = TimeModify(GLLtime, GPS_INFO);
+	if (!TimeHasAdvanced(ThisTime, GPS_INFO)) return FALSE; 
   }
-  if (!gpsValid) return FALSE;  // 091108 addon BUGFIX GLL time with no valid signal
+  if (!gpsValid) return FALSE;
   
   double tmplat;
   double tmplon;
@@ -633,7 +784,9 @@ BOOL NMEAParser::GLL(TCHAR *String, TCHAR **params, size_t nparams, NMEA_INFO *G
     
   }
   return TRUE;
-}
+
+} // END GLL
+
 
 
 BOOL NMEAParser::RMB(TCHAR *String, TCHAR **params, size_t nparams, NMEA_INFO *GPS_INFO)
@@ -660,13 +813,10 @@ BOOL NMEAParser::RMB(TCHAR *String, TCHAR **params, size_t nparams, NMEA_INFO *G
   */
 
   return TRUE;
-}
 
-#if (!defined(WINDOWSPC) || (WINDOWSPC==0)) 
-bool SetSystemTimeFromGPS = true; // 091105 was false
-#else
-bool SetSystemTimeFromGPS = false; // 091129
-#endif
+} // END RMB
+
+
 
 BOOL NMEAParser::VTG(TCHAR *String, TCHAR **params, size_t nparams, NMEA_INFO *GPS_INFO)
 {
@@ -707,7 +857,11 @@ BOOL NMEAParser::VTG(TCHAR *String, TCHAR **params, size_t nparams, NMEA_INFO *G
 
   return TRUE;
 
-}
+} // END VTG
+
+
+
+
 
 BOOL NMEAParser::RMC(TCHAR *String, TCHAR **params, size_t nparams, NMEA_INFO *GPS_INFO)
 {
@@ -720,7 +874,45 @@ BOOL NMEAParser::RMC(TCHAR *String, TCHAR **params, size_t nparams, NMEA_INFO *G
   GPSCONNECT = TRUE;    
   RMCAvailable=true; // 100409
 
-  if (!activeGPS) return TRUE; // 091205 BUGFIX true
+  #ifdef PNA
+  if (DeviceIsGM130) {
+
+	#if 1
+	double ps = GM130BarPressure();
+	RMZAltitude = (1 - pow(fabs(ps / QNH),  0.190284)) * 44307.69;
+	// StartupStore(_T("....... Pressure=%.0f QNH=%.2f Altitude=%.1f\n"),ps,QNH,RMZAltitude);
+	#else
+	RMZAltitude = GM130BarAltitude();
+	RMZAltitude = AltitudeToQNHAltitude(RMZAltitude);
+	#endif
+
+	RMZAvailable = TRUE;
+
+	if (!ReplayLogger::IsEnabled()) {
+		UpdateBaroSource(GPS_INFO, BARO__GM130, NULL,   RMZAltitude);
+	}
+  }
+  if (DeviceIsRoyaltek3200) {
+	if (Royaltek3200_ReadBarData()) {
+		double ps = Royaltek3200_GetPressure();
+		RMZAltitude = (1 - pow(fabs(ps / QNH),  0.190284)) * 44307.69;
+
+		#if 0
+		GPS_INFO->TemperatureAvailable=true;
+		GPS_INFO->OutsideAirTemperature = Royaltek3200_GetTemperature();
+		#endif
+	}
+
+	RMZAvailable = TRUE;
+
+	if (!ReplayLogger::IsEnabled()) {
+	  UpdateBaroSource(GPS_INFO, BARO__ROYALTEK3200,  NULL,  RMZAltitude);
+	}
+
+  }
+  #endif // PNA
+
+  if (!activeGPS) return TRUE;
 
   // if no valid fix, we dont get speed either!
   if (gpsValid)
@@ -747,11 +939,9 @@ BOOL NMEAParser::RMC(TCHAR *String, TCHAR **params, size_t nparams, NMEA_INFO *G
   // say we are updated every time we get this,
   // so infoboxes get refreshed if GPS connected
   // the RMC sentence marks the start of a new fix, so we force the old data to be saved for calculations
-#ifndef NEWTRIGGERGPS
-  if (!GGAAvailable) { 
-	TriggerGPSUpdate();
-  }
-#endif
+//  if (!GGAAvailable) {  // TO REMOVE
+//	TriggerGPSUpdate();
+//  }
 
 	// Even with no valid position, we let RMC set the time and date if valid
 	long gy, gm, gd;
@@ -761,57 +951,46 @@ BOOL NMEAParser::RMC(TCHAR *String, TCHAR **params, size_t nparams, NMEA_INFO *G
 	params[8][2] = '\0';
 	gd = _tcstol(&params[8][0], &Stop, 10); 
 
-#if NOSIM
-	if ( ((gy > 1980) && (gy <2100) ) && (gm != 0) && (gd != 0) ) { 
-#else
-#ifdef _SIM_
 	// SeeYou PC is sending NMEA sentences with RMC date 2072-02-27
-	if ( ((gy > 1980) && (gy <2100) ) && (gm != 0) && (gd != 0) ) { // 100422
-#else
-	if ( ((gy > 2000) && (gy <2020) ) && (gm != 0) && (gd != 0) ) { // 100422
-#endif
-#endif
+	if ( ((gy > 1980) && (gy <2100) ) && (gm != 0) && (gd != 0) ) { 
 		GPS_INFO->Year = gy;
 		GPS_INFO->Month = gm;
 		GPS_INFO->Day = gd;
-#ifdef NEWTRIGGERGPS
-		double ThisTime = TimeConvert(StrToDouble(params[0],NULL), GPS_INFO); // 091208
-#else
-		double ThisTime = TimeModify(StrToDouble(params[0],NULL), GPS_INFO);
-#endif
 
-#ifndef NEWTRIGGERGPS
-		if (!TimeHasAdvanced(ThisTime, GPS_INFO))
+force_advance:
+		RMCtime = StrToDouble(params[0],NULL);
+		double ThisTime = TimeModify(RMCtime, GPS_INFO);
+
+		// RMC time has priority on GGA and GLL etc. so if we have it we use it at once
+		if (!TimeHasAdvanced(ThisTime, GPS_INFO)) {
+			#if DEBUGSEQ
+			StartupStore(_T("..... RMC time not advanced, skipping \n")); // 31C
+			#endif
 			return FALSE;
-#endif
-#ifdef NEWTRIGGERGPS
-		// is time advanced to a new quantum?
-		if (ThisTime >NmeaTime) {
-			// yes so lets trigger the gps event
-			TriggerGPSUpdate();
-			// and only then advance the time in the GPSINFO
-			Sleep(50); // 091208
-			NmeaTime=ThisTime;
-			TimeSet(GPS_INFO); // 091208
-			TimeHasAdvanced(ThisTime, GPS_INFO); // 091208
-			StartupStore(_T(".............. trigger from RMC\n"));
 		}
-#endif
 			
 	}  else {
+		if (devIsCondor(devA())) {
+			#if DEBUGSEQ
+			StartupStore(_T(".. Condor not sending valid date, using 1.1.2012%s"),NEWLINE);
+			#endif
+			gy=2012; gm=1; gd=1;
+			goto force_advance;
+		}
+
 		if (gpsValid && logbaddate) { // 091115
 			StartupStore(_T("------ NMEAParser:RMC Receiving an invalid or null DATE from GPS%s"),NEWLINE);
 			StartupStore(_T("------ NMEAParser: Date received is y=%d m=%d d=%d%s"),gy,gm,gd,NEWLINE); // 100422
 			StartupStore(_T("------ This message will NOT be repeated.%s"),NEWLINE);
-			// DoStatusMessage(_T("WARNING: GPS IS SENDING INVALID DATE, AND PROBABLY WRONG TIME")); // REMOVE FIXV2
-			// LKTOKEN 875  WARNING: GPS IS SENDING INVALID DATE, AND PROBABLY WRONG TIME")); 
-			DoStatusMessage(gettext(TEXT("_@M875_")));
+			DoStatusMessage(MsgToken(875));
 			logbaddate=false;
 		}
+		gy=2012; gm=2; gd=30;	// an impossible date!
+		goto force_advance;
+		 
 	}
-//  } // 091108
 
-  if (gpsValid) {   // 091108 BUGFIX set latlon and speed ONLY if valid gpsdata, missing check!
+  if (gpsValid) { 
 	double tmplat;
 	double tmplon;
 
@@ -829,13 +1008,11 @@ BOOL NMEAParser::RMC(TCHAR *String, TCHAR **params, size_t nparams, NMEA_INFO *G
 	GPS_INFO->Speed = KNOTSTOMETRESSECONDS * speed;
   
 	if (GPS_INFO->Speed>1.0) {
-		// JMW don't update bearing unless we're moving
 		GPS_INFO->TrackBearing = AngleLimit360(StrToDouble(params[7], NULL));
 	}
   } // gpsvalid 091108
     
-  // Altair doesn't have a battery-backed up realtime clock,
-  // so as soon as we get a fix for the first time, set the
+  // As soon as we get a fix for the first time, set the
   // system clock to the GPS time.
   static bool sysTimeInitialised = false;
   
@@ -865,15 +1042,14 @@ BOOL NMEAParser::RMC(TCHAR *String, TCHAR **params, size_t nparams, NMEA_INFO *G
 
   if (!ReplayLogger::IsEnabled()) {      
 	if(RMZAvailable) {
-		// JMW changed from Altitude to BaroAltitude
-		GPS_INFO->BaroAltitudeAvailable = true;
-		GPS_INFO->BaroAltitude = RMZAltitude;
+		UpdateBaroSource(GPS_INFO, BARO__RMZ, NULL,  RMZAltitude);
 	}
 	else if(RMAAvailable) {
-	// JMW changed from Altitude to BaroAltitude
-		GPS_INFO->BaroAltitudeAvailable = true;
-		GPS_INFO->BaroAltitude = RMAAltitude;
+	     UpdateBaroSource(GPS_INFO, BARO__RMA, NULL,  RMAAltitude);
 	}
+	#ifdef PNA
+
+	#endif
   }
   if (!GGAAvailable) {
 	// update SatInUse, some GPS receiver dont emmit GGA sentance
@@ -884,8 +1060,19 @@ BOOL NMEAParser::RMC(TCHAR *String, TCHAR **params, size_t nparams, NMEA_INFO *G
 	}
   }
   
+  if ( !GGAAvailable || (GGAtime == RMCtime)  )  {
+	#if DEBUGSEQ
+	StartupStore(_T("... RMC trigger gps, GGAtime==RMCtime\n")); // 31C
+	#endif
+	TriggerGPSUpdate(); 
+  }
+
   return TRUE;
-}
+
+} // END RMC
+
+
+
 
 BOOL NMEAParser::GGA(TCHAR *String, TCHAR **params, size_t nparams, NMEA_INFO *GPS_INFO)
 {
@@ -913,43 +1100,45 @@ BOOL NMEAParser::GGA(TCHAR *String, TCHAR **params, size_t nparams, NMEA_INFO *G
 	gpsValid=true;
   }
 
-  // don't set any GPS_INFO if not activeGPS!!
   if (!activeGPS) return TRUE;
 
   GPS_INFO->SatellitesUsed = nSatellites; // 091208
   GPS_INFO->NAVWarning = !gpsValid; // 091208
 
-//  // GPS_INFO->SatellitesUsed = (int)(min(16,StrToDouble(params[6], NULL))); 091205 091208 moved up
-//  GPS_INFO->SatellitesUsed = nSatellites; // 091205
-
-  double ggatime=StrToDouble(params[0],NULL);
+  GGAtime=StrToDouble(params[0],NULL);
   // Even with invalid fix, we might still have valid time
   // I assume that 0 is invalid, and I am very sorry for UTC time 00:00 ( missing a second a midnight).
   // is better than risking using 0 as valid, since many gps do not respect any real nmea standard
-  if (ggatime>0) { 
-	#ifdef NEWTRIGGERGPS
-	double ThisTime = TimeConvert(ggatime, GPS_INFO);
-	#else
-	double ThisTime = TimeModify(ggatime, GPS_INFO);
-	#endif
+  //
+  // Update 121215: do not update time with GGA if RMC is found, because at 00UTC only RMC will set the date change!
+  // Remember that we trigger update of calculations when we get GGA.
+  // So what happens if the gps sequence is GGA and then RMC?
+  //    2359UTC:
+  //           GGA , old date, trigger gps calc
+  //           RMC,  old date
+  //    0000UTC:
+  //           GGA, old date even if new date will come for the same quantum,
+  //                GGAtime>0, see (*)
+  //                BANG! oldtime from RMC is 2359, new time from GGA is 0, time is in the past!
+  //
+  // If the gps is sending first RMC, this problem does not appear of course.
+  //
+  // (*) IMPORTANT> GGAtime at 00UTC will most likely be >0! Because time is in hhmmss.ss  .ss is always >0!!
+  // We check GGAtime, RMCtime, GLLtime etc. for 0 because in case of error the gps will send 000000.000 !!
+  //
+  if ( (!RMCAvailable && (GGAtime>0)) || ((GGAtime>0) && (GGAtime == RMCtime))  ) {  // RMC already came in same time slot
 
-	#ifndef NEWTRIGGERGPS
-	if (!TimeHasAdvanced(ThisTime, GPS_INFO))
+	#if DEBUGSEQ
+	StartupStore(_T("... GGA update time = %f RMCtime=%f\n"),GGAtime,RMCtime); // 31C
+	#endif
+	double ThisTime = TimeModify(GGAtime, GPS_INFO);
+
+	if (!TimeHasAdvanced(ThisTime, GPS_INFO)) {
+		#if DEBUGSEQ
+		StartupStore(_T(".... GGA time not advanced, skip\n")); // 31C
+		#endif
 		return FALSE;
-	#endif
-
-	#ifdef NEWTRIGGERGPS
-		// is time advanced to a new quantum?
-		if (ThisTime >NmeaTime) {
-			// yes so lets trigger the gps event
-			TriggerGPSUpdate();
-			Sleep(50); // 091208
-			NmeaTime=ThisTime;
-			TimeSet(GPS_INFO); // 091208
-			TimeHasAdvanced(ThisTime, GPS_INFO); // 091208
-			StartupStore(_T(".............. trigger from GGA\n"));
-		}
-	#endif
+	}
   }
   if (gpsValid) {
 	double tmplat;
@@ -976,22 +1165,23 @@ BOOL NMEAParser::GGA(TCHAR *String, TCHAR **params, size_t nparams, NMEA_INFO *G
   // any NMEA sentence with time can now trigger gps update: the first to detect new time will make trigger.
   // we assume also that any sentence with no time belongs to current time.
   // note that if no time from gps, no use of vario and baro data, but also no fix available.. so no problems
-  if(RMZAvailable) {
-	GPS_INFO->BaroAltitudeAvailable = true;
-	GPS_INFO->BaroAltitude = RMZAltitude;
+
+  if(RMZAvailable)
+  {
+	UpdateBaroSource(GPS_INFO, isFlarm? BARO__RMZ_FLARM:BARO__RMZ, NULL, RMZAltitude);
   }
   else if(RMAAvailable) {
-	GPS_INFO->BaroAltitudeAvailable = true;
-	GPS_INFO->BaroAltitude = RMAAltitude;
+	UpdateBaroSource(GPS_INFO,  BARO__RMA,NULL, RMAAltitude);
   }
 
-#ifndef NEWTRIGGERGPS
-  if (!gpsValid) { // 091108 addon BUGFIX GCA
-	// in old mode, GGA had priority over RMC for triggering, so this was needed in case of no signal 
-	TriggerGPSUpdate(); // 091205 TESTFIX
-	return FALSE; // 091108 addon BUGFIX GCA
+  // If  no gps fix, at this point we trigger refresh and quit
+  if (!gpsValid) { 
+	#if DEBUGSEQ
+	StartupStore(_T("........ GGA no gps valid, triggerGPS!\n")); // 31C
+	#endif
+	TriggerGPSUpdate(); 
+	return FALSE;
   }
-#endif
 
   // "Altitude" should always be GPS Altitude.
   GPS_INFO->Altitude = ParseAltitude(params[8], params[9]);
@@ -1010,12 +1200,41 @@ BOOL NMEAParser::GGA(TCHAR *String, TCHAR **params, size_t nparams, NMEA_INFO *G
 	}
   }
 
-#ifndef NEWTRIGGERGPS
   // if RMC would be Triggering update, we loose the relative altitude, which is coming AFTER rmc! 
   // This was causing old altitude recorded in new pos fix.
-  TriggerGPSUpdate(); 
-#endif
+  // 120428:
+  // GGA will trigger gps if there is no RMC,  
+  // or if GGAtime is the same as RMCtime, which means that RMC already came and we are last in the sequence
+  if ( !RMCAvailable || (GGAtime == RMCtime)  )  {
+	#if DEBUGSEQ
+	StartupStore(_T("... GGA trigger gps, GGAtime==RMCtime\n")); // 31C
+	#endif
+	TriggerGPSUpdate(); 
+  }
   return TRUE;
+
+} // END GGA
+
+
+
+
+// LK8000 IAS , in m/s*10  example: 346 for 34.6 m/s  which is = 124.56 km/h
+BOOL NMEAParser::PLKAS(TCHAR *String, TCHAR **params, size_t nparams, NMEA_INFO *GPS_INFO)
+{
+  (void)GPS_INFO;
+
+  double vias=StrToDouble(params[0],NULL)/10.0;
+  if (vias >1) {
+    GPS_INFO->TrueAirspeed = vias*AirDensityRatio(CALCULATED_INFO.NavAltitude);
+    GPS_INFO->IndicatedAirspeed = vias;
+  } else {
+    GPS_INFO->TrueAirspeed = 0;
+    GPS_INFO->IndicatedAirspeed = 0;
+  }
+
+  GPS_INFO->AirspeedAvailable = TRUE;
+
+  return FALSE;
 }
 
 
@@ -1026,15 +1245,19 @@ BOOL NMEAParser::RMZ(TCHAR *String, TCHAR **params, size_t nparams, NMEA_INFO *G
   RMZAltitude = ParseAltitude(params[0], params[1]);
   RMZAltitude = AltitudeToQNHAltitude(RMZAltitude);
   RMZAvailable = TRUE;
+  LastRMZHB=LKHearthBeats; // this is common to both ports!
 
+  #if 0 // REMOVE
+  // 120510 Normally the altitude will be assigned by RMC or GGA triggers.
+  //
   // if no device declared to have baro, we can use RMZ even if not activeGPS
   // OR if the declared device failed to provide baro!! 
   if (!devHasBaroSource() || !GPS_INFO->BaroAltitudeAvailable) {
     if (!ReplayLogger::IsEnabled()) {      
-      GPS_INFO->BaroAltitudeAvailable = true;
-      GPS_INFO->BaroAltitude = RMZAltitude;
+      UpdateBaroSource(GPS_INFO, BARO__RMZ_LONE, NULL,   RMZAltitude);
     }
   }
+  #endif
 
   return FALSE;
 }
@@ -1047,15 +1270,6 @@ BOOL NMEAParser::RMA(TCHAR *String, TCHAR **params, size_t nparams, NMEA_INFO *G
   RMAAltitude = ParseAltitude(params[0], params[1]);
   RMAAltitude = AltitudeToQNHAltitude(RMAAltitude); 
   RMAAvailable = TRUE;
-  GPS_INFO->BaroAltitudeAvailable = true;
-
-  if (!devHasBaroSource() || !GPS_INFO->BaroAltitudeAvailable) { // 100213
-    if (!ReplayLogger::IsEnabled()) {      
-      // JMW no in-built baro sources, so use this generic one
-      GPS_INFO->BaroAltitudeAvailable = true;
-      GPS_INFO->BaroAltitude = RMAAltitude;
-    }
-  }
 
   return FALSE;
 }
@@ -1130,8 +1344,7 @@ BOOL NMEAParser::PTAS1(TCHAR *String, TCHAR **params, size_t nparams, NMEA_INFO 
   GPS_INFO->TrueAirspeed = vtas;
   GPS_INFO->VarioAvailable = TRUE;
   GPS_INFO->Vario = wnet;
-  GPS_INFO->BaroAltitudeAvailable = TRUE;
-  GPS_INFO->BaroAltitude = AltitudeToQNHAltitude(baralt);
+  UpdateBaroSource(GPS_INFO, BARO__TASMAN, NULL,  AltitudeToQNHAltitude(baralt));
   GPS_INFO->IndicatedAirspeed = vtas/AirDensityRatio(baralt);
  
   TASAvailable = true; // 100411 
@@ -1141,11 +1354,8 @@ BOOL NMEAParser::PTAS1(TCHAR *String, TCHAR **params, size_t nparams, NMEA_INFO 
 }
 
 
-double AccelerometerZero=100.0;
-
 void FLARM_RefreshSlots(NMEA_INFO *GPS_INFO) {
   int i;
-  bool present = false;
   double passed;
   if (GPS_INFO->FLARM_Available) {
 
@@ -1220,12 +1430,10 @@ void FLARM_RefreshSlots(NMEA_INFO *GPS_INFO) {
 				FLARM_DumpSlot(GPS_INFO,i);
 				#endif
 				GPS_INFO->FLARM_Traffic[i].Status = LKT_GHOST;
-				present = true;
 				continue;
 			}
 
 			// Then it is real traffic
-			present=true;
 			GPS_INFO->FLARM_Traffic[i].Status = LKT_REAL; // 100325 BUGFIX missing
 
 			/*
@@ -1233,15 +1441,11 @@ void FLARM_RefreshSlots(NMEA_INFO *GPS_INFO) {
 				if (GPS_INFO->FLARM_Traffic[i].AlarmLevel>0) {
 					GaugeFLARM::Suppress = false; // NO USE
 				}
-				present = true;
 			}
 			*/
 		}
 	}
   }
-  #ifndef NOFLARMGAUGE
-  GaugeFLARM::TrafficPresent(present);
-  #endif
 }
 
 // Reset a flarm slot
@@ -1381,9 +1585,6 @@ int FLARM_FindSlot(NMEA_INFO *GPS_INFO, long Id)
   for (i=0; i<FLARM_MAX_TRAFFIC; i++) {
 	if (GPS_INFO->FLARM_Traffic[i].ID<=0) { // 100327 <= was ==
 		// this is a new target
-		#ifndef NOFLARMGAUGE
-		GaugeFLARM::Suppress = false;
-		#endif
 		#ifdef DEBUG_LKT
 		StartupStore(_T("... FLARM ID=%lx assigned NEW SLOT=%d\n"),Id,i);
 		#endif
@@ -1463,7 +1664,7 @@ BOOL NMEAParser::PDSXT(TCHAR *String, TCHAR **params, size_t nparams, NMEA_INFO 
   Message::AddMessage(30000, 3, mbuf);
   Message::Unlock();
   #ifndef DISABLEAUDIO
-  if (EnableSoundModes) PlayResource(TEXT("IDR_WAV_TONEUP"));
+  if (EnableSoundModes) LKSound(TEXT("LK_TONEUP.WAV"));
   #endif
 
   return TRUE;
@@ -1569,8 +1770,7 @@ BOOL NMEAParser::PFLAA(TCHAR *String, TCHAR **params, size_t nparams, NMEA_INFO 
 	GPS_INFO->FLARM_Traffic[flarm_slot].UpdateNameFlag=false; // clear flag first
 	TCHAR *fname = LookupFLARMDetails(GPS_INFO->FLARM_Traffic[flarm_slot].ID);
 	if (fname) {
-		_tcsncpy(name,fname,MAXFLARMNAME);
-		name[MAXFLARMNAME]=0;
+		LK_tcsncpy(name,fname,MAXFLARMNAME);
 
 		//  Now we have the name, so lookup also for the Cn
 		// This will return either real Cn or Name, again
@@ -1639,7 +1839,6 @@ BOOL NMEAParser::PFLAA(TCHAR *String, TCHAR **params, size_t nparams, NMEA_INFO 
 
 void NMEAParser::TestRoutine(NMEA_INFO *GPS_INFO) {
 #ifdef DEBUG
-#ifndef GNAV
   static int i=90;
   static TCHAR t1[] = TEXT("1,1,1,1");
   static TCHAR t2[] = TEXT("1,300,500,220,2,DD927B,0,-4.5,30,-1.4,1");
@@ -1676,7 +1875,6 @@ void NMEAParser::TestRoutine(NMEA_INFO *GPS_INFO) {
     nmeaParser1.PFLAA(t3, params, nr, GPS_INFO);
   }
 #endif
-#endif
 }
 
 
@@ -1688,7 +1886,7 @@ void LogNMEA(TCHAR* text) {
   TCHAR	buffer[LKSIZEBUFFERPATH];
   char snmea[LKSIZENMEA];
 
-  static char	fpname[LKSIZEBUFFERPATH];
+  static TCHAR fpname[LKSIZEBUFFERPATH];
   static bool	doinit=true;
   static bool	wasWriting=false;
   static bool	alreadyWarned=false;
@@ -1698,19 +1896,20 @@ void LogNMEA(TCHAR* text) {
 	if (wasWriting) {
 		fclose(logfp);
 		wasWriting=false;
+		doinit=true;
 	}
 	return;
   }
 
   if (doinit) {
 	LocalPath(buffer,TEXT(LKD_LOGS));
-	sprintf(fpname,"%S\\NMEA_%04d-%02d-%02d-%02d-%02d-%02d.txt",buffer,GPS_INFO.Year,GPS_INFO.Month, GPS_INFO.Day,
+	_stprintf(fpname, _T("%s\\NMEA_%04d-%02d-%02d-%02d-%02d-%02d.txt"), buffer, GPS_INFO.Year, GPS_INFO.Month, GPS_INFO.Day,
 		GPS_INFO.Hour, GPS_INFO.Minute, GPS_INFO.Second);
 	doinit=false;
   }
 
   if (!wasWriting) {
-	logfp=fopen(fpname,"a");
+	logfp = _tfopen(fpname, _T("a"));
 	if (logfp == NULL) {
 		if (!alreadyWarned) {
 			DoStatusMessage(_T("ERR-049 Cannot open NMEA log"));
@@ -1764,4 +1963,6 @@ void CheckBackTarget(int flarmslot) {
 	#endif
   }
 }
+
+#include "LKSimTraffic.cpp"
 

@@ -5,24 +5,7 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
-#include <windows.h>
-#include "Sizes.h"
 #include "Flarm.h"
-
-#define NAUTICALMILESTOMETRES (double)1851.96
-#define KNOTSTOMETRESSECONDS (double)0.5144
-
-#define TOKNOTS (double)1.944
-#define TOFEETPERMINUTE (double)196.9
-#define TOMPH   (double)2.237
-#define TOKPH   (double)3.6
-
-// meters to.. conversion
-#define TONAUTICALMILES (double)0.00053996
-#define TOMILES         (double)0.00062137
-#define TOKILOMETER     (double)0.001
-#define TOFEET          (double)3.281
-#define TOMETER         (double)1.0
 
 typedef struct _FLARM_TRAFFIC
 {
@@ -57,6 +40,8 @@ typedef struct _FLARM_TRAFFIC
 } FLARM_TRAFFIC;
 
 
+
+#if USESWITCHES
 typedef struct _SWITCH_INFO
 {
   bool AirbrakeLocked;
@@ -74,7 +59,7 @@ typedef struct _SWITCH_INFO
   bool FlapLanding;
   // bool Stall;
 } SWITCH_INFO;
-
+#endif
 
 typedef struct _NMEA_INFO
 {
@@ -96,13 +81,13 @@ typedef struct _NMEA_INFO
   int Month;
   int Day;
   int Year;
-  int NAVWarning;
+  bool NAVWarning;
   double IndicatedAirspeed;
   double TrueAirspeed;
   double BaroAltitude;
   double MacReady;
   BOOL BaroAltitudeAvailable;
-  BOOL ExternalWindAvailalbe;
+  BOOL ExternalWindAvailable;
   double ExternalWindSpeed;
   double ExternalWindDirection;
   BOOL VarioAvailable;
@@ -115,6 +100,7 @@ typedef struct _NMEA_INFO
   double Gload;
   BOOL AccelerationAvailable;
   double AccelX;
+  double AccelY;
   double AccelZ;
   int SatellitesUsed;
   BOOL TemperatureAvailable;
@@ -136,11 +122,18 @@ typedef struct _NMEA_INFO
 
   double SupplyBatteryVoltage;
 
+  #if USESWITCHES
   SWITCH_INFO SwitchState;
-
+  #endif
   BOOL MovementDetected;
 
   double StallRatio;
+
+  BOOL MagneticCompassAvailable;
+  double Heading;
+  BOOL GyroscopeAvailable;
+  double Pitch;
+  double Roll;
 
 } NMEA_INFO;
 
@@ -188,10 +181,13 @@ class NMEAParser {
   double RMAAltitude;
   double LastTime;
 
+  double GGAtime;
+  double RMCtime;
+  double GLLtime;
+
   bool TimeHasAdvanced(double ThisTime, NMEA_INFO *GPS_INFO);
   static double TimeModify(double FixTime, NMEA_INFO* info);
   static double TimeConvert(double FixTime, NMEA_INFO* info);
-  void TimeSet( NMEA_INFO* info);
 
   BOOL GLL(TCHAR *String, TCHAR **, size_t, NMEA_INFO *GPS_INFO);
   BOOL GGA(TCHAR *String, TCHAR **, size_t, NMEA_INFO *GPS_INFO);
@@ -206,9 +202,11 @@ class NMEAParser {
   BOOL WP1(TCHAR *String, TCHAR **, size_t, NMEA_INFO *GPS_INFO);
   BOOL WP2(TCHAR *String, TCHAR **, size_t, NMEA_INFO *GPS_INFO);
 
-  // Additional sentances
+  // Additional sentences
   BOOL PTAS1(TCHAR *String, TCHAR **, size_t, NMEA_INFO *GPS_INFO);  // RMN: Tasman instruments.  TAS, Vario, QNE-altitude
-  
+
+  // LK8000 custom special sentences, always active
+  BOOL PLKAS(TCHAR *String, TCHAR **, size_t, NMEA_INFO *GPS_INFO);
   // FLARM sentances
   BOOL PFLAU(TCHAR *String, TCHAR **, size_t, NMEA_INFO *GPS_INFO);
   BOOL PFLAA(TCHAR *String, TCHAR **, size_t, NMEA_INFO *GPS_INFO);

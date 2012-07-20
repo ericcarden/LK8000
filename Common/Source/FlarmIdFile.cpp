@@ -5,14 +5,14 @@
 
 */
 
-#include "StdAfx.h"
-#include "XCSoar.h"
-#include "options.h"
-#include "Flarm.h"
 #include "externs.h"
 #include "FlarmIdFile.h"
-#include "Utils.h"
-#include "Utils2.h"
+#include "DoInits.h"
+
+//
+// This HAS TO BE FIXED some day! We must not init this class with such action.
+// We are getting here before even startup, this is the place where localpath is executed first
+//
 
 FlarmIdFile::FlarmIdFile(void)
 {
@@ -21,13 +21,7 @@ FlarmIdFile::FlarmIdFile(void)
   LKSound(_T("LK_CONNECT.WAV"));
 
   TCHAR flarmIdFileName[MAX_PATH] = TEXT("\0");
-#if NOSIM
   if (SIMMODE) return;
-#else
-#ifdef _SIM_
-	return;
-#endif
-#endif
 
   LocalPath(path);
 

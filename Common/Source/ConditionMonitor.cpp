@@ -6,19 +6,8 @@
    $Id: ConditionMonitor.cpp,v 8.2 2010/12/10 23:51:14 root Exp root $
 */
 
-#include "StdAfx.h"
-#include "Calculations.h"
-#include "Dialogs.h"
-#include "Task.h"
-#include "device.h"
 #include "externs.h"
-
-#include "compatibility.h"
-#ifdef OLDPPC
-#include "XCSoarProcess.h"
-#else
 #include "Process.h"
-#endif
 #include "InputEvents.h"
 
 
@@ -267,11 +256,7 @@ public:
 protected:
 
   bool CheckCondition(NMEA_INFO *Basic, DERIVED_INFO *Calculated) {    
-    #ifndef NOTASKABORT
-    if (!AATEnabled || !ValidTaskPoint(ActiveWayPoint) || TaskIsTemporary()
-    #else
     if (!AATEnabled || !ValidTaskPoint(ActiveWayPoint) 
-    #endif
         || !(Calculated->ValidStart && !Calculated->ValidFinish)
         || !Calculated->Flying) {
       return false;
@@ -399,9 +384,9 @@ ConditionMonitorGlideTerrain cm_glideterrain;
 void ConditionMonitorsUpdate(NMEA_INFO *Basic, DERIVED_INFO *Calculated) {
   cm_wind.Update(Basic, Calculated);
   cm_finalglide.Update(Basic, Calculated);
-#ifndef FIVV
+  #if 0
   cm_sunset.Update(Basic, Calculated); // it doesnt work in europe..
-#endif
+  #endif
   cm_aattime.Update(Basic, Calculated);  
   cm_startrules.Update(Basic, Calculated);  
   cm_glideterrain.Update(Basic, Calculated);  

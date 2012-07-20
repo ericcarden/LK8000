@@ -5,8 +5,6 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
-#include <windows.h>
-#include "Sizes.h"
 
 #define CIRCLE 0
 #define SECTOR 1
@@ -121,9 +119,5 @@ double DoubleLegDistance(int taskwaypoint,
 void CalculateAATIsoLines(void);
 
 void SaveDefaultTask(void);
-
-void ResumeAbortTask(int set = 0);
-
-bool TaskIsTemporary(void);
 
 #endif

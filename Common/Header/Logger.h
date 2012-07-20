@@ -7,7 +7,7 @@
 
 #include <windows.h>
 void DoLogger(TCHAR *strAssetNumber);
-void StartLogger(TCHAR *strAssetNumber);
+void StartLogger(void);
 void LogPoint(double Lattitude, double Longditude, double Altitude,
               double BaroAltitude);
 void AddDeclaration(double Lattitude, double Longditude, TCHAR *ID);
@@ -18,6 +18,13 @@ void LoggerNote(const TCHAR *text);
 void LoggerDeviceDeclare();
 void EW_Strings(double Lattitude, double Longditude, TCHAR *ID);
 void EW_Download(TCHAR *strAssetNumber);
+
+void UpdateLogBook(bool welandedforsure);
+bool UpdateLogBookTXT(bool welandedforsure);
+bool UpdateLogBookCSV(bool welandedforsure);
+bool UpdateLogBookLST(bool welandedforsure);
+void ResetLogBook(void);
+
 
 extern bool DeclaredToDevice;
 bool CheckDeclaration(void);
@@ -47,7 +54,6 @@ class ReplayLogger {
 bool LoggerClearFreeSpace();
 void StopLogger(void);
 bool IGCWriteRecord(char *szIn);
-void LinkGRecordDLL(void);
 bool LoggerGActive();
 #define MAX_IGC_BUFF 255
 

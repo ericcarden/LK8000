@@ -1,12 +1,26 @@
-#if !defined(AFX_SIZES_H__695AAC30_F401_4CFF_9BD9_FE62A2A2D0D2__INCLUDED_)
-#define AFX_SIZES_H__695AAC30_F401_4CFF_9BD9_FE62A2A2D0D2__INCLUDED_
+/*
+   LK8000 Tactical Flight Computer -  WWW.LK8000.IT
+   Released under GNU/GPL License v.2
+   See CREDITS.TXT file for authors and copyrights
+
+   $Id: Sizes.h,v 1.1 2011/12/21 10:35:29 root Exp root $
+*/
+#ifndef SIZES_H
+#define SIZES_H
+
+/*
+ *  THIS FILE IS INCLUDED AUTOMATICALLY BY DEFINES.H
+ */
 
 #if _MSC_VER > 1000
 #pragma once
 #endif // _MSC_VER > 1000
 
+// Number of InfoBoxes
+#define NUMDATAOPTIONS_MAX                      130
 
-#define DISTANCE_ROUNDING 10.0
+
+#define DISTANCE_ROUNDING 20.0
 // Rounding of task distances for entry (sector radius etc)
 // 10.0 means rounding to 0.1 user units
 
@@ -25,21 +39,20 @@
 #define MAX_NMEA_PARAMS		40
 
 // max length of waypoint comment names
-#if CUPSUP
 #define COMMENT_SIZE 250
-#else
-#define COMMENT_SIZE 150
-#endif
 
 #define WAY_POINT_ID_SIZE 20
 
 #define MENU_HEIGHT 26
 
+// Max number of Infobox groups configurables, should be 8 +1?
 #define MAXINFOWINDOWS 14
 
 #define REGKEYSIZE 64
 
 #define POLARSIZE 3
+
+#define MAXFLAPSNAME 10
 
 #if LKCLIP
 // this value is used also by DrawTrail, to be optimized!
@@ -51,14 +64,15 @@
 // #define FLARM_MAX_TRAFFIC 15
 #define MAXSATELLITES 12
 
-#define DESCRIPTION_SIZE 30
-#define TITLE_SIZE 30
+#define DESCRIPTION_SIZE 40			// Infobox descriptions aka LK DataOptions
+#define TITLE_SIZE 20				// Infobox titles  aka LK DataOptions
 #define FORMAT_SIZE 20
 // task points enlarged from 10 to 20 
 #define MAXTASKPOINTS 20
 #define MAXSTARTPOINTS 20
 
 #define MAX_LOADSTRING 100
+#define MAX_ASSETIDSTRING	10
 
 #define TRAILSIZE 1000
 // 1000 points at 3.6 seconds average = one hour
@@ -96,13 +110,7 @@
 
 // size of terrain cache
 #if (WINDOWSPC>0) 
-
-#if _REALTHING_
 #define MAXTERRAINCACHE 4096 
-#else
-#define MAXTERRAINCACHE 8192*2
-#endif
-
 #else
 #define MAXTERRAINCACHE 4096 
 #endif
@@ -139,11 +147,7 @@
 #define DISPLAYTIMEOUTMAX 60*4
 
 // invalid value for terrain, we can store inside terrain altitude being unsigned short
-#if NEWRASTER
 #define TERRAIN_INVALID 32767
-#else
-#define TERRAIN_INVALID -1000
-#endif
 
 #define NUMAIRSPACECOLORS 16
 #define NUMAIRSPACEBRUSHES 8
@@ -160,8 +164,14 @@
 // (NOTE: This is used for all the caches for now - temporary)
 #define MAXSTATUSMESSAGECACHE 1000
 
+#define MAXNEARESTTOPONAME 20
+
 #define MAXISOLINES 32
 
 #define ERROR_TIME 1.0e6
+
+// Editable font string size
+#define MAX_EDITFONT_DESC_LEN 100
+
 
 #endif

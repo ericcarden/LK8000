@@ -5,12 +5,12 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
-#include <windows.h>
+#include "dlgTools.h"
 
 void LKReadLanguageFile(void);
+void LKUnloadMessage();
 
 void SetWindowText_gettext(HWND hDlg, int entry);
-// TCHAR* gettext(const TCHAR* text);
 #define gettext	LKGetText
 void ClearStatusMessages(void);
 
@@ -18,16 +18,12 @@ void StartupScreen();
 
 HWND CreateProgressDialog(TCHAR *text);
 void CloseProgressDialog();
-void StepProgressDialog();
-BOOL SetProgressStepSize(int nSize);
 void StartHourglassCursor();
 void StopHourglassCursor();
 
-extern void DoStatusMessage(const TCHAR* text, const TCHAR* data = NULL);
+extern void DoStatusMessage(const TCHAR* text, const TCHAR* data = NULL, const bool playsound = true);
 
-#define NUMPOLARS 7 // number of in-built polars
 
-#include "dlgTools.h"
 
 bool dlgAirspaceWarningShowDlg(bool force);
 // int dlgWayPointSelect(void);
@@ -38,58 +34,49 @@ bool dlgAirspaceShowModal(bool colored);
 void dlgBasicSettingsShowModal(void);
 void dlgBrightnessShowModal(void);
 void dlgHelpShowModal(const TCHAR* Caption, const TCHAR* HelpText);
-void dlgChecklistShowModal(void);
-void dlgConfigurationShowModal(void);
+void dlgChecklistShowModal(short checklistmode);
+void dlgConfigurationShowModal(short mode);
 void dlgVegaDemoShowModal(void);
 bool dlgConfigurationVarioShowModal(void);
 void dlgLoggerReplayShowModal(void);
-void dlgBasicSettingsShowModal(void);
-#if LKSTARTUP
-bool dlgStartupShowModal(void);
-#else
-void dlgStartupShowModal(void);
-#endif
+short dlgStartupShowModal(void);
 void dlgTaskCalculatorShowModal(void);
 void dlgWindSettingsShowModal(void);
 void dlgStartTaskShowModal(bool *validStart, double Time, double Speed, double Altitude);
-void dlgAnalysisShowModal(void);
+void dlgAnalysisShowModal(int inpage);
 void dlgStatusShowModal(int page);
 void dlgSwitchesShowModal(void);
 void dlgTaskWaypointShowModal(int itemindex, int type, bool addonly=false);
 void dlgTaskOverviewShowModal(void);
 void dlgVoiceShowModal(void);
-void dlgWayPointDetailsShowModal(void);
+void dlgWayPointDetailsShowModal(short mypage);
 short dlgWayQuickShowModal(void);
 void dlgTextEntryShowModal(TCHAR *text, int width=0);
 void dlgTeamCodeShowModal(void);
 void dlgStartPointShowModal(void);
-#include "MapWindow.h"
 void dlgWaypointEditShowModal(WAYPOINT *wpt);
-void dlgWeatherShowModal(void);
 void dlgAirspaceSelect(void);
 void dlgTarget(void);
 bool dlgTaskRules(void);
-void dlgAirspaceDetails(int the_circle, int the_area);
+void dlgAirspaceDetails(CAirspace *airspace);
 bool dlgAirspaceWarningVisible(void);
-void dlgFlarmTrafficShowModal(void);
 void dlgLKTrafficDetails(int indexid);
+void dlgThermalDetails(int indexid);
 void dlgTimeGatesShowModal(void);
-#if LKTOPO
 void dlgTopologyShowModal(void);
-#endif
 void dlgCustomKeysShowModal(void);
-void dlgProfilesShowModal(void);
-
+void dlgBottomBarShowModal(void);
+void dlgInfoPagesShowModal(void);
+void dlgProfilesShowModal(short mode);
+void dlgAirspaceWarningParamsShowModal(void);
 
 #if (WINDOWSPC>0)
 #ifdef DEBUG
-//#define DEBUG_TRANSLATIONS
 #pragma warning( disable : 4786 ) 
 #endif
 #endif
 
 void WriteMissingTranslations(void);
 void dlgTextEntryKeyboardShowModal(TCHAR *text, int width=0);
-void dlgNumberEntryKeyboardShowModal(int *value, int width=0);
 
 #endif

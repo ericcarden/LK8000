@@ -2,8 +2,6 @@
 #define RASTERTERRAIN_H
 
 #include "StdAfx.h"
-#include "Utils.h"
-#include "Sizes.h"
 #include <zzip/lib.h>
 #include "jasper/RasterTile.h"
 
@@ -19,13 +17,14 @@ typedef struct _TERRAIN_INFO
 } TERRAIN_INFO;
 
 
+#if RASTERCACHE
 typedef struct _TERRAIN_CACHE
 {
   short h;
   long index;
   unsigned int recency;
 } TERRAIN_CACHE;
-
+#endif
 
 class RasterMap {
  public:
@@ -64,7 +63,7 @@ class RasterMap {
   short GetField(const double &Latitude, 
                  const double &Longitude);
 
-  virtual bool Open(char* filename) = 0;
+  virtual bool Open(const TCHAR* filename) = 0;
   virtual void Close() = 0;
   virtual void Lock() = 0;
   virtual void Unlock() = 0;
@@ -88,7 +87,7 @@ class RasterMap {
                               unsigned int ly) = 0;
 };
 
-
+#if RASTERCACHE
 class RasterMapCache: public RasterMap {
  public:
   RasterMapCache() {
@@ -123,7 +122,7 @@ class RasterMapCache: public RasterMap {
   short LookupTerrainCacheFile(const long &SeekPos);
   void OptimizeCash(void);
 
-  virtual bool Open(char* filename);
+  virtual bool Open(const TCHAR* filename);
   virtual void Close();
   void Lock();
   void Unlock();
@@ -141,7 +140,7 @@ class RasterMapCache: public RasterMap {
                       unsigned int ly);
   //
 };
-
+#endif // RASTERCACHE
 
 class RasterMapRaw: public RasterMap {
  public:
@@ -155,7 +154,7 @@ class RasterMapRaw: public RasterMap {
   }
   short *TerrainMem;
   virtual void SetFieldRounding(double xr, double yr);
-  virtual bool Open(char* filename);
+  virtual bool Open(const TCHAR* filename);
   virtual void Close();
   void Lock();
   void Unlock();
@@ -165,7 +164,7 @@ class RasterMapRaw: public RasterMap {
   CRITICAL_SECTION  CritSec_TerrainFile;
 };
 
-
+#ifdef JP2000
 class RasterMapJPG2000: public RasterMap {
  public:
   RasterMapJPG2000();
@@ -177,14 +176,14 @@ class RasterMapJPG2000: public RasterMap {
   void SetViewCenter(const double &Latitude, 
                      const double &Longitude);
   virtual void SetFieldRounding(double xr, double yr);
-  virtual bool Open(char* filename);
+  virtual bool Open(const TCHAR* filename);
   virtual void Close();
   void Lock();
   void Unlock();
   void ServiceFullReload(double lat, double lon);
 
  protected:
-  char jp2_filename[MAX_PATH];
+  TCHAR jp2_filename[MAX_PATH*2];
   virtual short _GetFieldAtXY(unsigned int lx,
                               unsigned int ly);
   bool TriggerJPGReload;
@@ -192,7 +191,7 @@ class RasterMapJPG2000: public RasterMap {
   static int ref_count;
   RasterTileCache raster_tile_cache;
 };
-
+#endif
 
 class RasterTerrain {
 public:
@@ -210,7 +209,7 @@ public:
     return terrain_initialised;
   }
   static RasterMap* TerrainMap;
-  static bool CreateTerrainMap(char *zfilename);
+  static bool CreateTerrainMap(const TCHAR *zfilename);
 
  public:
   static void Lock(void);
@@ -228,46 +227,7 @@ public:
   static bool WaypointIsInTerrainRange(double latitude, double longitude);
   static bool GetTerrainCenter(double *latitude,
                                double *longitude);
-  static int render_weather;
 };
 
-#define MAX_WEATHER_MAP 16
-#define MAX_WEATHER_TIMES 48
-
-class RasterWeather {
-public:
-  RasterWeather() {
-    int i;
-    bsratio = false;
-    for (i=0; i<MAX_WEATHER_MAP; i++) {
-      weather_map[i]= 0;
-    }
-    for (i=0; i<MAX_WEATHER_TIMES; i++) {
-      weather_available[i]= false;
-    }
-    weather_time = 0;
-  }
-  ~RasterWeather() {
-    Close();
-  }
- public:
-  void Close();
-  void Reload(double lat, double lon);
-  int weather_time;
-  RasterMap* weather_map[MAX_WEATHER_MAP];
-  void RASP_filename(char* rasp_filename, const TCHAR* name);
-  bool LoadItem(int item, const TCHAR* name);
-  void SetViewCenter(double lat, double lon);
-  void ServiceFullReload(double lat, double lon);
-  void ValueToText(TCHAR* Buffer, short val);
-  void ItemLabel(int i, TCHAR* Buffer);
-  void Scan(double lat, double lon);
-  bool weather_available[MAX_WEATHER_TIMES];
-  int IndexToTime(int x);
- private:
-  bool bsratio;
-};
-
-extern RasterWeather RASP;
 
 #endif

@@ -3,7 +3,7 @@
    Released under GNU/GPL License v.2
    See CREDITS.TXT file for authors and copyrights
 
-   $Id: Topology.h,v 8.2 2010/12/15 12:35:45 root Exp root $
+   $Id: Topology.h,v 1.1 2011/12/21 10:35:29 root Exp root $
 */
 
 #ifndef TOPOLOGY_H
@@ -11,7 +11,6 @@
 
 #include "StdAfx.h"
 #include "mapshape.h"
-#include "MapWindow.h"
 
 
 class XShape {
@@ -22,6 +21,7 @@ class XShape {
   virtual void load(shapefileObj* shpfile, int i);
   virtual void clear();
   virtual bool renderSpecial(HDC hdc, int x, int y, bool RetVal) { (void)x; (void)y; (void)hdc; return(RetVal);};
+  virtual bool nearestItem(int category, double lon, double lat) { (void)category; (void)lon; (void)lat; return(true);};
 
   bool hide;
   shapeObj shape;
@@ -39,13 +39,18 @@ class XShapeLabel: public XShape {
   char *label;
   void setlabel(const char* src);
   virtual bool renderSpecial(HDC hdc, int x, int y, bool RetVal);
+  virtual bool nearestItem(int category, double lon, double lat);
 };
 
 
 class Topology {
 
  public:
-  Topology(const char* shpname, COLORREF thecolor, bool doappend=false);
+#if USETOPOMARKS
+  Topology(const TCHAR* shpname,  bool doappend=false);
+#else
+  Topology(const TCHAR* shpname);
+#endif
   Topology() {};
   
   virtual ~Topology();
@@ -55,12 +60,11 @@ class Topology {
 
   void updateCache(rectObj thebounds, bool purgeonly=false);
   void Paint(HDC hdc, RECT rc);
+  void SearchNearest(RECT rc);
 
   double scaleThreshold;
-  #if LKTOPO
   double scaleDefaultThreshold;
   int scaleCategory;
-  #endif
 
   bool CheckScale();
   void TriggerIfScaleNowVisible();
@@ -73,8 +77,9 @@ class Topology {
   bool checkVisible(shapeObj& shape, rectObj &screenRect);
 
   void loadBitmap(const int);
+  void loadPenBrush(const COLORREF thecolor);
 
-  char filename[MAX_PATH];
+  TCHAR filename[MAX_PATH];
 
   virtual void removeShape(const int i);
   virtual XShape* addShape(const int i);
@@ -82,8 +87,9 @@ class Topology {
  protected:
 
   void flushCache();
-
+#if USETOPOMARKS
   bool append;
+#endif
   bool in_scale;
   HPEN hPen;
   HBRUSH hbBrush;
@@ -96,14 +102,15 @@ class Topology {
   XShape **shps;
   rectObj* shpBounds;
   rectObj lastBounds;
+  bool in_scale_last;
 #endif
  
 };
 
-
+#if USETOPOMARKS
 class TopologyWriter: public Topology {
  public:
-  TopologyWriter(const char *shpname, COLORREF thecolor);
+  TopologyWriter(const TCHAR *shpname);
   virtual ~TopologyWriter();
   
   void addPoint(double x, double y);
@@ -111,12 +118,12 @@ class TopologyWriter: public Topology {
   void CreateFiles(void);
   void DeleteFiles(void);
 };
-
+#endif
 
 
 class TopologyLabel: public Topology {
  public:
-  TopologyLabel(const char* shpname, COLORREF thecolor, INT field1);
+  TopologyLabel(const TCHAR* shpname, INT field1);
   virtual ~TopologyLabel();
   virtual XShape* addShape(const int i);
   void setField(int i);

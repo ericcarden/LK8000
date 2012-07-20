@@ -3,7 +3,7 @@
    Released under GNU/GPL License v.2
    See CREDITS.TXT file for authors and copyrights
 
-   $Id: Utils.h,v 8.3 2010/12/16 14:44:47 root Exp root $
+   $Id: Utils.h,v 1.1 2011/12/21 10:35:29 root Exp root $
 */
 
 #if !defined(AFX_UTILS_H__695AAC30_F401_4CFF_9BD9_FE62A2A2D0D2__INCLUDED_)
@@ -13,269 +13,20 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
-#include <windows.h>
-#include <shlobj.h>
-#include <math.h>
-#include "Task.h"
-#include "Airspace.h"
-#include <zzip/lib.h>
-
-
-#define  POLARUSEWINPILOTFILE  6    // if this polat is selected use the winpilot file
-
-extern const TCHAR szRegistryKey[];
-extern const TCHAR szRegistrySpeedUnitsValue[];
-extern const TCHAR szRegistryDistanceUnitsValue[];
-extern const TCHAR szRegistryAltitudeUnitsValue[];
-extern const TCHAR szRegistryLiftUnitsValue[];
-extern const TCHAR szRegistryTaskSpeedUnitsValue[];
-extern const TCHAR szRegistryDisplayUpValue[];
-extern const TCHAR szRegistryDisplayText[];   
-extern const TCHAR szRegistrySafetyAltitudeArrival[];
-extern const TCHAR szRegistrySafetyAltitudeBreakOff[];
-extern const TCHAR szRegistrySafetyAltitudeTerrain[];
-extern const TCHAR szRegistrySafteySpeed[];
-extern const TCHAR szRegistryWindCalcSpeed[];
-extern const TCHAR szRegistryWindCalcTime[];
-extern const TCHAR szRegistryFAISector[];
-extern const TCHAR szRegistrySectorRadius[];
-extern const TCHAR szRegistryPolarID[];
-extern const TCHAR szRegistryWayPointFile[];
-extern const TCHAR szRegistryAdditionalWayPointFile[];
-extern const TCHAR szRegistryAirspaceFile[];
-extern const TCHAR szRegistryAdditionalAirspaceFile[];
-extern const TCHAR szRegistryAirfieldFile[];
-extern const TCHAR szRegistryTopologyFile[];
-extern const TCHAR szRegistryPolarFile[];
-extern const TCHAR szRegistryTerrainFile[];
-extern const TCHAR szRegistryLanguageFile[];
-extern const TCHAR szRegistryStatusFile[];
-extern const TCHAR szRegistryInputFile[];
-extern const TCHAR szRegistryAltMode[];
-extern const TCHAR szRegistrySafetyAltitudeMode[];
-extern const TCHAR szRegistryClipAlt[];
-extern const TCHAR szRegistryAltMargin[];
-extern const TCHAR szRegistryRegKey[];
-extern const TCHAR szRegistrySnailTrail[];
-extern const TCHAR szRegistryDrawTopology[];
-extern const TCHAR szRegistryDrawTerrain[];
-extern const TCHAR szRegistryFinalGlideTerrain[];
-extern const TCHAR szRegistryAutoWind[];
-extern const TCHAR szRegistryStartLine[];
-extern const TCHAR szRegistryStartRadius[];
-extern const TCHAR szRegistryFinishLine[];
-extern const TCHAR szRegistryFinishRadius[];
-extern const TCHAR szRegistryAirspaceWarning[];
-extern const TCHAR szRegistryAirspaceBlackOutline[];
-extern const TCHAR szRegistryAirspaceFillType[];
-extern const TCHAR szRegistryAirspaceOpacity[];
-extern const TCHAR szRegistryWarningTime[];
-extern const TCHAR szRegistryAcknowledgementTime[];
-extern const TCHAR szRegistryCircleZoom[];
-extern const TCHAR szRegistryWindUpdateMode[];        
-extern const TCHAR szRegistryHomeWaypoint[];        
-extern const TCHAR szRegistryAlternate1[];         // VENTA3
-extern const TCHAR szRegistryAlternate2[];        
-extern const TCHAR szRegistryTeamcodeRefWaypoint[];
-extern const TCHAR szRegistryPilotName[];        
-extern const TCHAR szRegistryAircraftType[];        
-extern const TCHAR szRegistryAircraftRego[];        
-extern const TCHAR szRegistryCompetitionClass[];        
-extern const TCHAR szRegistryCompetitionID[];  
-extern const TCHAR szRegistryLoggerID[];        
-extern const TCHAR szRegistryLoggerShort[];        
-extern const TCHAR szRegistryNettoSpeed[];        
-extern const TCHAR szRegistryCDICruise[];
-extern const TCHAR szRegistryCDICircling[];
-extern const TCHAR szRegistryAutoBlank[];
-extern const TCHAR szRegistryAutoBacklight[]; // VENTA4
-extern const TCHAR szRegistryAutoSoundVolume[]; // VENTA4
-extern const TCHAR szRegistryAircraftCategory[]; // VENTA4
-extern const TCHAR szRegistryExtendedVisualGlide[]; // VENTA4
-extern const TCHAR szRegistryLook8000[]; // VENTA5
-extern const TCHAR szRegistryAltArrivMode[]; // VENTA11
-extern const TCHAR szRegistryNewMap[]; // VENTA5
-extern const TCHAR szRegistryIphoneGestures[];
-extern const TCHAR szRegistryPollingMode[];
-extern const TCHAR szRegistryLKVarioBar[];
-extern const TCHAR szRegistryUseMapLock[]; // VENTA9
-extern const TCHAR szRegistryOverlaySize[];
-extern const TCHAR szRegistryBarOpacity[];
-extern const TCHAR szRegistryFontRenderer[];
-extern const TCHAR szRegistryActiveMap[]; 
-extern const TCHAR szRegistryCheckSum[]; 
-extern const TCHAR szRegistryBestWarning[];
-extern const TCHAR szRegistryThermalBar[];
-extern const TCHAR szRegistryTrackBar[];
-extern const TCHAR szRegistryMcOverlay[];
-extern const TCHAR szRegistryHideUnits[]; // VENTA5
-extern const TCHAR szRegistryVirtualKeys[]; // VENTA5
-extern const TCHAR szRegistryOutlinedTp[]; // VENTA5
-extern const TCHAR szRegistryOverColor[];
-extern const TCHAR szRegistryTpFilter[];
-extern const TCHAR szRegistryMapBox[]; // VENTA6
-extern const TCHAR szRegistryGlideBarMode[]; // VENTA6
-extern const TCHAR szRegistryArrivalValue[]; // VENTA6
-extern const TCHAR szRegistryNewMapDeclutter[]; // VENTA6
-extern const TCHAR szRegistryDeclutterMode[]; // VENTA10
-extern const TCHAR szRegistryAverEffTime[]; // VENTA6
-extern const TCHAR szRegistryBgMapColor[]; 
-extern const TCHAR szRegistryVarioGauge[];
-extern const TCHAR szRegistryDebounceTimeout[];
-extern const TCHAR szRegistryAppDefaultMapWidth[];
-extern const TCHAR szRegistryAppIndFinalGlide[];
-extern const TCHAR szRegistryAppIndLandable[];
-extern const TCHAR szRegistryAppInverseInfoBox[];
-extern const TCHAR szRegistryAppInfoBoxColors[];
-extern const TCHAR szRegistryAppGaugeVarioSpeedToFly[];
-extern const TCHAR szRegistryAppGaugeVarioAvgText[];
-extern const TCHAR szRegistryAppGaugeVarioMc[];
-extern const TCHAR szRegistryAppGaugeVarioBugs[];
-extern const TCHAR szRegistryAppGaugeVarioBallast[];
-extern const TCHAR szRegistryAppGaugeVarioGross[];
-extern const TCHAR szRegistryAppCompassAppearance[];
-extern const TCHAR szRegistryAppStatusMessageAlignment[];
-extern const TCHAR szRegistryAppTextInputStyle[];
-extern const TCHAR szRegistryAppInfoBoxBorder[];
-extern const TCHAR szRegistryAppInfoBoxGeom[];
-extern const TCHAR szRegistryAppInfoBoxModel[];
-extern const TCHAR szRegistryGpsAltitudeOffset[];
-extern const TCHAR szRegistryUseGeoidSeparation[];
-extern const TCHAR szRegistryPressureHg[];
-//extern const TCHAR szRegistryShortcutIbox[];
-extern const TCHAR szRegistryCustomKeyTime[];
-extern const TCHAR szRegistryCustomKeyModeCenter[];
-extern const TCHAR szRegistryCustomKeyModeLeft[];
-extern const TCHAR szRegistryCustomKeyModeRight[];
-extern const TCHAR szRegistryCustomKeyModeAircraftIcon[];
-extern const TCHAR szRegistryCustomKeyModeLeftUpCorner[];
-extern const TCHAR szRegistryCustomKeyModeRightUpCorner[];
-extern const TCHAR szRegistryAppAveNeedle[];
-extern const TCHAR szRegistryAutoAdvance[];
-extern const TCHAR szRegistryUTCOffset[];
-extern const TCHAR szRegistryBlockSTF[];
-extern const TCHAR szRegistryAutoZoom[];
-extern const TCHAR szRegistryPGCruiseZoom[];
-extern const TCHAR szRegistryPGClimbZoom[];
-#if AUTORIENT
-extern const TCHAR szRegistryAutoOrientScale[];
-#endif
-extern const TCHAR szRegistryPGNumberOfGates[];
-extern const TCHAR szRegistryPGOpenTimeH[];
-extern const TCHAR szRegistryPGOpenTimeM[];
-extern const TCHAR szRegistryPGGateIntervalTime[];
-extern const TCHAR szRegistryPGStartOut[];
-#if LKTOPO
-extern const TCHAR szRegistryLKTopoZoomCat05[];
-extern const TCHAR szRegistryLKTopoZoomCat10[];
-extern const TCHAR szRegistryLKTopoZoomCat20[];
-extern const TCHAR szRegistryLKTopoZoomCat30[];
-extern const TCHAR szRegistryLKTopoZoomCat40[];
-extern const TCHAR szRegistryLKTopoZoomCat50[];
-extern const TCHAR szRegistryLKTopoZoomCat60[];
-extern const TCHAR szRegistryLKTopoZoomCat70[];
-extern const TCHAR szRegistryLKTopoZoomCat80[];
-extern const TCHAR szRegistryLKTopoZoomCat90[];
-extern const TCHAR szRegistryLKTopoZoomCat100[];
-extern const TCHAR szRegistryLKTopoZoomCat110[];
-#endif
-extern const TCHAR szRegistryLKMaxLabels[];
-extern const TCHAR szRegistryMenuTimeout[];
-extern const TCHAR szRegistryLockSettingsInFlight[];
-extern const TCHAR szRegistryTerrainContrast[];
-extern const TCHAR szRegistryTerrainBrightness[];
-extern const TCHAR szRegistryTerrainRamp[];
-extern const TCHAR szRegistryEnableFLARMMap[];
-extern const TCHAR szRegistryEnableFLARMGauge[];
-extern const TCHAR szRegistrySnailTrail[];
-extern const TCHAR szRegistryTrailDrift[];
-extern const TCHAR szRegistryThermalLocator[];
-extern const TCHAR szRegistryGliderScreenPosition[];
-extern const TCHAR szRegistryAnimation[];
-extern const TCHAR szRegistrySetSystemTimeFromGPS[];
-extern const TCHAR szRegistryAutoForceFinalGlide[];
-
-extern const TCHAR szRegistryVoiceClimbRate[];
-extern const TCHAR szRegistryVoiceTerrain[];
-extern const TCHAR szRegistryVoiceWaypointDistance[];
-extern const TCHAR szRegistryVoiceTaskAltitudeDifference[];
-extern const TCHAR szRegistryVoiceMacCready[];
-extern const TCHAR szRegistryVoiceNewWaypoint[];
-extern const TCHAR szRegistryVoiceInSector[];
-extern const TCHAR szRegistryVoiceAirspace[];
-
-extern const TCHAR szRegistryFinishMinHeight[];
-extern const TCHAR szRegistryStartMaxHeight[];
-extern const TCHAR szRegistryStartMaxHeightMargin[];
-extern const TCHAR szRegistryStartMaxSpeed[];
-extern const TCHAR szRegistryStartMaxSpeedMargin[];
-extern const TCHAR szRegistryStartHeightRef[];
-
-extern const TCHAR szRegistryEnableNavBaroAltitude[];
-#if ORBITER
-extern const TCHAR szRegistryOrbiter[];
-#endif
-extern const TCHAR szRegistryShading[];
-extern const TCHAR szRegistryOverlayClock[];
-extern const TCHAR szRegistryLoggerTimeStepCruise[];
-extern const TCHAR szRegistryLoggerTimeStepCircling[];
-
-extern const TCHAR szRegistrySafetyMacCready[];
-extern const TCHAR szRegistryAbortSafetyUseCurrent[];
-extern const TCHAR szRegistryAutoMcMode[];
-extern const TCHAR szRegistryWaypointsOutOfRange[];
-extern const TCHAR szRegistryEnableExternalTriggerCruise[];
-extern const TCHAR szRegistryFAIFinishHeight[];
-extern const TCHAR szRegistryOLCRules[];
-extern const TCHAR szRegistryHandicap[];
-extern const TCHAR szRegistrySnailWidthScale[];
-extern const TCHAR szRegistryLatLonUnits[];
-extern const TCHAR szRegistryUserLevel[];
-extern const TCHAR szRegistryRiskGamma[];
-extern const TCHAR szRegistryWindArrowStyle[];
-extern const TCHAR szRegistryDisableAutoLogger[];
-extern const TCHAR szRegistryMapFile[];
-extern const TCHAR szRegistryBallastSecsToEmpty[];
-extern const TCHAR szRegistryAccelerometerZero[];
-extern const TCHAR szRegistryUseCustomFonts[];
-extern const TCHAR szRegistryFontInfoWindowFont[]; 
-extern const TCHAR szRegistryFontTitleWindowFont[]; 
-extern const TCHAR szRegistryFontMapWindowFont[];
-extern const TCHAR szRegistryFontTitleSmallWindowFont[];
-extern const TCHAR szRegistryFontMapWindowBoldFont[];
-extern const TCHAR szRegistryFontCDIWindowFont[];
-extern const TCHAR szRegistryFontMapLabelFont[];
-extern const TCHAR szRegistryFontStatisticsFont[];
 
 extern bool LockSettingsInFlight;
 extern bool LoggerShortName;
 
-BOOL GetFromRegistry(const TCHAR *szRegValue, DWORD *pPos);
 
-#ifdef FIVV
-BOOL DelRegistryKey(const TCHAR *szRegistryKey); // VENTA2-ADDON delregistrykey
-#endif
 #ifdef PNA
-void CleanRegistry(); // VENTA2-ADDON cleanregistrykeyA
-bool SetBacklight(); // VENTA4-ADDON for PNA 
-bool SetSoundVolume(); // VENTA4-ADDON for PNA 
+bool SetBacklight();
+bool SetSoundVolume();
 #endif
 
-HRESULT SetToRegistry(const TCHAR *szRegValue, DWORD Pos);
-HRESULT SetToRegistry(const TCHAR *szRegValue, bool bVal);	// JG
-HRESULT SetToRegistry(const TCHAR *szRegValue, int nVal);	// JG
-BOOL GetRegistryString(const TCHAR *szRegValue, TCHAR *pPos, DWORD dwSize);
 #ifdef PNA
 BOOL GetFontPath(TCHAR *pPos);
 void CreateRecursiveDirectory(TCHAR *fontpath);
 #endif
-HRESULT SetRegistryString(const TCHAR *szRegValue, const TCHAR *Pos);
-void ReadRegistrySettings(void);
-void SetRegistryColour(int i, DWORD c);
-void SetRegistryBrush(int i, DWORD c);
-void SetRegistryAirspacePriority(int i);
-void SetRegistryAirspaceMode(int i);
-int GetRegistryAirspaceMode(int i);
 void StoreType(int Index,int InfoType);
 void irotate(int &xin, int &yin, const double &angle);
 void irotatescale(int &xin, int &yin, const double &angle, const double &scale,
@@ -286,6 +37,9 @@ void rotate(double &xin, double &yin, const double &angle);
 void frotate(float &xin, float &yin, const float &angle);
 void rotatescale(double &xin, double &yin, const double &angle, const double &scale);
 void frotatescale(float &xin, float &yin, const float &angle, const float &scale);
+int  roundupdivision(int a, int b);
+double LowPassFilter(double y_last, double x_in, double fact);
+
 
 void DistanceBearing(double lat1, double lon1, double lat2, double lon2,
                      double *Distance, double *Bearing);
@@ -321,32 +75,23 @@ int DrawArc(HDC hdc, long x, long y, int radius, RECT rc,
 void ReadAssetNumber(void);
 void WriteProfile(const TCHAR *szFile);
 void ReadProfile(const TCHAR *szFile);
-#if defined(PNA) || defined(FIVV)  // VENTA-ADDON
 bool SetModelType();
 bool SetModelName(DWORD Temp);
-#endif
 double ScreenAngle(int x1, int y1, int x2, int y2);
-void ReadCompaqID(void);
 void ReadUUID(void);
 void FormatWarningString(int Type, TCHAR *Name , AIRSPACE_ALT Base, AIRSPACE_ALT Top, TCHAR *szMessageBuffer, TCHAR *TileBuffer );
 BOOL ReadString(ZZIP_FILE* zFile, int Max, TCHAR *String);
 BOOL ReadString(HANDLE hFile, int Max, TCHAR *String);
-BOOL ReadUString(HANDLE hFile, int Max, TCHAR *String, short filetype);
-short FileIsUTF16(HANDLE hFile);
 BOOL ReadStringX(FILE *fp, int Max, TCHAR *String);
+bool ReadULine(ZZIP_FILE* fp, TCHAR *unicode, int maxChars);
 
 // Fast trig functions
 void InitSineTable(void);
 
-extern double COSTABLE[4096];
-extern double SINETABLE[4096];
-extern double INVCOSINETABLE[4096];
-extern int ISINETABLE[4096];
-extern int ICOSTABLE[4096];
-
 bool AngleInRange(double Angle0, double Angle1, double x, bool is_signed=false);
 double AngleLimit180(double theta);
 double AngleLimit360(double theta);
+void LatLon2Flat(double lon, double lat, int *scx, int *scy);
 
 #ifdef __MINGW32__
 #define DEG_TO_INT(x) ((unsigned short)(int)((x)*(65536.0/360.0)))>>4
@@ -376,10 +121,9 @@ void ExtractDirectory(TCHAR *Dest, TCHAR *Source);
 double DoSunEphemeris(double lon, double lat);
 
 void *bsearch(void *key, void *base0, size_t nmemb, size_t size, int (*compar)(const void *elem1, const void *elem2));
+
 TCHAR *strtok_r(TCHAR *s, TCHAR *delim, TCHAR **lasts);
-
-
-void ResetInfoBoxes(void);
+TCHAR *strsep_r(TCHAR *s, TCHAR *delim, TCHAR **lasts);
 
 void SaveRegistryToFile(const TCHAR* szFile); 
 void LoadRegistryFromFile(const TCHAR* szFile); 
@@ -388,9 +132,7 @@ void LoadRegistryFromFile(const TCHAR* szFile);
    Interface Files !
    ===================================================== */
 
-void ReadStatusFile(void);
 void StatusFileInit(void);
-void _init_Status(int num);
 
 typedef struct {
 	TCHAR *key;		/* English key */
@@ -416,8 +158,9 @@ typedef struct {
 // Parse string (new lines etc) and malloc the string
 TCHAR* StringMallocParse(TCHAR* old_string);
 
-void LocalPath(TCHAR* buf, const TCHAR* file = TEXT(""), int loc = CSIDL_PERSONAL);
-void LocalPathS(char* buf, const TCHAR* file = TEXT(""), int loc = CSIDL_PERSONAL);
+void LocalPath(TCHAR* buf, const TCHAR* file = TEXT(""));
+void LocalPathS(char* buf, const TCHAR* file = TEXT(""));
+TCHAR *LKGetLocalPath(void);
 
 void ExpandLocalPath(TCHAR* filein);
 void ContractLocalPath(TCHAR* filein);
@@ -427,13 +170,15 @@ void ConvertCToT(TCHAR* pszDest, const CHAR* pszSrc);
 
 void propGetFontSettings(TCHAR *Name, LOGFONT* lplf);
 void propGetFontSettingsFromString(TCHAR *Buffer, LOGFONT* lplf);
+#if 0
 int propGetScaleList(double *List, size_t Size);
+#endif
 
 long GetUTCOffset(void);
 int TextToLineOffsets(TCHAR* text, int* LineOffsets, int maxLines);
 void RestoreRegistry(void);
 void StoreRegistry(void);
-void XCSoarGetOpts(LPTSTR CommandLine);
+void LK8000GetOpts();
 
 #if TOPOFASTLABEL
 bool CheckRectOverlap(const RECT *rc1, const RECT *rc2);
@@ -448,6 +193,10 @@ void WeightOffset(double wload);
 TCHAR *LKgethelptext(const TCHAR *TextIn);
 bool LKloadtext(void);
 TCHAR *LKGetText(const TCHAR *TextIn);
+TCHAR *MsgToken(const unsigned int tindex);
+
+void InitCustomHardware(void);
+void DeInitCustomHardware(void);
 
 
 void SetSourceRectangle(RECT fromRect);
@@ -461,19 +210,28 @@ int LookupFLARMDetails(TCHAR *cn);
 bool AddFlarmLookupItem(int id, TCHAR *name, bool saveFile);
 int LookupSecondaryFLARMId(int id);
 
+double QNHAltitudeToStaticPressure(double alt);
 double FindQNH(double alt_raw, double alt_known);
 double AltitudeToQNHAltitude(double alt);
+double AltitudeToQNEAltitude(double alt);
 double StaticPressureToAltitude(double ps);
 double AirDensity(double altitude);
 double AirDensityRatio(double altitude);
+double AirDensity(double hr, double temp, double absp);
+double TrueAirSpeed( double delta_press, double hr, double temp, double abs_press );
 
-double HexStrToDouble(TCHAR *Source, TCHAR **Stop); 
+double HexStrToDouble(TCHAR *Source, TCHAR **Stop);
+
+// Fast convert from Hex string To integer
+int HexStrToInt(TCHAR *Source);
 
 unsigned long CheckFreeRam(void);
 // check maximum allocatable heap block
 unsigned long CheckMaxHeapBlock(void);
 
 const TCHAR *TaskFileName(unsigned bufferLen, TCHAR buffer[]);
+bool UseContestEngine(void);
+int  GetWaypointFileFormatType(const wchar_t* wextension);
 
 // LK Utils
 void LKBatteryManager();
@@ -485,6 +243,14 @@ void GotoWaypoint(const int wpnum);
 void ToggleBaroAltitude(void);
 bool ReducedMapSize(void);
 
+void InitAlarms(void);
+bool CheckAlarms(unsigned short al);
+
+void MasterTimeReset(void);
+bool DoOptimizeRoute(void);
+TCHAR * WhatTimeIsIt(void);
+void OutOfMemory(char *where, int line);
+
 void MemCheckPoint();
 void MemLeakCheck();
 void MyCompactHeaps();
@@ -493,22 +259,11 @@ bool MatchesExtension(const TCHAR *filename, const TCHAR* extension);
 BOOL PlayResource (const TCHAR* lpName);
 void CreateDirectoryIfAbsent(TCHAR *filename);
 
-bool InterfaceTimeoutZero(void);
-void InterfaceTimeoutReset(void);
-bool InterfaceTimeoutCheck(void);
-
 #ifdef __cplusplus
 extern "C"{
 #endif
 
-bool FileExistsW(TCHAR *FileName);
-bool FileExistsA(char *FileName);
-
-#ifdef _UNICODE
-#define FileExists FileExistsW
-#else
-#define FileExists FileExistsA
-#endif
+bool FileExists(TCHAR *FileName);
 
 #ifdef __cplusplus
 }
@@ -561,9 +316,35 @@ inline unsigned int CombinedDivAndMod(unsigned int &lx) {
   return ox;
 }
 
-bool RotateScreen(void);
+bool RotateScreen(short angle);
 
 int GetTextWidth(HDC hDC, TCHAR *text);
 void ExtTextOutClip(HDC hDC, int x, int y, TCHAR *text, int width);
+void UpdateConfBB(void);
+void UpdateConfIP(void);
+void SetInitialModeTypes(void);
+
+bool	InitLDRotary(ldrotary_s *buf);
+void	InitWindRotary(windrotary_s *wbuf);
+
+void	SetOverColorRef();
+TCHAR*  GetSizeSuffix(void);
+void	LKRunStartEnd(bool);
+
+bool	LockMode(short lmode);
+double	GetMacCready(int wpindex, short wpmode);
+
+extern bool CheckClubVersion(void);
+extern void ClubForbiddenMsg(void);
+
+#if USELKASSERT
+void LK_tcsncpy_internal(TCHAR *dest, const TCHAR *src, const unsigned int numofchars,
+			const unsigned int sizedest, const int line = 0, const char *filename = NULL); 
+#define LK_tcsncpy(dest, src, numofchars) {;LK_tcsncpy_internal(dest, src, numofchars, sizeof(dest), __LINE__, __FILE__);}
+#else
+void LK_tcsncpy_internal(TCHAR *dest, const TCHAR *src, const unsigned int numofchars);
+#define LK_tcsncpy(dest, src, numofchars) LK_tcsncpy_internal(dest, src, numofchars)
+#endif
+
 
 #endif

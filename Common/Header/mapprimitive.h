@@ -31,8 +31,6 @@ enum MS_SHAPE_TYPE {MS_SHAPE_POINT, MS_SHAPE_LINE, MS_SHAPE_POLYGON, MS_SHAPE_NU
 #define MS_QUERY_EXTENSION ".qy"
 
 
-//#include <ctype.h>
-//#include <stdio.h>
 
 /* feature primitives */
 typedef struct {
@@ -105,8 +103,8 @@ int msPolygonLabelPoint(shapeObj *p, pointObj *lp, int min_dimension);
 int msAddLine(shapeObj *p, lineObj *new_line);
 
 int msPointInRect(pointObj *p, rectObj *rect); // in mapsearch.c
-int msRectOverlap(rectObj *a, rectObj *b);
-int msRectContained(rectObj *a, rectObj *b);
+int msRectOverlap(const rectObj *a, const rectObj *b);		//const arguments fixed
+int msRectContained(const rectObj *a, const rectObj *b);	//const arguments fixed
 void msMergeRect(rectObj *a, rectObj *b);
 double msDistancePointToPoint(pointObj *a, pointObj *b);
 double msDistancePointToSegment(pointObj *p, pointObj *a, pointObj *b);
@@ -132,7 +130,7 @@ void msFreeCharArray(char **array, int num_items);
 
 #include <zzip/lib.h>
 
-ZZIP_FILE *ppc_fopen(const char *filename, const char *mode);
+ZZIP_FILE *ppc_fopen(const TCHAR *filename, const char *mode);
 #ifdef __cplusplus
 }
 #endif

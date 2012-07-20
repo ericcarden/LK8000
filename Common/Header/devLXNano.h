@@ -3,7 +3,7 @@
    Released under GNU/GPL License v.2
    See CREDITS.TXT file for authors and copyrights
 
-   $Id$
+   $Id: devLXNano.h,v 1.1 2011/12/21 10:35:29 root Exp root $
 */
 //__________________________________________________________compilation_control_
 
@@ -13,6 +13,11 @@
 //_____________________________________________________________________includes_
 
 #include "devLX.h"
+
+
+//______________________________________________________________________defines_
+
+//#define UNIT_TESTS
 
 //___________________________________________________________class_declarations_
 
@@ -77,8 +82,25 @@ class DevLXNano : public DevLX
     /// Writes competition class declaration into the device.
     static bool WriteClass(PDeviceDescriptor_t d, Class& lxClass, unsigned errBufSize, TCHAR errBuf[]);
 
+    /// Converts TCHAR[] string into US-ASCII string.
+    static bool Wide2LxAscii(const TCHAR* input, int outSize, char* output);
+
     /// Calculate LX CRC value for the given data.
     static byte CalcCrc(int length, void* data);
+
+  //----------------------------------------------------------------------------
+  private:
+
+    #ifdef UNIT_TESTS
+
+    /// Log test suite result().
+    static void LogTestResult(const TCHAR* suite, const TCHAR* test, bool result);
+
+    /// Test suite for Wide2LxAscii().
+    static void Wide2LxAsciiTest();
+
+    #endif
+
 
 }; // DevLXNano
 
@@ -198,9 +220,6 @@ class DevLXNano::Decl
     /// Sets the waypoint data to the @c task member.
     void SetWaypoint(const WAYPOINT* wp, WpType type, int idx);
 
-    /// Initializes @c crc member with computed CRC value.
-    void CalcCrc();
-
     /// Convert data to byte-stream for sending to device.
     int ToStream(void* buf);
 
@@ -236,9 +255,6 @@ class DevLXNano::Class
 
     /// Sets the value of @c name member.
     void SetName(const TCHAR* text);
-
-    /// Initializes @c crc member with computed CRC value.
-    void CalcCrc();
 
     /// Convert data to byte-stream for sending to device.
     int ToStream(void* buf);

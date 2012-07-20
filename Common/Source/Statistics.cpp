@@ -6,17 +6,10 @@
    $Id: Statistics.cpp,v 8.2 2010/12/12 17:11:13 root Exp root $
 */
 
-#include "StdAfx.h"
-#include <math.h>
-#include "Statistics.h"
-#include "XCSoar.h"
 #include "externs.h"
 #include "McReady.h"
-#include "Units.h"
 #include "InfoBoxLayout.h"
 #include "Atmosphere.h"
-
-extern HFONT                                   StatisticsFont;
 
 
 double Statistics::yscale;

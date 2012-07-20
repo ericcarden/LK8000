@@ -6,31 +6,15 @@
    $Id: Waypointparser.cpp,v 8.7 2010/12/13 01:13:54 root Exp root $
 */
 
-
-#include "StdAfx.h"
-#include "Waypointparser.h"
 #include "externs.h"
-#include "Dialogs.h"
-// #include "resource.h"
-#include "options.h"
-#include "Utils.h"
-#include "Utils2.h"
-#include "LKUtils.h"
-#include "WindowControls.h"
-#include "MapWindow.h"
-#include <math.h>
-#include "Geoid.h"
+#include "Waypointparser.h"
+#include "LKStyle.h"
+#include "LKProfiles.h"
+#include "resource.h"
 
 #include "RasterTerrain.h"
 
-#include <windows.h>
-#include <commctrl.h>
-#include <aygshell.h>
-
-#include <tchar.h>
-
 #include "xmlParser.h"
-#include "wcecompat/ts_string.h"
 
 
 static int globalFileNum = 0;
@@ -39,62 +23,46 @@ TCHAR *strtok_r(TCHAR *s, TCHAR *delim, TCHAR **lasts);
 
 //static void ExtractParameter(TCHAR *Source, TCHAR *Destination, int DesiredFieldNumber);
 static int ParseWayPointString(TCHAR *mTempString,WAYPOINT *Temp);
-#ifdef CUPSUP
 static bool ParseCUPWayPointString(TCHAR *mTempString,WAYPOINT *Temp);
 static bool ParseCOMPEWayPointString(TCHAR *mTempString,WAYPOINT *Temp);
+static bool ParseOZIWayPointString(TCHAR *mTempString,WAYPOINT *Temp);
 static double CUPToLat(TCHAR *temp);
 static double CUPToLon(TCHAR *temp);
-#endif
 static double CalculateAngle(TCHAR *temp);
 static int CheckFlags(TCHAR *temp);
 static double ReadAltitude(TCHAR *temp);
 static double ReadLength(TCHAR *temp);
 
-#ifdef CUPSUP
 static TCHAR nTemp2String[READLINE_LENGTH*2]; // 100205 BUGFIX? NO
-#else
-static TCHAR Temp2String[READLINE_LENGTH]; // 091007 TESTFIX shadowing
-#endif
 
-int WaypointsOutOfRange = 1; // include by default
 static int WaypointOutOfTerrainRangeDontAskAgain = -1;
 
 
 void CloseWayPoints() {
+  #if TESTBENCH
   StartupStore(TEXT(". CloseWayPoints%s"),NEWLINE);
-  unsigned int i;
-  #if CUPCOM
-  if (NumberOfWayPoints>0) { // we must free also RESWps comments!
-  #else
-  if (NumberOfWayPoints>NUMRESWP) {
   #endif
+  unsigned int i;
+  if (NumberOfWayPoints>0) { // we must free also RESWps comments!
 	StartupStore(TEXT(". Waypoint list was not empty, closing.%s"),NEWLINE);
-	#if CUPCOM
 	for (i=0; i<NumberOfWayPoints; i++) {
-	#else
-	for (i=NUMRESWP; i<NumberOfWayPoints; i++) {
-	#endif
 		if (WayPointList[i].Details) {
 			free(WayPointList[i].Details);
 			WayPointList[i].Details = NULL;
 		}
-		#if CUPCOM
 		if (WayPointList[i].Comment) {
 			free(WayPointList[i].Comment);
 			WayPointList[i].Comment = NULL;
 		}
-		#endif
 	}
   }
-  #if CUPCOM
   NumberOfWayPoints = 0; // we must force realloc also for RESWPs
-  #else
-  NumberOfWayPoints = NUMRESWP; // 100206 TODO check , 0 or NUMRESWP?  0, this was a bug corrected by another bug 
-  #endif
  
   // here we should not have any memory allocated for wps including Reswp
   if(WayPointList != NULL) {
+	#if TESTBENCH
 	StartupStore(TEXT(". WayPointList not null, LocalFree on.%s"),NEWLINE);
+	#endif
 	LocalFree((HLOCAL)WayPointList);
 	WayPointList = NULL;
 	LocalFree((HLOCAL)WayPointCalc); // VENTA3
@@ -126,8 +94,6 @@ static bool WaypointInTerrainRange(WAYPOINT *List) {
       TCHAR sTmp[250];
       int res;
 
-      //_stprintf(sTmp, geTText(TEXT("Waypoint #%d \"%s\" \r\nout of Terrain bounds\r\n\r\nLoad anyway?")), REMOVE 101209
-
       _stprintf(sTmp, _T("Waypoint #%d \"%s\" \r\n%s\r\n\r\n%s"), 
                 List->Number, List->Name,
 	// LKTOKEN  _@M837_ = "out of Terrain bound" 
@@ -145,15 +111,11 @@ static bool WaypointInTerrainRange(WAYPOINT *List) {
       case wpTerrainBoundsYesAll: 
         WaypointOutOfTerrainRangeDontAskAgain = 1;
         // WaypointsOutOfRange = 1; // this would override user choice in configuration!
-        SetToRegistry(szRegistryWaypointsOutOfRange, WaypointsOutOfRange);
-        StoreRegistry();
         return true;
       case mrCancle: 
       case wpTerrainBoundsNoAll: 
         WaypointOutOfTerrainRangeDontAskAgain = 2;
         // WaypointsOutOfRange = 2; // this would override user choice in configuration!
-        SetToRegistry(szRegistryWaypointsOutOfRange, WaypointsOutOfRange);
-        StoreRegistry();
         return false;
       }
       
@@ -167,42 +129,13 @@ static bool WaypointInTerrainRange(WAYPOINT *List) {
   }
 }
 
-#ifndef CUPSUP
-static int ParseWayPointError(int LineNumber, TCHAR *FileName, TCHAR *String){
-  TCHAR szTemp[250];
-
-  if (_tcslen(FileName)> 0) {
-    _stprintf(szTemp, 
-              TEXT("%s\r\n%s %s %s %d\r\n%s"),
-	// LKTOKEN  _@M805_ = "Waypointfile Parse Error" 
-              gettext(TEXT("_@M805_")), 
-	// LKTOKEN  _@M285_ = "File" 
-              gettext(TEXT("_@M285_")),
-              FileName,
-	// LKTOKEN  _@M393_ = "Line" 
-              gettext(TEXT("_@M393_")),
-              LineNumber, String);
-  } else {
-    _stprintf(szTemp, 
-              TEXT("%s\r\n%s %s %d\r\n%s"),
-              TEXT("Waypointfile Parse Error"), 
-              TEXT("(Map file)"),
-              TEXT("Line"),
-              LineNumber, String);
-  }
-  MessageBoxX(hWndMainWindow,szTemp,
-	// LKTOKEN  _@M266_ = "Error" 
-              gettext(TEXT("_@M266_")),
-              MB_OK | MB_ICONWARNING);
-  return(1);
-}
-#endif
-
 // VENTA3 added additional WP calculated list
 bool AllocateWaypointList(void) {
   if (!WayPointList) {
     NumberOfWayPoints = 0;
+    #if TESTBENCH
     StartupStore(_T(". AllocateWaypointList: "));
+    #endif
     WayPointList = (WAYPOINT *)LocalAlloc(LPTR, 50 * sizeof(WAYPOINT));
     if(WayPointList == NULL) 
       {
@@ -214,9 +147,11 @@ bool AllocateWaypointList(void) {
                     gettext(TEXT("_@M266_")),MB_OK|MB_ICONSTOP);
         return 0;
       }
+    #if TESTBENCH
     StartupStore(_T("OK%s"),NEWLINE);
-
     StartupStore(_T(". AllocateWayPointCalc..."));
+    #endif
+
     WayPointCalc = (WPCALC *)LocalAlloc(LPTR, 50 * sizeof(WPCALC));
     if(WayPointCalc == NULL) 
       {
@@ -228,7 +163,9 @@ bool AllocateWaypointList(void) {
                     gettext(TEXT("_@M266_")),MB_OK|MB_ICONSTOP);
         return 0;
       }
+    #if TESTBENCH
     StartupStore(_T("OK%s"),NEWLINE);
+    #endif
     return true;
   }
   return true;
@@ -292,101 +229,11 @@ WAYPOINT* GrowWaypointList() {
   // returns the newly created waypoint
 }
 
-#ifndef CUPSUP
-// ------------------ OLD ---------------------
-void ReadWayPointFile(ZZIP_FILE *fp, TCHAR *CurrentWpFileName)
-{
-  WAYPOINT *new_waypoint;
-  TCHAR szTemp[100];
-  int nTrigger=10;
-  DWORD fSize, fPos=0;
-  int nLineNumber=0;
-
-  HWND hProgress;
-
-  hProgress = CreateProgressDialog(gettext(TEXT("_@M903_"))); // Loading Waypoints File...
-
-  fSize = zzip_file_size(fp);
-
-  if (fSize == 0) {
-	StartupStore(_T("+++ ReadWayPointFile: FAILED USING %s%s"), CurrentWpFileName,NEWLINE);
-	return;
-  }
-
-  if (!AllocateWaypointList()) {
-	StartupStore(_T("!!!!!! ReadWayPointFile: AllocateWaypointList FAILED%s"),NEWLINE);
-	return;
-  }
-
-  new_waypoint = WayPointList+NumberOfWayPoints;
-
-  // SetFilePointer(hFile,0,NULL,FILE_BEGIN);
-  fPos = 0;
-  nTrigger = (fSize/10);  
-
-  while(ReadString(fp, READLINE_LENGTH, Temp2String)){
-    
-	nLineNumber++;
-	fPos += _tcslen(Temp2String);
-    
-	if (nTrigger < (int)fPos){
-		nTrigger += (fSize/10);
-		StepProgressDialog();
-	}
-    
-	if (_tcsstr(Temp2String, TEXT("**")) == Temp2String) // Look For Comment
-		continue;
-
-	if (_tcsstr(Temp2String, TEXT("*")) == Temp2String)  // Look For SeeYou Comment
-		continue;
-
-	if (Temp2String[0] == '\0')
-		continue;
-
-	new_waypoint->Details = NULL; 
-	#if CUPCOM
-	new_waypoint->Comment = NULL; 
-	#endif
-
-	if (ParseWayPointString(Temp2String, new_waypoint)) {
-
-		if ( (_tcscmp(new_waypoint->Name, gettext(TEXT(RESWP_TAKEOFF_NAME)))==0) && (new_waypoint->Number==RESWP_ID)) {
-			StartupStore(_T("... FOUND TAKEOFF (%s) INSIDE WAYPOINTS FILE%s"), gettext(TEXT(RESWP_TAKEOFF_NAME)), NEWLINE);
-			Sleep(1000); // REMOVE TODO 
-			memcpy(WayPointList,new_waypoint,sizeof(WAYPOINT));
-			continue;
-		}
-
-		if (WaypointInTerrainRange(new_waypoint)) { 
-			new_waypoint = GrowWaypointList();
-			if (!new_waypoint) {
-				return; // failed to allocate
-			}
-			new_waypoint++; // we want the next blank one
-		}	
-  	}
-	continue;
-
-	if (ParseWayPointError(nLineNumber, CurrentWpFileName, Temp2String)==1)
-		continue;
-
-	break;
-
-  }
-
-  if (hProgress) {
-	wsprintf(szTemp,TEXT("100%%"));       
-	SetDlgItemText(hProgress,IDC_PROGRESS,szTemp);
-  }
-
-}
-#else
 // returns -1 if error, or the WpFileType 
 int ReadWayPointFile(ZZIP_FILE *fp, TCHAR *CurrentWpFileName)
 {
   WAYPOINT *new_waypoint;
   TCHAR szTemp[100];
-  int nTrigger=10;
   DWORD fSize, fPos=0;
   int nLineNumber=0;
   short fileformat=LKW_DAT;
@@ -397,8 +244,15 @@ int ReadWayPointFile(ZZIP_FILE *fp, TCHAR *CurrentWpFileName)
 
   fSize = zzip_file_size(fp);
 
-  if (fSize == 0) {
-	StartupStore(_T("+++ ReadWayPointFile: FAILED USING %s%s"), CurrentWpFileName,NEWLINE);
+  fileformat=GetWaypointFileFormatType(CurrentWpFileName);
+
+  if (fileformat<0) {
+	StartupStore(_T("... Unknown file format in waypoint file <%s\n"),CurrentWpFileName);
+	// We do NOT return, because first we analyze the content.
+  }
+
+  if (fSize <10) {
+	StartupStore(_T("... ReadWayPointFile: waypoint file %s type=%d is empty%s"), CurrentWpFileName,fileformat,NEWLINE);
 	return -1;
   }
 
@@ -409,13 +263,18 @@ int ReadWayPointFile(ZZIP_FILE *fp, TCHAR *CurrentWpFileName)
 
   new_waypoint = WayPointList+NumberOfWayPoints;
 
+
+  memset(nTemp2String, 0, sizeof(nTemp2String)); // clear Temp Buffer
+
   // check file format
   bool fempty=true;
   int  slen=0; // 100204 WIP
   while ( ReadString(fp,READLINE_LENGTH,nTemp2String) ) {
 	slen=_tcslen(nTemp2String);
 	if (slen<1) continue;
-	if ( _tcsncmp(_T("G  WGS 84"),nTemp2String,9) == 0) {
+	if ( _tcsncmp(_T("G  WGS 84"),nTemp2String,9) == 0 ||
+	   // consider UCS header, 3 bytes in fact. This is a workaround.
+	   _tcsncmp(_T("G  WGS 84"),&nTemp2String[3],9) == 0) {
 		if ( !ReadString(fp,READLINE_LENGTH,nTemp2String) ) {
 			StartupStore(_T(". Waypoint file %d format: CompeGPS truncated, rejected%s"),globalFileNum+1,NEWLINE);
 			return -1;
@@ -447,17 +306,40 @@ int ReadWayPointFile(ZZIP_FILE *fp, TCHAR *CurrentWpFileName)
 		fileformat=LKW_CUP;
 		break;
 	}
-	if ( _tcsncmp(_T("1,"),nTemp2String,2) == 0) {
+
+	if ( ( _tcsstr(nTemp2String, _T("OziExplorer Waypoint File")) == nTemp2String )||
+			   // consider UCS header, 3 bytes in fact. This is a workaround.
+			(_tcsstr(&nTemp2String[3], _T("OziExplorer Waypoint File")) == &nTemp2String[3]) ) {
+		StartupStore(_T(". Waypoint file %d format: OziExplorer%s"),globalFileNum+1,NEWLINE);
+		fempty=false;
+		fileformat=LKW_OZI;
+		break;
+	}
+
+	// consider also the case of empty file, when a waypoint if saved starting with numbering after
+	// the virtual wps (including the 0);
+	TCHAR virtualdatheader[3];
+	wsprintf(virtualdatheader,_T("%d,"),RESWP_END+2);
+	if ( _tcsncmp(_T("1,"),nTemp2String,2) == 0 ||
+	  _tcsncmp(virtualdatheader,nTemp2String,2) == 0) {
 		StartupStore(_T(". Waypoint file %d format: WinPilot%s"),globalFileNum+1,NEWLINE);
 		fempty=false;
 		fileformat=LKW_DAT;
 		break;
 	}
-	fempty=false;
-	fileformat=LKW_DAT;
-	break;
-	StartupStore(_T("... Unknown WP file %d format identifier (assuming DAT), line 1: <%s>%s"),globalFileNum+1,nTemp2String,NEWLINE);
-	break;
+	// Otherwise we use the fileformat .xxx suffix. 
+	// Why we did not do it since the beginning? Simply because we should not rely on .xxx suffix
+	// because some formats like CompeGPS and OZI, for example, share the same .WPT suffix.
+	// 
+	if (fileformat<0) {
+		StartupStore(_T(".. Unknown WP header, unknown format in <%s>%s"),nTemp2String,NEWLINE);
+		// leaving fempty true, so no good file available
+		break;
+	} else {
+		fempty=false;
+		StartupStore(_T(".. Unknown WP header, using format %d.  Header: <%s>%s"),fileformat,nTemp2String,NEWLINE);
+		break;
+	}
   }
   if (fempty) {
 	return -1;
@@ -465,11 +347,12 @@ int ReadWayPointFile(ZZIP_FILE *fp, TCHAR *CurrentWpFileName)
 
   // SetFilePointer(hFile,0,NULL,FILE_BEGIN);
   fPos = 0;
-  nTrigger = (fSize/10);  
 
   // a real shame, too lazy to change into do while loop
   // Skip already read lines containing header, unless we are using DAT, which has no header
   if ( fileformat==LKW_DAT) goto goto_inloop; 
+
+  memset(nTemp2String, 0, sizeof(nTemp2String)); // clear Temp Buffer
 
   while(ReadString(fp, READLINE_LENGTH, nTemp2String)){
 goto_inloop:    
@@ -478,13 +361,7 @@ goto_inloop:
 	nTemp2String[READLINE_LENGTH-1]=_T('\n');
 	nTemp2String[READLINE_LENGTH-2]=_T('\r');
 	fPos += _tcslen(nTemp2String);
-    
-	if (nTrigger < (int)fPos){
-		nTrigger += (fSize/10);
-		StepProgressDialog();
-	}
-
-    
+   
 	if (_tcsstr(nTemp2String, TEXT("**")) == nTemp2String) // Look For Comment
 		continue;
 
@@ -495,16 +372,13 @@ goto_inloop:
 		continue;
 
 	new_waypoint->Details = NULL; 
-	#if CUPCOM
 	new_waypoint->Comment = NULL; 
-	#endif
 
 	if ( fileformat == LKW_DAT || fileformat== LKW_XCW ) {
 		if (ParseWayPointString(nTemp2String, new_waypoint)) {
 
 			if ( (_tcscmp(new_waypoint->Name, gettext(TEXT(RESWP_TAKEOFF_NAME)))==0) && (new_waypoint->Number==RESWP_ID)) {
 				StartupStore(_T("... FOUND TAKEOFF (%s) INSIDE WAYPOINTS FILE%s"), gettext(TEXT(RESWP_TAKEOFF_NAME)), NEWLINE);
-				Sleep(1000); // REMOVE TODO 
 				memcpy(WayPointList,new_waypoint,sizeof(WAYPOINT));
 				continue;
 			}
@@ -525,7 +399,6 @@ goto_inloop:
 		if (ParseCUPWayPointString(nTemp2String, new_waypoint)) {
 			if ( (_tcscmp(new_waypoint->Name, gettext(TEXT(RESWP_TAKEOFF_NAME)))==0) && (new_waypoint->Number==RESWP_ID)) {
 				StartupStore(_T("... FOUND TAKEOFF (%s) INSIDE WAYPOINTS FILE%s"), gettext(TEXT(RESWP_TAKEOFF_NAME)), NEWLINE);
-				Sleep(1000); // REMOVE TODO 
 				memcpy(WayPointList,new_waypoint,sizeof(WAYPOINT));
 				continue;
 			}
@@ -543,7 +416,6 @@ goto_inloop:
 		if (ParseCOMPEWayPointString(nTemp2String, new_waypoint)) {
 			if ( (_tcscmp(new_waypoint->Name, gettext(TEXT(RESWP_TAKEOFF_NAME)))==0) && (new_waypoint->Number==RESWP_ID)) {
 				StartupStore(_T("... FOUND TAKEOFF (%s) INSIDE WAYPOINTS FILE%s"), gettext(TEXT(RESWP_TAKEOFF_NAME)), NEWLINE);
-				Sleep(1000); // REMOVE TODO 
 				memcpy(WayPointList,new_waypoint,sizeof(WAYPOINT));
 				continue;
 			}
@@ -558,19 +430,42 @@ goto_inloop:
 		}
 	}
 
+	if(fileformat == LKW_OZI){
+		// Ignore first four header lines
+		if(nLineNumber <= 3)
+			continue;
+
+		if(ParseOZIWayPointString(nTemp2String, new_waypoint)){
+			if ( (_tcscmp(new_waypoint->Name, gettext(TEXT(RESWP_TAKEOFF_NAME)))==0) && (new_waypoint->Number==RESWP_ID)) {
+				StartupStore(_T("... FOUND TAKEOFF (%s) INSIDE WAYPOINTS FILE%s"), gettext(TEXT(RESWP_TAKEOFF_NAME)), NEWLINE);
+				memcpy(WayPointList,new_waypoint,sizeof(WAYPOINT));
+				continue;
+			}
+
+			if (WaypointInTerrainRange(new_waypoint)) {
+				new_waypoint = GrowWaypointList();
+				if (!new_waypoint) {
+					return -1; // failed to allocate
+				}
+				new_waypoint++; // we want the next blank one
+			}
+		}
+	}
+
+	memset(nTemp2String, 0, sizeof(nTemp2String)); // clear Temp Buffer
+
 	continue;
 
   }
 
   if (hProgress) {
-	wsprintf(szTemp,TEXT("100%%"));       
+	_stprintf(szTemp,TEXT("100%%"));       
 	SetDlgItemText(hProgress,IDC_PROGRESS,szTemp);
   }
   return fileformat;
 
 }
 
-#endif
 
 void WaypointAltitudeFromTerrain(WAYPOINT* Temp) {
   double myalt;
@@ -593,7 +488,7 @@ void WaypointAltitudeFromTerrain(WAYPOINT* Temp) {
 int ParseWayPointString(TCHAR *String,WAYPOINT *Temp)
 {
   TCHAR ctemp[(COMMENT_SIZE*2)+1]; // 101102 BUGFIX, we let +1 for safety
-  TCHAR *Zoom;
+  TCHAR *Number;
   TCHAR *pWClast = NULL;
   TCHAR *pToken;
   TCHAR TempString[READLINE_LENGTH];
@@ -604,16 +499,14 @@ int ParseWayPointString(TCHAR *String,WAYPOINT *Temp)
 
   Temp->Visible = true; // default all waypoints visible at start
   Temp->FarVisible = true;
-#ifdef CUPSUP
   Temp->Format = LKW_DAT;
-#endif
 
   Temp->FileNum = globalFileNum;
 
   // ExtractParameter(TempString,ctemp,0);
   if ((pToken = strtok_r(TempString, TEXT(","), &pWClast)) == NULL)
     return FALSE;
-  Temp->Number = _tcstol(pToken, &Zoom, 10);
+  Temp->Number = _tcstol(pToken, &Number, 10);
         
   //ExtractParameter(TempString,ctemp,1); //Latitude
   if ((pToken = strtok_r(NULL, TEXT(","), &pWClast)) == NULL)
@@ -669,41 +562,18 @@ int ParseWayPointString(TCHAR *String,WAYPOINT *Temp)
   //ExtractParameter(TempString,ctemp,6); // Comment
   // DAT Comment
   if ((pToken = strtok_r(NULL, TEXT("\n\r"), &pWClast)) != NULL){
-    _tcsncpy(ctemp, pToken, COMMENT_SIZE); //@ 101102 BUGFIX bad. ctemp was not sized correctly!
-    ctemp[COMMENT_SIZE] = '\0';
+    LK_tcsncpy(ctemp, pToken, COMMENT_SIZE); //@ 101102 BUGFIX bad. ctemp was not sized correctly!
 
-    Temp->Zoom = 0;
-    Zoom = _tcschr(ctemp,'*'); // if it is a home waypoint raise zoom level .. VENTA
-    if(Zoom)
-      {
-        *Zoom = '\0';
-        Zoom +=2;
-        Temp->Zoom = _tcstol(Zoom, &Zoom, 10);
-      }
-
-    // sgi, move "panic-stripping" of the comment-field after we extract
-    // the zoom factor
-    ctemp[COMMENT_SIZE] = '\0';
-
-    #if CUPCOM
     if (_tcslen(ctemp) >0 ) {
 	if (Temp->Comment) {
 		free(Temp->Comment);
 	}
 	Temp->Comment = (TCHAR*)malloc((_tcslen(ctemp)+1)*sizeof(TCHAR));
-	_tcscpy(Temp->Comment, ctemp);
+	if (Temp->Comment) _tcscpy(Temp->Comment, ctemp);
     }
-    #else
-    _tcscpy(Temp->Comment, ctemp);
-    #endif
 
   } else {
-    #if CUPCOM
     Temp->Comment = NULL; // useless
-    #else
-    Temp->Comment[0] = '\0';
-    #endif
-    Temp->Zoom = 0;
   }
 
   if(Temp->Altitude <= 0) {
@@ -796,9 +666,6 @@ static double CalculateAngle(TCHAR *temp)
   return Degrees;
 }
 
-#define BUGFIXCUP	1
-
-#ifdef CUPSUP
 static double CUPToLat(TCHAR *temp)
 {
   TCHAR *dot, td;
@@ -807,12 +674,8 @@ static double CUPToLat(TCHAR *temp)
   unsigned int slen;
   bool north=false;
 
-  #ifndef BUGFIXCUP
-  if (_tcslen(temp)!=9) return -9999;
-  #else
   // lat is 4555.0X minimum
   if (_tcslen(temp)<7||_tcslen(temp)>9) return -9999;
-  #endif
   // check there is a dot, to be sure
   dot = _tcschr(temp,'.');
   if(!dot) return -9999;
@@ -822,21 +685,14 @@ static double CUPToLat(TCHAR *temp)
   _tcscpy(tsec,dot);
   slen=_tcslen(tsec);
   
-  #ifndef BUGFIXCUP
-  if (slen!=4) return -9999;
-  td= tsec[3];
-  #else
   // seconds are 0X minimum including the letter
   if (slen<2 || slen>4) return -9999;
   td= tsec[slen-1];
-  #endif
 
   if ( (td != _T('N')) && ( td != _T('S')) ) return -9999;
   if ( td == _T('N') ) north=true;
 
-  #ifdef BUGFIXCUP
   td='\0';
-  #endif
 
   tdeg[0]=temp[0];
   tdeg[1]=temp[1];
@@ -850,7 +706,6 @@ static double CUPToLat(TCHAR *temp)
   mins     = (double)_tcstol(tmin, NULL, 10);
   secs     = (double)_tcstol(tsec, NULL, 10);
 
-  #ifdef BUGFIXCUP // 100419
   // if seconds are only a decimal, for example 3 , they really are 300
   switch (slen) {
 	case 2:
@@ -864,7 +719,6 @@ static double CUPToLat(TCHAR *temp)
 	default:
 		break;
   }
-  #endif
 
   mins += secs / 1000.0;
   degrees += mins / 60.0;
@@ -882,12 +736,8 @@ static double CUPToLon(TCHAR *temp)
   unsigned int slen;
   bool east=false;
 
-  #ifndef BUGFIXCUP
-  if (_tcslen(temp)!=10) return -9999;
-  #else
   // longit can be 01234.5X
   if (_tcslen(temp)<8 || _tcslen(temp)>10) return -9999;
-  #endif
 
   // check there is a dot, to be sure
   dot = _tcschr(temp,'.');
@@ -897,21 +747,14 @@ static double CUPToLon(TCHAR *temp)
 
   _tcscpy(tsec,dot);
   slen=_tcslen(tsec);
-  #ifndef BUGFIXCUP
-  if (slen!=4) return -9999;
-  td= tsec[3];
-  #else
   // seconds are 0X minimum including the letter
   if (slen<2 || slen>4) return -9999;
   td= tsec[slen-1];
-  #endif
 
   if ( (td != _T('E')) && ( td != _T('W')) ) return -9999;
   if ( td == _T('E') ) east=true;
 
-  #ifdef BUGFIXCUP
   td='\0';
-  #endif
 
   tdeg[0]=temp[0];
   tdeg[1]=temp[1];
@@ -926,7 +769,6 @@ static double CUPToLon(TCHAR *temp)
   mins     = (double)_tcstol(tmin, NULL, 10);
   secs     = (double)_tcstol(tsec, NULL, 10);
 
-  #ifdef BUGFIXCUP // 100419
   // if seconds are only a decimal, for example 3 , they really are 300
   switch (slen) {
 	case 2:
@@ -940,7 +782,6 @@ static double CUPToLon(TCHAR *temp)
 	default:
 		break;
   }
-  #endif
 
   mins += secs / 1000.0;
   degrees += mins / 60.0;
@@ -949,7 +790,6 @@ static double CUPToLon(TCHAR *temp)
         
   return degrees;
 }
-#endif
 
 
 static int CheckFlags(TCHAR *temp)
@@ -970,7 +810,7 @@ static int CheckFlags(TCHAR *temp)
 
 static double ReadAltitude(TCHAR *temp)
 {
-  TCHAR *Stop;
+  TCHAR *Stop=temp;
   double Altitude=-9999;
   Altitude = StrToDouble(temp, &Stop);
 
@@ -996,13 +836,11 @@ static double ReadAltitude(TCHAR *temp)
   return Altitude;
 }
 
-#ifdef CUPSUP
 static double ReadLength(TCHAR *temp)
 {
-  TCHAR *stop;
+  TCHAR *stop=temp;
   double len;
   len = StrToDouble(temp, &stop);
-
   if (temp == stop) {		// error at begin
 	len=-9999;
 	return len;
@@ -1028,7 +866,6 @@ static double ReadLength(TCHAR *temp)
   len = -9999;
   return len;
 }
-#endif
 
 void ReadWayPoints(void)
 {
@@ -1036,7 +873,6 @@ void ReadWayPoints(void)
 
   TCHAR szFile1[MAX_PATH] = TEXT("\0");
   TCHAR szFile2[MAX_PATH] = TEXT("\0");
-  char zfilename[MAX_PATH] = "\0";
         
   ZZIP_FILE *fp=NULL;
 #ifdef HAVEEXCEPTIONS
@@ -1047,44 +883,28 @@ void ReadWayPoints(void)
     CloseWayPoints(); // BUGFIX 091104 duplicate waypoints entries
     InitVirtualWaypoints();	// 091103
 
-    GetRegistryString(szRegistryWayPointFile, szFile1, MAX_PATH);
+    _tcscpy(szFile1,szWaypointFile);
 
     #ifndef HAVEEXCEPTIONS
-    SetRegistryString(szRegistryWayPointFile, TEXT("\0"));  
+    _tcscpy(szWaypointFile,_T(""));
     #endif
       
     if (_tcslen(szFile1)>0) {
       ExpandLocalPath(szFile1);
-      unicode2ascii(szFile1, zfilename, MAX_PATH);
-      fp = zzip_fopen(zfilename, "rt");
+      fp = zzip_fopen(szFile1, "rt");
     } else {
-      static TCHAR  szMapFile[MAX_PATH] = TEXT("\0");
-      GetRegistryString(szRegistryMapFile, szMapFile, MAX_PATH);
-      ExpandLocalPath(szMapFile);
-      wcscat(szMapFile,TEXT("/"));
-      wcscat(szMapFile,TEXT("waypoints.xcw"));
-      unicode2ascii(szMapFile, zfilename, MAX_PATH);
-      fp  = zzip_fopen(zfilename, "rt");
-      if (fp != NULL) {
-	StartupStore(TEXT("... Waypoint file embedded inside xcm%s"), NEWLINE);
-	StartupStore(TEXT("... xcm: <%s>%s"), szMapFile,NEWLINE);
-      }
     }
 
     if(fp != NULL)
       {
         globalFileNum = 0;
-#ifdef CUPSUP
         WpFileType[1]=ReadWayPointFile(fp, szFile1);
-#else
-        ReadWayPointFile(fp, szFile1);
-#endif
         zzip_fclose(fp);
         fp = 0;
         // read OK, so set the registry to the actual file name
         #ifndef HAVEEXCEPTIONS
         ContractLocalPath(szFile1);
-        SetRegistryString(szRegistryWayPointFile, szFile1);  
+	_tcscpy(szWaypointFile,szFile1);
         #endif
       } else {
       StartupStore(TEXT("--- No waypoint file 1%s"),NEWLINE);
@@ -1096,7 +916,7 @@ void ReadWayPoints(void)
 	// LKTOKEN  _@M266_ = "Error" 
                 gettext(TEXT("_@M266_")),
                 MB_OK|MB_ICONSTOP);
-    SetRegistryString(szRegistryWayPointFile, TEXT("\0"));  
+    _tcscpy(szWaypointFile,_T(""));
   }
 #endif
 
@@ -1109,28 +929,23 @@ void ReadWayPoints(void)
   __try{
 #endif
 
-    GetRegistryString(szRegistryAdditionalWayPointFile, szFile2, MAX_PATH);
-
-    SetRegistryString(szRegistryAdditionalWayPointFile, TEXT("\0"));  
+    // reset to empty until we verified it is existing
+    _tcscpy(szFile2,szAdditionalWaypointFile);
+    _tcscpy(szAdditionalWaypointFile,_T(""));
 
     if (_tcslen(szFile2)>0){
       ExpandLocalPath(szFile2);
-      unicode2ascii(szFile2, zfilename, MAX_PATH);
-      fp = zzip_fopen(zfilename, "rt");
+      fp = zzip_fopen(szFile2, "rt");
       if(fp != NULL){
         globalFileNum = 1;
-#ifdef CUPSUP
         WpFileType[2]=ReadWayPointFile(fp, szFile2);
-#else
-        ReadWayPointFile(fp, szFile2);
-#endif
         zzip_fclose(fp);
         fp = NULL;
         // read OK, so set the registry to the actual file name
         ContractLocalPath(szFile2);
-        SetRegistryString(szRegistryAdditionalWayPointFile, szFile2);  
+	_tcscpy(szAdditionalWaypointFile,szFile2);
       } else {
-	StartupStore(TEXT("--- No waypoint file 2%s"),NEWLINE);
+        StartupStore(TEXT("--- No waypoint file 2%s"),NEWLINE);
       }
     }
 
@@ -1144,11 +959,9 @@ void ReadWayPoints(void)
         if (WayPointList[i].Details) {
           free(WayPointList[i].Details);
         }
-	#if CUPCOM
         if (WayPointList[i].Comment) {
           free(WayPointList[i].Comment);
         }
-	#endif
       }
     }
     MessageBoxX(hWndMainWindow,
@@ -1156,7 +969,7 @@ void ReadWayPoints(void)
 	// LKTOKEN  _@M266_ = "Error" 
                 gettext(TEXT("_@M266_")),
                 MB_OK|MB_ICONSTOP);
-    SetRegistryString(szRegistryAdditionalWayPointFile, TEXT("\0"));  
+    _tcscpy(szAdditionalWaypointFile,_T(""));
   }
 #endif
 
@@ -1168,16 +981,36 @@ void ReadWayPoints(void)
 void SetHome(bool reset)
 {
 
-  StartupStore(TEXT(". SetHome%s"),NEWLINE);
+  #if TESTBENCH
+  StartupStore(TEXT(".... SetHome (current=%d), reset=%d%s"),HomeWaypoint,reset,NEWLINE);
+  #endif
 
   unsigned int i;
+  bool resetalternates=false;
 
   if (reset || !ValidWayPoint(NUMRESWP) || !ValidNotResWayPoint(HomeWaypoint) ) { // BUGFIX 100213 see if really we have wps!
-	    HomeWaypoint = -1;
+	#if TESTBENCH
+	StartupStore(TEXT(".... Home Reset%s"),NEWLINE);
+	#endif
+	HomeWaypoint = -1;
   }
-  if (reset || !ValidNotResWayPoint(Alternate1) || !ValidNotResWayPoint(Alternate2) ) {
+
+  // If one of the alternates is no longer valid, we reset both of them 
+  if (Alternate1 !=-1 ) {
+ 	 if (!ValidNotResWayPoint(Alternate1) ) {
+	     resetalternates=true;
+ 	 }
+  }
+  if (Alternate2 !=-1 ) {
+ 	 if (!ValidNotResWayPoint(Alternate2) ) {
+	     resetalternates=true;
+ 	 }
+  }
+  if (reset || resetalternates) {
       Alternate1= -1; Alternate2= -1;
   }
+
+
   // check invalid task ref waypoint or forced reset due to file change
   if (reset || !ValidNotResWayPoint(TeamCodeRefWaypoint)) {
     TeamCodeRefWaypoint = -1;
@@ -1185,6 +1018,9 @@ void SetHome(bool reset)
 
   if ( ValidNotResWayPoint(AirfieldsHomeWaypoint) ) {
 	HomeWaypoint = AirfieldsHomeWaypoint;
+	#if TESTBENCH
+	StartupStore(TEXT(".... Using AirfieldHomeWaypoint home=%d <%s>%s"),HomeWaypoint,WayPointList[HomeWaypoint].Name,NEWLINE);
+	#endif
   }
   if (!ValidNotResWayPoint(HomeWaypoint)) {
     // search for home in waypoint list, if we don't have a home
@@ -1193,6 +1029,10 @@ void SetHome(bool reset)
 	if( (WayPointList[i].Flags & HOME) == HOME) {
 		if (HomeWaypoint < 0) {
 			HomeWaypoint = i;
+			#if TESTBENCH
+			StartupStore(TEXT(".... Using waypoint file found home=%d <%s>%s"),
+				HomeWaypoint,WayPointList[HomeWaypoint].Name,NEWLINE);
+			#endif
 		}
 	}
     }
@@ -1211,6 +1051,10 @@ void SetHome(bool reset)
 			if( WayPointList[i].Longitude  == WpHome_Lon)
 				if ( _tcscmp(WayPointList[i].Name,WpHome_Name) == 0 ) {
 					HomeWaypoint=i;
+					#if TESTBENCH
+					StartupStore(TEXT(".... Using matched home lat/lon in waypoints, home=%d <%s>%s"),
+						HomeWaypoint,WayPointList[HomeWaypoint].Name,NEWLINE);
+					#endif
 					break;
 				}
 	}
@@ -1244,18 +1088,9 @@ void SetHome(bool reset)
 	StartupStore(_T("...... HomeWaypoint NOT SET%s"),NEWLINE);
   }
 
-  // 
-  // Save the home waypoint number in the resgistry
-  //
-  // VENTA3> this is probably useless, since HomeWayPoint &c were currently 
-  //         just loaded from registry. 
-  SetToRegistry(szRegistryHomeWaypoint,HomeWaypoint);
-  SetToRegistry(szRegistryAlternate1,Alternate1);
-  SetToRegistry(szRegistryAlternate2,Alternate2);
-  SetToRegistry(szRegistryTeamcodeRefWaypoint,TeamCodeRefWaypoint);
 }
 
-// 101121 TODO use Range sorted list
+// This is slow, careful!
 int FindNearestWayPoint(double X, double Y, double MaxRange,
                         bool exhaustive)
 {
@@ -1302,7 +1137,7 @@ int FindNearestWayPoint(double X, double Y, double MaxRange,
 }
 
 
-  // Number,Latitude,Longitude,Altitude,Flags,Name,Comment(,Zoom))
+  // Number,Latitude,Longitude,Altitude,Flags,Name,Comment
   // Number starts at 1
   // Lat/long expressed as D:M:S[N/S/E/W]
   // Altitude as XXXM
@@ -1341,7 +1176,6 @@ void WaypointFlagsToString(int FlagsNum,
   }
 }
 
-#ifdef CUPSUP
 void LongitudeToCUPString(double Longitude, 
                                TCHAR *Buffer) {
   TCHAR EW[] = TEXT("WE");
@@ -1389,7 +1223,6 @@ void LatitudeToCUPString(double Latitude,
 
   _stprintf(Buffer, TEXT("%02.0f%02.0f.%03.0f%c"), dd, mm, ss, EW[sign]);
 }
-#endif
 
 void WaypointLongitudeToString(double Longitude,
                                TCHAR *Buffer) {
@@ -1442,49 +1275,13 @@ void WaypointLatitudeToString(double Latitude,
   _stprintf(Buffer, TEXT("%02d:%02d:%02d%c"), dd, mm, ss, EW[sign]);
 }
 
-#ifndef CUPSUP
-
-void WriteWayPointFileWayPoint(FILE *fp, WAYPOINT* wpt) {
-  TCHAR Flags[MAX_PATH];
-  TCHAR Latitude[MAX_PATH];
-  TCHAR Longitude[MAX_PATH];
-  TCHAR Comment[MAX_PATH];
-  
-  Flags[0]=0;
-  
-  WaypointLatitudeToString(wpt->Latitude, Latitude);
-  WaypointLongitudeToString(wpt->Longitude, Longitude);
-  WaypointFlagsToString(wpt->Flags, Flags);
-  
-  _stprintf(Comment, wpt->Comment);
-  for (int j=0; j<(int)_tcslen(Comment); j++) {
-    if (Comment[j]==_T('\r')) {
-      Comment[j] = 0;
-    }
-    if (Comment[j]==_T('\n')) {
-      Comment[j] = 0;
-    }
-  }
-  
-  fprintf(fp,"%d,%S,%S,%dM,%S,%S,%S\r\n",
-            wpt->Number,
-            Latitude,
-            Longitude,
-            iround(wpt->Altitude),
-            Flags,
-            wpt->Name,
-            wpt->Comment);  
-}
-#else // CUPSUP
 // globalFileNum will tell us what is the file type we are writing to
 // HEADERs for each format are written inside calling function, not here.
 void WriteWayPointFileWayPoint(FILE *fp, WAYPOINT* wpt) {
   TCHAR flags[MAX_PATH];
   TCHAR latitude[MAX_PATH];
   TCHAR longitude[MAX_PATH];
-  #if CUPCOM
   TCHAR comment[COMMENT_SIZE*2]; //@ 101112
-  #endif
   TCHAR rwdirection[30];
   TCHAR rwlen[30];
   TCHAR cupFreq[CUPSIZE_FREQ*2];
@@ -1520,7 +1317,6 @@ void WriteWayPointFileWayPoint(FILE *fp, WAYPOINT* wpt) {
 	}
 	#endif
 
-	#if CUPCOM	//@ 101112
 	if (wpt->Comment!=NULL)
 		_tcscpy(comment,wpt->Comment);
 	else
@@ -1535,17 +1331,6 @@ void WriteWayPointFileWayPoint(FILE *fp, WAYPOINT* wpt) {
 		wpt->Name,
 		comment);  
 
-	#else
-	fprintf(fp,"%d,%S,%S,%dM,%S,%S,%S\r\n",
-		wpt->Number,
-		latitude,
-		longitude,
-		iround(wpt->Altitude),
-		flags,
-		wpt->Name,
-		wpt->Comment);  
-	#endif
-
 	return;
   } // DAT
 
@@ -1554,7 +1339,6 @@ void WriteWayPointFileWayPoint(FILE *fp, WAYPOINT* wpt) {
 	char NS[]= "SN";
 	char EW[]= "WE";
 
-	#if CUPCOM	//@ 101112
 
 	if (wpt->Comment!=NULL)
 		_tcscpy(comment,wpt->Comment);
@@ -1572,20 +1356,6 @@ void WriteWayPointFileWayPoint(FILE *fp, WAYPOINT* wpt) {
 	wpt->Altitude,
 	comment);
 
-	#else
-
-	fprintf(fp,"W  %S A %.10f%c%c %.10f%c%c 27-MAR-62 00:00:00 %.6f %S\r\n",
-	wpt->Name,
-	fabs(wpt->Latitude),
-	0xba,
-	NS[wpt->Latitude<0?0:1],
-	fabs(wpt->Longitude),
-	0xba,
-	EW[wpt->Longitude<0?0:1],
-	wpt->Altitude,
-	wpt->Comment);
-
-	#endif
 
 	return;
   }
@@ -1614,7 +1384,6 @@ void WriteWayPointFileWayPoint(FILE *fp, WAYPOINT* wpt) {
 	} else
 		_tcscpy(cupCode,_T(""));
 
-	#if CUPCOM	//@ 101112
 	if (wpt->Comment!=NULL)
 		_tcscpy(comment,wpt->Comment);
 	else
@@ -1631,29 +1400,42 @@ void WriteWayPointFileWayPoint(FILE *fp, WAYPOINT* wpt) {
 		rwlen,
 		cupFreq,
 		comment);
-	#else
-	// TODO convert altitude and runway len to units in use
-	fprintf(fp,"\"%S\",%S,%S,%S,%S,%d.0m,%d,%S,%S,%S,%S\r\n",
-		wpt->Name,
-		wpt->Code,
-		wpt->Country,
-		latitude,
-		longitude,
-		iround(wpt->Altitude),
-		wpt->Style,
-		rwdirection,
-		rwlen,
-		cupFreq,
-		wpt->Comment);
-	#endif
 
 	return;
   }
 
+  if(filemode == LKW_OZI) {
+
+	if (wpt->Comment!=NULL)
+		_tcscpy(comment,wpt->Comment);
+	else
+		_tcscpy(comment,_T(""));
+
+	if(_tcslen(comment) > 40){
+		comment[40] = _T('\0');
+	}
+
+	// Calc Waypoint pos in file
+	int nWaypointPos = 1;
+	for(int i = NUMRESWP; i < (wpt-WayPointList); i++) {
+		if(WayPointList[i].FileNum == wpt->FileNum)
+			nWaypointPos++;
+	}
+
+	fprintf(fp, "%d,%S,%.6f,%.6f,,0,1,3,0,65635,%S,0,0,0,%d,6,0,17\r\n",
+			nWaypointPos,// position in file
+			wpt->Name,
+			wpt->Latitude,
+			wpt->Longitude,
+			comment,
+			iround(wpt->Altitude*TOFEET));
+
+  }
+
+
   StartupStore(_T("...... Invalid filemode=%d file=%d wp=%d%s"), filemode,globalFileNum,wpt->Number ,NEWLINE);
 
 }
-#endif
 
 
 // globalFileNum is 0 for file1 and 1 for file2
@@ -1668,7 +1450,6 @@ void WriteWayPointFile(FILE *fp) {
       }
     }
   }
-#ifdef CUPSUP
   // Write specific format header 
   if (globalFileNum>=0 && globalFileNum<2) { // 100208
 	if ( WpFileType[globalFileNum+1] == LKW_CUP ) {
@@ -1678,11 +1459,17 @@ void WriteWayPointFile(FILE *fp) {
 	 fprintf(fp,"G  WGS 84\r\n");
 	 fprintf(fp,"U  1\r\n");
 	}
+	if ( WpFileType[globalFileNum+1] == LKW_OZI ) {
+		//Always Use V1.1 file format
+	 	fprintf(fp,"OziExplorer Waypoint File Version 1.1\r\n");
+	 	fprintf(fp,"WGS 84\r\n");
+	 	fprintf(fp,"Reserved 2\r\n");
+	 	fprintf(fp,"Reserved 3\r\n");
+	}
   } else {
 	StartupStore(_T("... WriteWayPointFile: invalid globalFileNum%s"),NEWLINE);
 	return;
   }
-#endif
   for (i=NUMRESWP; i<(int)NumberOfWayPoints; i++) {
     if (WayPointList[i].FileNum == globalFileNum) {
 
@@ -1707,14 +1494,11 @@ void WaypointWriteFiles(void) {
   TCHAR szFile2[MAX_PATH] = TEXT("\0");
         
   FILE *fp=NULL;
-
-  GetRegistryString(szRegistryWayPointFile, szFile1, MAX_PATH);
+  _tcscpy(szFile1,szWaypointFile);
   ExpandLocalPath(szFile1);
 
   #if 0	// 101214 READ ONLY FILES
-  #ifdef CUPSUP
   if (WpFileType[1] == LKW_COMPE) goto goto_file2; // 100212
-  #endif
   #endif
 
   if (_tcslen(szFile1)>0) {
@@ -1740,17 +1524,13 @@ void WaypointWriteFiles(void) {
     fp = NULL;
   } 
   #if 0 // 101214
-  #ifdef CUPSUP
   goto_file2:
-  #endif 
   #endif
-  GetRegistryString(szRegistryAdditionalWayPointFile, szFile2, MAX_PATH);
+  _tcscpy(szFile2,szAdditionalWaypointFile);
   ExpandLocalPath(szFile2);
 
   #if 0 // 101214 READ ONLY FILES
-  #ifdef CUPSUP
   if (WpFileType[2] == LKW_COMPE) goto goto_endwrite; // 100212
-  #endif
   #endif
   if (_tcslen(szFile2)>0) {
     fp = _tfopen(szFile2, TEXT("wb"));
@@ -1774,9 +1554,7 @@ void WaypointWriteFiles(void) {
     fp = NULL;
   }
   #if 0
-  #ifdef CUPSUP
   goto_endwrite:
-  #endif
   #endif
   UnlockTaskData();
 }
@@ -1787,8 +1565,6 @@ int FindMatchingWaypoint(WAYPOINT *waypoint) {
     return -1;
   }
   unsigned int i;
-
-#ifdef NEWTASKWP
 
   for (i=NUMRESWP; i<NumberOfWayPoints; i++) {
 
@@ -1804,24 +1580,6 @@ int FindMatchingWaypoint(WAYPOINT *waypoint) {
 		return i;
 	}
   }
-#else
-  // first scan, lookup by name
-  for (i=0; i<NumberOfWayPoints; i++) {
-	if (_tcscmp(waypoint->Name, WayPointList[i].Name)==0) {
-		return i;
-	}
-  }
-  // second scan, lookup by location
-  for (i=0; i<NumberOfWayPoints; i++) {
-	if ((fabs(waypoint->Latitude-WayPointList[i].Latitude)<1.0e-6) 
-	&& (fabs(waypoint->Longitude-WayPointList[i].Longitude)<1.0e-6) &&
-	(waypoint->Flags == WayPointList[i].Flags) // 100204
-	) {
-		return i;
-	}
-  }
-
-#endif
   
   return -1;
 }
@@ -1873,14 +1631,10 @@ void AddReservedWaypoints()
 	WayPointList[RESWP_TAKEOFF].Altitude=RESWP_INVALIDNUMBER;
 	WayPointList[RESWP_TAKEOFF].Flags=TURNPOINT;
 	_tcscpy(WayPointList[RESWP_TAKEOFF].Name, gettext(TEXT(RESWP_TAKEOFF_NAME)) ); // 100227
-	#if CUPCOM
-	if ( WayPointList[RESWP_TAKEOFF].Comment == NULL) {
+	if ( WayPointList[RESWP_TAKEOFF].Comment == NULL)
 		WayPointList[RESWP_TAKEOFF].Comment = (TCHAR*)malloc(100*sizeof(TCHAR));
-	}
-		else StartupStore(_T("......... AddReserved TAKEOFF comment non empty!\n")); // 101102 TODO REMOVE
-	#endif
-	_tcscpy(WayPointList[RESWP_TAKEOFF].Comment,_T("WAITING FOR GPS POSITION")); // 100227
-	WayPointList[RESWP_TAKEOFF].Zoom=0;
+	if (WayPointList[RESWP_TAKEOFF].Comment!=NULL)
+		_tcscpy(WayPointList[RESWP_TAKEOFF].Comment,_T("WAITING FOR GPS POSITION"));
 	WayPointList[RESWP_TAKEOFF].Reachable=FALSE;
 	WayPointList[RESWP_TAKEOFF].AltArivalAGL=0.0;
 	WayPointList[RESWP_TAKEOFF].Visible=FALSE;
@@ -1891,20 +1645,17 @@ void AddReservedWaypoints()
 	WayPointList[RESWP_TAKEOFF].FileNum=-1;  // 100219  so it cannot be saved
 	WayPointList[RESWP_TAKEOFF].Format= LKW_VIRTUAL;  //@ bugfix 101110
 	
-
-#if NEWVIRTUALS
 	WayPointList[RESWP_LASTTHERMAL].Number=RESWP_LASTTHERMAL+1;
 	WayPointList[RESWP_LASTTHERMAL].Latitude=RESWP_INVALIDNUMBER;
 	WayPointList[RESWP_LASTTHERMAL].Longitude=RESWP_INVALIDNUMBER;
 	WayPointList[RESWP_LASTTHERMAL].Altitude=RESWP_INVALIDNUMBER;
 	WayPointList[RESWP_LASTTHERMAL].Flags=TURNPOINT;
 	_tcscpy(WayPointList[RESWP_LASTTHERMAL].Name, gettext(TEXT(RESWP_LASTTHERMAL_NAME)) );
-	#if CUPCOM
-	WayPointList[RESWP_LASTTHERMAL].Comment = (TCHAR*)malloc(100*sizeof(TCHAR));
-	#endif
+	if ( WayPointList[RESWP_LASTTHERMAL].Comment == NULL)
+		WayPointList[RESWP_LASTTHERMAL].Comment = (TCHAR*)malloc(100*sizeof(TCHAR));
 	// LKTOKEN _@M1320_ "LAST GOOD THERMAL"
-	_tcscpy(WayPointList[RESWP_LASTTHERMAL].Comment, gettext(TEXT("_@M1320_")));		
-	WayPointList[RESWP_LASTTHERMAL].Zoom=0;
+	if (WayPointList[RESWP_LASTTHERMAL].Comment!=NULL) 
+		_tcscpy(WayPointList[RESWP_LASTTHERMAL].Comment, gettext(TEXT("_@M1320_")));		
 	WayPointList[RESWP_LASTTHERMAL].Reachable=FALSE;
 	WayPointList[RESWP_LASTTHERMAL].AltArivalAGL=0.0;
 	WayPointList[RESWP_LASTTHERMAL].Visible=TRUE; // careful! 100929
@@ -1914,6 +1665,7 @@ void AddReservedWaypoints()
 	WayPointList[RESWP_LASTTHERMAL].FileNum=-1;
 
 	WayPointCalc[RESWP_LASTTHERMAL].WpType = WPT_TURNPOINT;
+	WayPointList[RESWP_LASTTHERMAL].Style = STYLE_THERMAL;
 	WayPointCalc[RESWP_LASTTHERMAL].IsLandable = false;
 	WayPointCalc[RESWP_LASTTHERMAL].IsAirport = false;
 	WayPointCalc[RESWP_LASTTHERMAL].IsOutlanding = false;
@@ -1925,12 +1677,11 @@ void AddReservedWaypoints()
 	WayPointList[RESWP_TEAMMATE].Altitude=RESWP_INVALIDNUMBER;
 	WayPointList[RESWP_TEAMMATE].Flags=TURNPOINT;
 	_tcscpy(WayPointList[RESWP_TEAMMATE].Name, gettext(TEXT(RESWP_TEAMMATE_NAME)) );
-	#if CUPCOM
-	WayPointList[RESWP_TEAMMATE].Comment = (TCHAR*)malloc(100*sizeof(TCHAR));
-	#endif
+	if ( WayPointList[RESWP_TEAMMATE].Comment == NULL)
+		WayPointList[RESWP_TEAMMATE].Comment = (TCHAR*)malloc(100*sizeof(TCHAR));
 	// LKTOKEN _@M1321_ "TEAM MATE"
-	_tcscpy(WayPointList[RESWP_TEAMMATE].Comment, gettext(TEXT("_@M1321_")));
-	WayPointList[RESWP_TEAMMATE].Zoom=0;
+	if (WayPointList[RESWP_TEAMMATE].Comment!=NULL) 
+		_tcscpy(WayPointList[RESWP_TEAMMATE].Comment, gettext(TEXT("_@M1321_")));
 	WayPointList[RESWP_TEAMMATE].Reachable=FALSE;
 	WayPointList[RESWP_TEAMMATE].AltArivalAGL=0.0;
 	WayPointList[RESWP_TEAMMATE].Visible=FALSE;
@@ -1951,12 +1702,11 @@ void AddReservedWaypoints()
 	WayPointList[RESWP_FLARMTARGET].Altitude=RESWP_INVALIDNUMBER;
 	WayPointList[RESWP_FLARMTARGET].Flags=TURNPOINT;
 	_tcscpy(WayPointList[RESWP_FLARMTARGET].Name, gettext(TEXT(RESWP_FLARMTARGET_NAME)) );
-	#if CUPCOM
-	WayPointList[RESWP_FLARMTARGET].Comment = (TCHAR*)malloc(100*sizeof(TCHAR));
-	#endif
+	if ( WayPointList[RESWP_FLARMTARGET].Comment == NULL)
+		WayPointList[RESWP_FLARMTARGET].Comment = (TCHAR*)malloc(100*sizeof(TCHAR));
 	// LKTOKEN _@M1322_ "FLARM TARGET"
-	_tcscpy(WayPointList[RESWP_FLARMTARGET].Comment, gettext(TEXT("_@M1322_")));
-	WayPointList[RESWP_FLARMTARGET].Zoom=0;
+	if (WayPointList[RESWP_FLARMTARGET].Comment!=NULL) 
+		_tcscpy(WayPointList[RESWP_FLARMTARGET].Comment, gettext(TEXT("_@M1322_")));
 	WayPointList[RESWP_FLARMTARGET].Reachable=FALSE;
 	WayPointList[RESWP_FLARMTARGET].AltArivalAGL=0.0;
 	WayPointList[RESWP_FLARMTARGET].Visible=FALSE;
@@ -1970,7 +1720,56 @@ void AddReservedWaypoints()
 	WayPointCalc[RESWP_FLARMTARGET].IsAirport = false;
 	WayPointCalc[RESWP_FLARMTARGET].IsOutlanding = false;
 	WayPointList[RESWP_FLARMTARGET].Format= LKW_VIRTUAL;  //@ bugfix 101110
-#endif
+
+	WayPointList[RESWP_OPTIMIZED].Number=RESWP_OPTIMIZED+1;
+	WayPointList[RESWP_OPTIMIZED].Latitude=RESWP_INVALIDNUMBER;
+	WayPointList[RESWP_OPTIMIZED].Longitude=RESWP_INVALIDNUMBER;
+	WayPointList[RESWP_OPTIMIZED].Altitude=RESWP_INVALIDNUMBER;
+	WayPointList[RESWP_OPTIMIZED].Flags=TURNPOINT;
+	// name will be assigned by function dynamically
+	_tcscpy(WayPointList[RESWP_OPTIMIZED].Name, _T("OPTIMIZED") );
+	WayPointList[RESWP_OPTIMIZED].Comment = (TCHAR*)NULL;
+	WayPointList[RESWP_OPTIMIZED].Reachable=FALSE;
+	WayPointList[RESWP_OPTIMIZED].AltArivalAGL=0.0;
+	WayPointList[RESWP_OPTIMIZED].Visible=FALSE;
+	WayPointList[RESWP_OPTIMIZED].InTask=false;
+	WayPointList[RESWP_OPTIMIZED].Details=(TCHAR *)NULL;
+	WayPointList[RESWP_OPTIMIZED].FarVisible=false;
+	WayPointList[RESWP_OPTIMIZED].FileNum=-1;
+
+	WayPointCalc[RESWP_OPTIMIZED].WpType = WPT_TURNPOINT;
+	WayPointCalc[RESWP_OPTIMIZED].IsLandable = false;
+	WayPointCalc[RESWP_OPTIMIZED].IsAirport = false;
+	WayPointCalc[RESWP_OPTIMIZED].IsOutlanding = false;
+	WayPointList[RESWP_OPTIMIZED].Format= LKW_VIRTUAL;
+
+   for (short i=RESWP_FIRST_MARKER; i<=RESWP_LAST_MARKER; i++) {
+	WayPointList[i].Number=i+1;
+	WayPointList[i].Latitude=RESWP_INVALIDNUMBER;
+	WayPointList[i].Longitude=RESWP_INVALIDNUMBER;
+	WayPointList[i].Altitude=RESWP_INVALIDNUMBER;
+	WayPointList[i].Flags=TURNPOINT;
+	_tcscpy(WayPointList[i].Name, _T("LKMARKER"));
+	if ( WayPointList[i].Comment == NULL)
+		WayPointList[i].Comment = (TCHAR*)malloc(100*sizeof(TCHAR));
+	if (WayPointList[i].Comment!=NULL) 
+		_tcscpy(WayPointList[i].Comment, _T(""));
+	WayPointList[i].Reachable=FALSE;
+	WayPointList[i].AltArivalAGL=0.0;
+	WayPointList[i].Visible=FALSE;
+	WayPointList[i].InTask=false;
+	WayPointList[i].Details=(TCHAR *)NULL;
+	WayPointList[i].FarVisible=FALSE;
+	WayPointList[i].FileNum=-1;
+	WayPointList[i].Style = STYLE_MARKER;
+
+	WayPointCalc[i].WpType = WPT_UNKNOWN;
+	WayPointCalc[i].IsLandable = false;
+	WayPointCalc[i].IsAirport = false;
+	WayPointCalc[i].IsOutlanding = false;
+	WayPointList[i].Format= LKW_VIRTUAL;
+   }
+
 }
 
 
@@ -1978,7 +1777,9 @@ void AddReservedWaypoints()
 void InitVirtualWaypoints()	// 091102
 {
 
+  #if TESTBENCH
   StartupStore(_T(". InitVirtualWaypoints: start%s"),NEWLINE);
+  #endif
     LockTaskData();
 
   if (!AllocateWaypointList()) {
@@ -1988,23 +1789,22 @@ void InitVirtualWaypoints()	// 091102
   }
 
   // if first load, reserve space
-  #if CUPCOM
   if (NumberOfWayPoints<=NUMRESWP) {
-  #else
-  if (NumberOfWayPoints==0) {
-  #endif
 	AddReservedWaypoints();
 	NumberOfWayPoints=NUMRESWP;
+	#if TESTBENCH
 	StartupStore(_T(". InitVirtualWaypoints: done (%d vwp)%s"),NUMRESWP,NEWLINE);
+	#endif
   } else {
+	#if TESTBENCH
 	StartupStore(_T(".. InitVirtualWaypoints: already done, skipping.%s"),NEWLINE);
+        #endif
   }
 
     UnlockTaskData();
 
 }
 
-#ifdef CUPSUP
 //#define CUPDEBUG
 bool ParseCUPWayPointString(TCHAR *String,WAYPOINT *Temp)
 {
@@ -2057,7 +1857,6 @@ bool ParseCUPWayPointString(TCHAR *String,WAYPOINT *Temp)
   #ifdef CUPDEBUG
   StartupStore(_T("NEW:<%s>%s"),TempString,NEWLINE);
   #endif
-
   // ---------------- NAME ----------------
   pToken = _tcstok(TempString, TEXT(","));
   if (pToken == NULL) return false;
@@ -2139,6 +1938,9 @@ bool ParseCUPWayPointString(TCHAR *String,WAYPOINT *Temp)
   if((Temp->Longitude  > 180) || (Temp->Longitude  < -180)) {
 	return false;
   }
+  #ifdef CUPDEBUG
+  StartupStore(_T("   CUP LONGITUDE=<%f>%s"),Temp->Longitude,NEWLINE);
+  #endif
 
 
 
@@ -2150,7 +1952,7 @@ bool ParseCUPWayPointString(TCHAR *String,WAYPOINT *Temp)
   StartupStore(_T("   CUP ELEVATION=<%f>%s"),Temp->Altitude,NEWLINE);
   #endif
   if (Temp->Altitude == -9999){
-	return false;
+	  Temp->Altitude=0;
   }
 
 
@@ -2239,29 +2041,19 @@ bool ParseCUPWayPointString(TCHAR *String,WAYPOINT *Temp)
 	for (j=0, i=0; i<_tcslen(ctemp); i++) 
 		if (ctemp[i]!='\"') ctemp[j++]=ctemp[i];
 	ctemp[j]= _T('\0');
-	#if CUPCOM
 	if (_tcslen(ctemp) >0 ) {
 		if (Temp->Comment) {
 			free(Temp->Comment);
 		}
 		Temp->Comment = (TCHAR*)malloc((_tcslen(ctemp)+1)*sizeof(TCHAR));
-		_tcscpy(Temp->Comment, ctemp);
+		if (Temp->Comment) _tcscpy(Temp->Comment, ctemp);
 	}
-	#else
-	_tcscpy(Temp->Comment, ctemp);
-	#endif
 
 	#ifdef CUPDEBUG
 	StartupStore(_T("   CUP COMMENT=<%s>%s"),Temp->Comment,NEWLINE);
 	#endif
-	Temp->Zoom = 0;
   } else {
-	#if CUPCOM
 	Temp->Comment=NULL; // useless
-	#else
-	Temp->Comment[0] = '\0';
-	#endif
-	Temp->Zoom = 0;
   }
 
   if(Temp->Altitude <= 0) {
@@ -2327,8 +2119,7 @@ bool ParseCOMPEWayPointString(TCHAR *String,WAYPOINT *Temp)
 	return false;
   }
   // i now point to first space after name
-  _tcsncpy(tName,&tString[3],j);
-  tName[j]=_T('\0');
+  LK_tcsncpy(tName,&tString[3],j);
   #ifdef COMPEDEBUG
   StartupStore(_T("WP NAME size=%d: <%s>%s"),j,tName,NEWLINE);
   #endif
@@ -2372,7 +2163,6 @@ bool ParseCOMPEWayPointString(TCHAR *String,WAYPOINT *Temp)
   }
   // p points to delimiter
 
-  // StartupStore(_T("i=%d p=%d%s"),i,p,NEWLINE); REMOVE
   // latitude from i to i+12, starting from i counts 13
   TCHAR tLatitude[16];
   if ( (p-i)>15 ) {
@@ -2381,8 +2171,7 @@ bool ParseCOMPEWayPointString(TCHAR *String,WAYPOINT *Temp)
 	#endif
 	return false;
   }
-  _tcsncpy(tLatitude,&tString[i],p-i);
-  tLatitude[(p-i)+1]=_T('\0');
+  LK_tcsncpy(tLatitude,&tString[i],p-i);
 
   i=p+1;
   // i points to NS
@@ -2425,7 +2214,6 @@ bool ParseCOMPEWayPointString(TCHAR *String,WAYPOINT *Temp)
   }
   // p points to delimiter
 
-  //StartupStore(_T("i=%d p=%d%s"),i,p,NEWLINE); REMOVE
   TCHAR tLongitude[16];
   if ( (p-i)>15 ) {
 	#ifdef COMPEDEBUG
@@ -2433,8 +2221,7 @@ bool ParseCOMPEWayPointString(TCHAR *String,WAYPOINT *Temp)
 	#endif
 	return false;
   }
-  _tcsncpy(tLongitude,&tString[i],p-i);
-  tLongitude[(p-i)]=_T('\0');
+  LK_tcsncpy(tLongitude,&tString[i],p-i);
 
   i=p+1;
   // i points to EW
@@ -2481,7 +2268,6 @@ bool ParseCOMPEWayPointString(TCHAR *String,WAYPOINT *Temp)
 	#endif
 	return false;
   }
-  //StartupStore(_T(".... ok ......%s"),NEWLINE); REMOVE
 
   // we are now on the first digit of altitude
   // search for space delimiter
@@ -2499,7 +2285,6 @@ bool ParseCOMPEWayPointString(TCHAR *String,WAYPOINT *Temp)
   }
   // p points to space after altitude
 
-  //StartupStore(_T("i=%d p=%d%s"),i,p,NEWLINE); REMOVE
   TCHAR tAltitude[16];
   if ( (p-i)>15 ) {
 	#ifdef COMPEDEBUG
@@ -2507,8 +2292,7 @@ bool ParseCOMPEWayPointString(TCHAR *String,WAYPOINT *Temp)
 	#endif
 	return false;
   }
-  _tcsncpy(tAltitude,&tString[i-1],p-i);
-  tAltitude[(p-i)]=_T('\0');
+  LK_tcsncpy(tAltitude,&tString[i-1],p-i);
   
   #ifdef COMPEDEBUG
   StartupStore(_T("WP ALTITUDE : <%s>%s"),tAltitude,NEWLINE);
@@ -2538,8 +2322,7 @@ bool ParseCOMPEWayPointString(TCHAR *String,WAYPOINT *Temp)
 	#endif
 	return false;
   } 
-  _tcsncpy(tComment,&tString[i],p-i);
-  tComment[(p-i)]=_T('\0');
+  LK_tcsncpy(tComment,&tString[i],p-i);
 
   #ifdef COMPEDEBUG
   StartupStore(_T("WP COMMENT : <%s>%s"),tComment,NEWLINE);
@@ -2567,22 +2350,198 @@ bool ParseCOMPEWayPointString(TCHAR *String,WAYPOINT *Temp)
   if (_tcslen(tComment) >COMMENT_SIZE) {
 	tComment[COMMENT_SIZE-1]=_T('\0');
   }
-  #if CUPCOM
   if (_tcslen(tComment) >0 ) {
 	if (Temp->Comment) {
 		free(Temp->Comment);
 	}
 	Temp->Comment = (TCHAR*)malloc((_tcslen(tComment)+1)*sizeof(TCHAR));
-	_tcscpy(Temp->Comment,tComment);
+	if (Temp->Comment) _tcscpy(Temp->Comment,tComment);
   } else
 	Temp->Comment=NULL; //@ 101104
-  #else
-  _tcscpy(Temp->Comment,tComment);
-  #endif
 
 
 
  return true;
 
  }
-#endif
+
+
+// Returns -1 if no result
+int FindNearestFarVisibleWayPoint(double X, double Y, double maxRange, short wpType)
+{
+  unsigned int i;
+  int nearestIndex = -1;
+  double nearestDistance, dist;
+
+  #if TESTBENCH
+  int farvisibles=0;
+  #endif
+
+  if(NumberOfWayPoints <= NUMRESWP ) return -1;
+  nearestDistance = maxRange;
+
+  for(i=NUMRESWP;i<NumberOfWayPoints;i++) {
+
+	if (!WayPointList[i].FarVisible) continue;
+	if (wpType && (WayPointCalc[i].WpType != wpType)) continue;
+
+	#if TESTBENCH
+	farvisibles++;
+	#endif
+
+	DistanceBearing(Y,X, WayPointList[i].Latitude, WayPointList[i].Longitude, &dist, NULL);
+
+	if(dist < nearestDistance) {
+		nearestIndex = i;
+		nearestDistance = dist;
+	}
+  }
+
+  #if TESTBENCH
+  StartupStore(_T("...... Checked %d farvisibles waypoints for maxRange=%f, type=%d\n"),farvisibles,maxRange,wpType);
+  #endif
+
+  if(nearestDistance < maxRange) {
+	return nearestIndex;
+  } else {
+	return -1;
+  }
+}
+
+
+bool ParseOZIWayPointString(TCHAR *String,WAYPOINT *Temp){
+
+	Temp->Visible = true; // default all waypoints visible at start
+	Temp->FarVisible = true;
+	Temp->Format = LKW_OZI;
+	Temp->Number = NumberOfWayPoints;
+	Temp->FileNum = globalFileNum;
+	Temp->Flags = TURNPOINT;
+
+	memset(Temp->Name, 0, sizeof(Temp->Name)); // clear Name
+
+	TCHAR TempString[READLINE_LENGTH];
+	memset(TempString, 0, sizeof(TempString)); // clear TempString
+
+	_tcscpy(TempString, String);
+
+	// strtok_r skip empty field, It's not compatible with OziExplorer Waypoint File Version 1.1
+	// use strsep_r instead of ( cf. Utils.h )
+
+	TCHAR *pToken = NULL;
+	TCHAR *Stop= NULL;
+
+	TCHAR *pWClast = TempString;
+
+
+	//	Field 1 : Number - this is the location in the array (max 1000), must be unique, usually start at 1 and increment. Can be set to -1 (minus 1) and the number will be auto generated.
+	if ((pToken = strsep_r(TempString, TEXT(","), &pWClast)) == NULL)
+		return false;
+
+	//	Field 2 : Name - the waypoint name, use the correct length name to suit the GPS type.
+	if ((pToken = strsep_r(NULL, TEXT(","), &pWClast)) == NULL)
+		return false;
+
+	// guard against overrun
+	if (_tcslen(pToken)>NAME_SIZE) {
+		pToken[NAME_SIZE-1]= _T('\0');
+	}
+
+	// remove trailing spaces
+	for (int i=_tcslen(pToken)-1; i>1; i--) if (pToken[i]==' ') pToken[i]=0; else break;
+
+	_tcscpy(Temp->Name, pToken);
+
+	//	Field 3 : Latitude - decimal degrees.
+	if ((pToken = strsep_r(NULL, TEXT(","), &pWClast)) == NULL)
+		return false;
+
+	Temp->Latitude = (double)StrToDouble(pToken, &Stop);
+
+	if((Temp->Latitude > 90) || (Temp->Latitude < -90)) {
+		return false;
+	}
+
+	//	Field 4 : Longitude - decimal degrees.
+	if ((pToken = strsep_r(NULL, TEXT(","), &pWClast)) == NULL)
+		return false;
+
+	Temp->Longitude  = (double)StrToDouble(pToken, &Stop);
+	if((Temp->Longitude  > 180) || (Temp->Longitude  < -180)) {
+		return false;
+	}
+	//	Field 5 : Date - see Date Format below, if blank a preset date will be used
+	if ((pToken = strsep_r(NULL, TEXT(","), &pWClast)) == NULL)
+		return false;
+
+	//	Field 6 : Symbol - 0 to number of symbols in GPS
+	if ((pToken = strsep_r(NULL, TEXT(","), &pWClast)) == NULL)
+		return false;
+
+	//	Field 7 : Status - always set to 1
+	if ((pToken = strsep_r(NULL, TEXT(","), &pWClast)) == NULL)
+		return false;
+
+	//	Field 8 : Map Display Format
+	if ((pToken = strsep_r(NULL, TEXT(","), &pWClast)) == NULL)
+		return false;
+
+	//	Field 9 : Foreground Color (RGB value)
+	if ((pToken = strsep_r(NULL, TEXT(","), &pWClast)) == NULL)
+		return false;
+
+	//	Field 10 : Background Color (RGB value)
+	if ((pToken = strsep_r(NULL, TEXT(","), &pWClast)) == NULL)
+		return false;
+
+	//	Field 11 : Description (max 40), no commas
+	if ((pToken = strsep_r(NULL, TEXT(","), &pWClast)) == NULL)
+		return false;
+
+    if (_tcslen(pToken) >0 ) {
+    	// remove trailing spaces
+    	for (int i=_tcslen(pToken)-1; i>1; i--) if (pToken[i]==' ') pToken[i]=0; else break;
+
+    	if (Temp->Comment) {
+    		free(Temp->Comment);
+    	}
+    	Temp->Comment = (TCHAR*)malloc((_tcslen(pToken)+1)*sizeof(TCHAR));
+    	if (Temp->Comment) _tcscpy(Temp->Comment, pToken);
+    }
+    else {
+    	Temp->Comment = NULL; // useless
+    }
+
+	//	Field 12 : Pointer Direction
+	if ((pToken = strsep_r(NULL, TEXT(","), &pWClast)) == NULL)
+		return false;
+
+	//	Field 13 : Garmin Display Format
+	if ((pToken = strsep_r(NULL, TEXT(","), &pWClast)) == NULL)
+		return false;
+
+	//	Field 14 : Proximity Distance - 0 is off any other number is valid
+	if ((pToken = strsep_r(NULL, TEXT(","), &pWClast)) == NULL)
+		return false;
+
+	//	Field 15 : Altitude - in feet (-777 if not valid)
+	if ((pToken = strsep_r(NULL, TEXT(","), &pWClast)) == NULL)
+		return false;
+
+	Temp->Altitude = (double)StrToDouble(pToken, &Stop)/TOFEET;
+	if(Temp->Altitude <= 0) {
+		WaypointAltitudeFromTerrain(Temp);
+	}
+
+	//	Field 16 : Font Size - in points
+	//	Field 17 : Font Style - 0 is normal, 1 is bold.
+	//	Field 18 : Symbol Size - 17 is normal size
+	//	Field 19 : Proximity Symbol Position
+	//	Field 20 : Proximity Time
+	//	Field 21 : Proximity or Route or Both
+	//	Field 22 : File Attachment Name
+	//	Field 23 : Proximity File Attachment Name
+	//	Field 24 : Proximity Symbol Name
+
+	return true;
+}

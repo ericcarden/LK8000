@@ -3,7 +3,7 @@
    Released under GNU/GPL License v.2
    See CREDITS.TXT file for authors and copyrights
 
-   $Id: Calculations.h,v 8.2 2010/12/24 00:00:14 root Exp root $
+   $Id: Calculations.h,v 1.1 2011/12/21 10:35:29 root Exp root $
 */
 
 #if !defined(AFX_CALCULATIONS_H__695AAC30_F401_4CFF_9BD9_FE62A2A2D0D2__INCLUDED_)
@@ -13,8 +13,6 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
-#include "Parser.h"
-#include <windows.h>
 #include "mapshape.h"
 
 #define NUMTHERMALBUCKETS 10
@@ -30,6 +28,23 @@ typedef struct _THERMAL_SOURCE_INFO
   bool Visible;
   double Time;
 } THERMAL_SOURCE_INFO;
+
+typedef struct _THERMAL_HISTORY
+{
+  bool   Valid;
+  TCHAR  Name[10];	// TH1055
+  TCHAR  Near[20];	// nearby waypoint, if available
+  double Time;		// start circling time
+  double Latitude;
+  double Longitude;
+  double HBase;		// thermal base
+  double HTop;		// total thermal gain
+  double Lift;		// Avg lift rate
+
+  double Distance;	// recalculated values
+  double Bearing;
+  double Arrival;
+} THERMAL_HISTORY;
 
 
 typedef struct _DERIVED_INFO
@@ -66,6 +81,7 @@ typedef struct _DERIVED_INFO
   int    FinalGlide;
   int    AutoMacCready; // TODO FIX bool
   int    Flying;	// TODO FIX bool ?
+  bool	 FreeFlying;	// set true when powerless flight is detected. Always true for paragliders.
   double NextAltitudeRequired;
   double NextAltitudeRequired0; // mc=0
   double NextAltitudeDifference;
@@ -82,8 +98,6 @@ typedef struct _DERIVED_INFO
   double TaskAltitudeDifference;
   double TaskAltitudeDifference0; // difference with mc=0
   double TaskAltitudeRequiredFromStart;
-  double LDFinish;
-  double LDNext;
   double LegDistanceToGo;
   double LegDistanceCovered;
   double LegTimeToGo;
@@ -120,9 +134,7 @@ typedef struct _DERIVED_INFO
   double Odometer;
   // Paolo Ventafridda: recalcuated value with no strange assumptions. These values are trustable.
   double LKTaskETE;
-  #if EQMC
   double EqMc; // equivalent MacCready
-  #endif
 
   // JMW moved calculated waypoint info here
 
@@ -137,14 +149,14 @@ typedef struct _DERIVED_INFO
 
   double NettoVario;
 
+  // Current flap
+  TCHAR Flaps[MAXFLAPSNAME+1];
+
   // optimum speed to fly instantaneously
   double VOpt; 
 
   // JMW estimated track bearing at next time step
   double NextTrackBearing;
-
-  // whether Speed-To-Fly audio are valid or not 
-  bool STFMode; 
 
   // JMW energy height excess to slow to best glide speed
   double EnergyHeight;
@@ -183,6 +195,9 @@ typedef struct _DERIVED_INFO
   double TeammateLongitude;
   double FlightTime;
   double TakeOffTime;
+  double FreeFlightStartTime;
+  double FreeFlightStartQNH;
+  double FreeFlightStartQFE;
 
   double AverageClimbRate[200];
   long AverageClimbRateN[200];
@@ -200,23 +215,22 @@ typedef struct _DERIVED_INFO
   double timeCircling;
 
   double MinAltitude;
+  double MaxAltitude;
   double MaxHeightGain;
+
+  double HeadWind;
 
   // Turn rate in wind coordinates
   double GPSVario;
   double TurnRateWind;
   double BankAngle;
   double PitchAngle;
-  double GPSVarioTE;
-  double MacCreadyRisk;
   double TaskTimeToGoTurningNow;
   double TotalHeightClimb;
-  double DistanceVario;
   double GliderSinkRate;
   double Gload;
   double Essing;
   double TerrainBase; // lowest height within glide range
-  double TermikLigaPoints;
   double GRFinish;	// GRadient to final destination, 090203
 			// Note: we don't need GRNext since this value is used when going to a landing
 			// point, which is always a final glide.
@@ -234,7 +248,12 @@ void DoNearest(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
 // void DoNearestTurnpoint(NMEA_INFO *Basic, DERIVED_INFO *Calculated); 
 void DoCommon(NMEA_INFO *Basic, DERIVED_INFO *Calculated); 
 bool DoTraffic(NMEA_INFO *Basic, DERIVED_INFO *Calculated); 
+bool DoAirspaces(NMEA_INFO *Basic, DERIVED_INFO *Calculated); 
 bool DoTarget(NMEA_INFO *Basic, DERIVED_INFO *Calculated); 
+bool DoThermalHistory(NMEA_INFO *Basic, DERIVED_INFO *Calculated); 
+bool IsThermalMultitarget(int idx);
+void SetThermalMultitarget(int idx);
+int  GetThermalMultitarget(void);
 void DoRecent(NMEA_INFO *Basic, DERIVED_INFO *Calculated); 
 bool DoRangeWaypointList(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
 bool DoCommonList(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
@@ -287,6 +306,7 @@ int InitActiveGate(void);
 bool ValidGate(void);
 	// Are we on the correct side of start cylinder?
 bool CorrectSide(void);
+void ResetFreeFlightStats(DERIVED_INFO *Calculated);
 
 
 void InitCalculations(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
@@ -304,6 +324,9 @@ bool InsideStartHeight(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
 bool ValidStartSpeed(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
 bool InsideStartHeight(NMEA_INFO *Basic, DERIVED_INFO *Calculated, DWORD Margin);
 bool ValidStartSpeed(NMEA_INFO *Basic, DERIVED_INFO *Calculated, DWORD Margin);
+
+void InsertThermalHistory(double ThTime,  double ThLat, double ThLon, double ThBase,double ThTop, double ThAvg);
+void InitThermalHistory(void);
 
 double FinalGlideThroughTerrain(const double bearing, NMEA_INFO *Basic, 
                                 DERIVED_INFO *Calculated,
@@ -328,11 +351,17 @@ double AltitudeNeededToPassObstacles(const double startLat, const double startLo
 
 void BallastDump();
 
-#define TAKEOFFSPEEDTHRESHOLD (0.5*GlidePolar::Vminsink)
-
 int FindFlarmSlot(const int flarmId);
 int FindFlarmSlot(const TCHAR *flarmCN);
 bool IsFlarmTargetCNInRange(void);
 void AlertBestAlternate(short soundmode); 
+
+double CalculateGlideRatio(const double d, const double h);
+bool CheckSafetyAltitudeApplies(const int wpindex);
+double GetSafetyAltitude(const int wpindex);
+short GetVisualGlideRatio(const double arrival, const double gr);
+bool IsSafetyAltitudeInUse(const int wpindex);
+
+void CalculateHeadWind(NMEA_INFO *Basic, DERIVED_INFO *Calculated);
 
 #endif
