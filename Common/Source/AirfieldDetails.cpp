@@ -7,46 +7,41 @@
 */
 
 
-#include "StdAfx.h"
-#include "Utils.h"
-#include "Sizes.h"
 #include "externs.h"
+#include "LKProfiles.h"
 #include "Dialogs.h"
-#include "Utils.h"
-#include "options.h"
-
 #include <aygshell.h>
 
 #include "AirfieldDetails.h"
 #include <zzip/lib.h>
-#include "wcecompat/ts_string.h"
 
 ZZIP_FILE* zAirfieldDetails = NULL;
 
-static TCHAR  szAirfieldDetailsFile[MAX_PATH] = TEXT("\0");
+static TCHAR szAirfieldDetailsFile[MAX_PATH] = TEXT("\0");
 
 void OpenAirfieldDetails() {
-  char zfilename[MAX_PATH] = "\0";
+  TCHAR zfilename[MAX_PATH];
 
   zAirfieldDetails = NULL;
 
-  GetRegistryString(szRegistryAirfieldFile, szAirfieldDetailsFile, MAX_PATH);
+  _tcscpy(szAirfieldDetailsFile,szAirfieldFile);
 
   if (_tcslen(szAirfieldDetailsFile)>0) {
     ExpandLocalPath(szAirfieldDetailsFile);
-    unicode2ascii(szAirfieldDetailsFile, zfilename, MAX_PATH);
-    SetRegistryString(szRegistryAirfieldFile, TEXT("\0"));
+    _tcscpy(zfilename, szAirfieldDetailsFile);
+    _tcscpy(szAirfieldFile,_T(""));
   } else {
 	#if 0
-	LocalPathS(zfilename,_T(LKD_WAYPOINTS));
-	strcat(zfilename,"\\"); 
-	strcat(zfilename,LKF_AIRFIELDS);
+	LocalPath(zfilename, _T(KD_WAYPOINTS));
+	_tcscat(zfilename, _T("\\")); 
+	_tcscat(zfilename, _T(LKF_AIRFIELDS));
 	#else
-	strcpy(zfilename,"");
+	_tcscpy(zfilename, _T(""));
 	#endif
   }
-  if (strlen(zfilename)>0) {
-    zAirfieldDetails = zzip_fopen(zfilename,"rb");
+  if (_tcslen(zfilename)>0) {
+    StartupStore(_T(". open AirfieldFile <%s> %s"), zfilename, NEWLINE);
+    zAirfieldDetails = zzip_fopen(zfilename, "rb");
   }
 };
 
@@ -57,7 +52,7 @@ void CloseAirfieldDetails() {
   }
   // file was OK, so save the registry
   ContractLocalPath(szAirfieldDetailsFile);
-  SetRegistryString(szRegistryAirfieldFile, szAirfieldDetailsFile);
+  _tcscpy(szAirfieldFile,szAirfieldDetailsFile);
 
   zzip_fclose(zAirfieldDetails);
   zAirfieldDetails = NULL;
@@ -72,13 +67,12 @@ void LookupAirfieldDetail(TCHAR *Name, TCHAR *Details) {
   TCHAR NameC[100];
   TCHAR NameD[100];
   TCHAR TmpName[100];
-
-  bool isHome, isPreferred, isAvoid;
+  bool isHome, isPreferred, isLandable;
 
   if (!WayPointList) return;
 
   for(i=NUMRESWP;i<(int)NumberOfWayPoints;i++) {
-      if (((WayPointList[i].Flags & AIRPORT) == AIRPORT) || ((WayPointList[i].Flags & LANDPOINT) == LANDPOINT)) { 
+
 	_tcscpy(UName, WayPointList[i].Name);
 
 	CharUpper(UName); // WP name
@@ -91,17 +85,22 @@ void LookupAirfieldDetail(TCHAR *Name, TCHAR *Details) {
 
 	isHome=false;
 	isPreferred=false;
-	isAvoid=false;
+    isLandable = (((WayPointList[i].Flags & AIRPORT) == AIRPORT) || 
+                 ((WayPointList[i].Flags & LANDPOINT) == LANDPOINT));
 
 	_stprintf(TmpName,TEXT("%s=HOME"),UName);
 	if ( (_tcscmp(Name, TmpName)==0) )  isHome=true;
+
+  // Only bother checking whether it's preferred if it's landable.
+  if (isLandable) {
 	_stprintf(TmpName,TEXT("%s=PREF"),UName);
 	if ( (_tcscmp(Name, TmpName)==0) )  isPreferred=true;
 	_stprintf(TmpName,TEXT("%s=PREFERRED"),UName);
 	if ( (_tcscmp(Name, TmpName)==0) )  isPreferred=true;
+  }
 
 	if ( isHome==true ) {
-	  WayPointCalc[i].Preferred = true;
+      if (isLandable) WayPointCalc[i].Preferred = true;
 	  HomeWaypoint = i;
 	  AirfieldsHomeWaypoint = i; // make it survive a reset..
 	}
@@ -121,11 +120,10 @@ void LookupAirfieldDetail(TCHAR *Name, TCHAR *Details) {
 		free(WayPointList[i].Details);
 	      }
 	      WayPointList[i].Details = (TCHAR*)malloc((_tcslen(Details)+1)*sizeof(TCHAR));
-	      _tcscpy(WayPointList[i].Details, Details);
+	      if (WayPointList[i].Details != NULL) _tcscpy(WayPointList[i].Details, Details);
 	    } 
 	    return;
 	  }
-      }
     }
 }
 
@@ -155,7 +153,6 @@ void ParseAirfieldDetails() {
   bool hasDetails = false;
   int i, n;
   unsigned int j;
-  int k=0;
 
   while(ReadString(zAirfieldDetails,READLINE_LENGTH,TempString))
     {
@@ -179,11 +176,6 @@ void ParseAirfieldDetails() {
 
 	inDetails = true;
 
-        if (k % 20 == 0) {
-          StepProgressDialog();
-        }
-        k++;
-
       } else {
 	// VENTA3: append text to details string
 	if (inDetails)  // BUGFIX 100711
@@ -204,8 +196,8 @@ void ParseAirfieldDetails() {
 	  CleanString[n]='\0';
 
 	  if (_tcslen(Details)+_tcslen(CleanString)+3<DETAILS_LENGTH) {
-	    wcscat(Details,CleanString);
-	    wcscat(Details,TEXT("\r\n"));
+	    _tcscat(Details,CleanString);
+	    _tcscat(Details,TEXT("\r\n"));
 	  }
 	}
       }
@@ -219,8 +211,9 @@ void ParseAirfieldDetails() {
 
 
 void ReadAirfieldFile() {
-
+  #if TESTBENCH
   StartupStore(TEXT(". ReadAirfieldFile%s"),NEWLINE);
+  #endif
 
 	// LKTOKEN  _@M400_ = "Loading Waypoint Notes File..." 
   CreateProgressDialog(gettext(TEXT("_@M400_")));

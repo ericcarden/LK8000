@@ -6,11 +6,10 @@
    $Id: Message.cpp,v 8.3 2010/12/12 15:48:25 root Exp root $
 */
 
-#include "StdAfx.h"
-#include "Message.h"
-#include "MapWindow.h"
 #include "externs.h"
+#include "Message.h"
 #include "InfoBoxLayout.h"
+#include "TraceThread.h"
 
 
 /*
@@ -44,8 +43,6 @@ bool Message::hidden=false;
 int Message::nvisible=0;
 
 TCHAR Message::msgText[2000];
-extern HFONT MapWindowBoldFont;
-extern HFONT LK8InfoBigFont;
 
 // Get start time to reduce overrun errors
 DWORD startTime = ::GetTickCount();
@@ -58,6 +55,8 @@ LRESULT CALLBACK MessageWindowProc(HWND hwnd, UINT message,
   POINT pt;
   RECT  rc;
   static bool capturedMouse = false;
+
+  SHOWTHREAD(_T("MessageWindowProc"));
 
   switch (message) {
   case WM_LBUTTONDOWN:
@@ -192,12 +191,6 @@ void Message::Resize() {
     if (!hidden) {
       ShowWindow(hWndMessageWindow, SW_HIDE);
 
-      // animation
-      //      GetWindowRect(hWndMessageWindow, &mRc);
-      //      SetSourceRectangle(mRc);
-      //      mRc.top=0; mRc.bottom=0;
-      //      DrawWireRects(&mRc, 5);
-
       MapWindow::RequestFastRefresh();      
     }
     hidden = true;
@@ -215,40 +208,22 @@ void Message::Resize() {
     SelectObject(hdc,oldfont); // 100215
 
     int linecount = max(nvisible,max(1,
-			SendMessage(hWndMessageWindow, 
+			(int)SendMessage(hWndMessageWindow, 
 				    EM_GETLINECOUNT, 0, 0)));
 
     int width =// min((rcmsg.right-rcmsg.left)*0.8,tsize.cx);
       (int)((rcmsg.right-rcmsg.left)*0.9);
-    int height = (int)min((rcmsg.bottom-rcmsg.top)*0.8,tsize.cy*(linecount+1));
+    int height = (int)min((rcmsg.bottom-rcmsg.top)*0.8,(double)tsize.cy*(linecount+1));
     int h1 = height/2;
     int h2 = height-h1;
 
     int midx = (rcmsg.right+rcmsg.left)/2;
     int midy = (rcmsg.bottom+rcmsg.top)/2;
 
-    if (Appearance.StateMessageAlligne == smAlligneTopLeft){
-      rthis.top = 0;
-      rthis.left = 0;
-      rthis.bottom = height;
-      rthis.right = 206*InfoBoxLayout::scale; 
-      // TODO code: this shouldn't be hard-coded
-    } else {
-      rthis.left = midx-width/2;
-      rthis.right = midx+width/2;
-      rthis.top = midy-h1;
-      rthis.bottom = midy+h2;
-    }
-    /*
-    if (hidden) {
-      RECT bigrect;
-      GetWindowRect(hWndMapWindow, &bigrect);
-      GetWindowRect(hWndMessageWindow, &mRc);
-      bigrect.bottom= bigrect.top;
-      SetSourceRectangle(mRc);
-      DrawWireRects(&mRc, 10);
-    }
-    */
+    rthis.left = midx-width/2;
+    rthis.right = midx+width/2;
+    rthis.top = midy-h1;
+    rthis.bottom = midy+h2;
 
     SetWindowPos(hWndMessageWindow, HWND_TOP,
 		 rthis.left, rthis.top,
@@ -383,7 +358,7 @@ int Message::GetEmptySlot() {
 }
 
 
-void Message::AddMessage(DWORD tshow, int type, TCHAR* Text) {
+void Message::AddMessage(DWORD tshow, int type, const TCHAR* Text) {
 
   Lock();
 

@@ -6,52 +6,30 @@
    $Id: WindowControls.cpp,v 8.10 2010/12/13 01:17:08 root Exp root $
 */
 
-#include "StdAfx.h"
-#include "tchar.h"
-#include <stdio.h>
-#include "Defines.h" // VENTA3
-#include "options.h"
-#include "WindowControls.h"
-#ifndef ALTAIRSYNC
+#include "externs.h"
 #include "Message.h"
-#include "MapWindow.h"
 #include "InfoBoxLayout.h"
-#endif
-#include "Utils.h"
-#include "compatibility.h"
 #include "LKObjects.h"
+#include "Bitmaps.h"
+#include "RGB.h"
+#include "Dialogs.h"
+#include "Modeltype.h"
+#include "TraceThread.h"
 
-#ifndef ALTAIRSYNC
-#include "externs.h" 
-
-extern int DisplayTimeOut;
-#ifndef GNAV
 #if (WINDOWSPC<1)
 #ifndef __MINGW32__
 #include <projects.h>
 #endif
 #endif
-#endif
-#endif
 
-#ifdef ALTAIRSYNC
-#define ISCALE 1
-void SetSourceRectangle(RECT fromRect) {};
-RECT WINAPI DrawWireRects(LPRECT lprcTo, UINT nMilliSecSpeed) {
-  return *lprcTo;
-}
-
-#else
-#define ISCALE InfoBoxLayout::scale
-#endif
+#define ISCALE ScreenScale
 
 #define DEFAULTBORDERPENWIDTH 1*ISCALE
 #define SELECTORWIDTH         4*ISCALE
 
-#if FIXDC
+
 HDC sHdc;
 HDC  GetTempDeviceContext(void){return(sHdc);};
-#endif
 
 // utility functions
 
@@ -88,13 +66,9 @@ void DrawLine2(const HDC&hdc, int x1, int y1, int x2, int y2, int x3, int y3) {
 #endif
 }
 
-extern int dlgComboPicker(WndProperty* theProperty);
-#ifdef GNAV
-#define ENABLECOMBO false // master on/off for combo popup
-#else
+
 #define ENABLECOMBO true // master on/off for combo popup
 // Must be off if no touchscreen
-#endif
 
 // returns true if it is a long press,
 // otherwise returns false
@@ -128,6 +102,20 @@ BOOL IsDots(const TCHAR* str) {
   return TRUE;
 }
 
+void DataFieldFileReader::Clear() {
+    for (unsigned int i=1; i<nFiles; i++) {
+      if (fields[i].mTextFile) {
+        free(fields[i].mTextFile);
+        fields[i].mTextFile= NULL;
+      }
+      if (fields[i].mTextPathFile) {
+        free(fields[i].mTextPathFile);
+        fields[i].mTextPathFile= NULL;
+      }
+    }
+    nFiles = 1;
+    mValue = 0;
+}
 
 int DataFieldFileReader::GetAsInteger(void){
   return mValue;
@@ -304,26 +292,28 @@ BOOL DataFieldFileReader::ScanFiles(const TCHAR* sPath,
   return TRUE;
 }
 
-void DataFieldFileReader::Lookup(const TCHAR *Text) {
+bool DataFieldFileReader::Lookup(const TCHAR *Text) {
   int i=0;
   mValue = 0;
   for (i=1; i<(int)nFiles; i++) {    
     // if (_tcscmp(Text,fields[i].mTextPathFile)==0) { 091126
     if (_tcsicmp(Text,fields[i].mTextPathFile)==0) {
       mValue = i;
+      return true;
     }
   }
+  return false;
 }
 
 int DataFieldFileReader::GetNumFiles(void) {
   return nFiles;
 }
 
-TCHAR* DataFieldFileReader::GetPathFile(void) {
+const TCHAR* DataFieldFileReader::GetPathFile(void) const {
   if ((mValue<=nFiles)&&(mValue)) {
     return fields[mValue].mTextPathFile;
   }
-  return (TCHAR*)TEXT("\0");
+  return TEXT("\0");
 }
 
 
@@ -341,7 +331,7 @@ bool DataFieldFileReader::checkFilter(const TCHAR *filename,
   _tcscpy(upfilter,filter+1);
 
   // check if trailing part of filter (*.exe => .exe) matches end
-  ptr = _tcsstr((TCHAR*)filename, upfilter);
+  ptr = _tcsstr(filename, upfilter);
   if (ptr) {
     if (_tcslen(ptr)==_tcslen(upfilter)) {
       return true;
@@ -349,7 +339,7 @@ bool DataFieldFileReader::checkFilter(const TCHAR *filename,
   }
 
   _tcsupr(upfilter);
-  ptr = _tcsstr((TCHAR*)filename, upfilter);
+  ptr = _tcsstr(filename, upfilter);
   if (ptr) {
     if (_tcslen(ptr)==_tcslen(upfilter)) {
       return true;
@@ -365,10 +355,10 @@ void DataFieldFileReader::addFile(const TCHAR *Text,
   // TODO enhancement: remove duplicates?
   if (nFiles<DFE_MAX_FILES) {
     fields[nFiles].mTextFile = (TCHAR*)malloc((_tcslen(Text)+1)*sizeof(TCHAR));
-    _tcscpy(fields[nFiles].mTextFile, Text);
+    if (fields[nFiles].mTextFile) _tcscpy(fields[nFiles].mTextFile, Text); // MALLOC ALERT
 
     fields[nFiles].mTextPathFile = (TCHAR*)malloc((_tcslen(PText)+1)*sizeof(TCHAR));
-    _tcscpy(fields[nFiles].mTextPathFile, PText);
+    if (fields[nFiles].mTextPathFile) _tcscpy(fields[nFiles].mTextPathFile, PText); // MALLOC ALERT
 
     nFiles++;
   }
@@ -423,8 +413,8 @@ void DataFieldFileReader::Dec(void){
 
 static int _cdecl DataFieldFileReaderCompare(const void *elem1, 
                                              const void *elem2 ){
-  return _tcscmp(((DataFieldFileReaderEntry*)elem1)->mTextFile,
-                 ((DataFieldFileReaderEntry*)elem2)->mTextFile);
+  return _tcscmp(((const DataFieldFileReaderEntry*)elem1)->mTextFile,
+                 ((const DataFieldFileReaderEntry*)elem2)->mTextFile);
 }
 
 
@@ -497,8 +487,18 @@ DataField::DataField(const TCHAR *EditFormat, const TCHAR *DisplayFormat,
   mUnits[0]= 0;
 }
 
-void DataField::SetDisplayFormat(TCHAR *Value){
+void DataField::Clear() { 
+    // need to implement in derived class ...
+    LKASSERT(false); 
+};
+
+void DataField::SetDisplayFormat(const TCHAR *Value){
+  LKASSERT(_tcslen(Value)<=FORMATSIZE);
   _tcscpy(mDisplayFormat, Value);
+}
+void DataField::SetEditFormat(const TCHAR *Value){
+  LKASSERT(_tcslen(Value)<=FORMATSIZE);
+  _tcscpy(mEditFormat, Value);
 }
 
 void DataField::CopyString(TCHAR * szbuffOut, bool bFormatted) {
@@ -508,7 +508,7 @@ void DataField::CopyString(TCHAR * szbuffOut, bool bFormatted) {
     if (GetAsString() != NULL) // null leaves iLen=0
     {
       iLen = _tcslen(GetAsString());
-      _tcsncpy(szbuffOut, GetAsString(), min(iLen, ComboPopupITEMMAX-1));
+      LK_tcsncpy(szbuffOut, GetAsString(), min(iLen, ComboPopupITEMMAX-1));
     }
   }
   else 
@@ -516,7 +516,7 @@ void DataField::CopyString(TCHAR * szbuffOut, bool bFormatted) {
     if (GetAsDisplayString() != NULL) 
     {
       iLen = _tcslen(GetAsDisplayString());
-      _tcsncpy(szbuffOut, GetAsDisplayString(), min(iLen, ComboPopupITEMMAX-1));
+      LK_tcsncpy(szbuffOut, GetAsDisplayString(), min(iLen, ComboPopupITEMMAX-1));
     }
   }
   szbuffOut[min(iLen, ComboPopupITEMMAX-1)] = '\0';
@@ -621,13 +621,18 @@ void DataFieldBoolean::Dec(void){
 
 DataFieldEnum::~DataFieldEnum()
 {
+    Clear();
+}
+
+void DataFieldEnum::Clear() {
   for (unsigned int i=0; i<nEnums; i++) {
     if (mEntries[i].mText) {
       free(mEntries[i].mText);
       mEntries[i].mText= NULL;
     }
   }
-  nEnums = 0;      
+  nEnums = 0;
+  mValue = 0;
 }
 
 int DataFieldEnum::GetAsInteger(void){
@@ -641,12 +646,27 @@ int DataFieldEnum::GetAsInteger(void){
 void DataFieldEnum::addEnumText(const TCHAR *Text) {
   if (nEnums<DFE_MAX_ENUMS-1) {
     mEntries[nEnums].mText = (TCHAR*)malloc((_tcslen(Text)+1)*sizeof(TCHAR));
+    if (mEntries[nEnums].mText == NULL) return; // MALLOC ALERT
     _tcscpy(mEntries[nEnums].mText, Text);
     mEntries[nEnums].index = nEnums;
     nEnums++;
   }
 }
 
+void DataFieldEnum::addEnumTextNoLF(const TCHAR *Text) {
+  if (nEnums<DFE_MAX_ENUMS-1) {
+    TCHAR *p;
+    mEntries[nEnums].mText = (TCHAR*)malloc((_tcslen(Text)+1)*sizeof(TCHAR));
+    if (mEntries[nEnums].mText == NULL) return;
+    _tcscpy(mEntries[nEnums].mText, Text);
+    p = _tcschr(mEntries[nEnums].mText, _T('\n'));
+    if (p)
+	*p = _T(' ');
+    
+    mEntries[nEnums].index = nEnums;
+    nEnums++;
+  }
+}
 
 TCHAR *DataFieldEnum::GetAsString(void){
   if ((mValue>=0) && (mValue<nEnums)) {
@@ -697,8 +717,8 @@ void DataFieldEnum::Dec(void){
 
 static int _cdecl DataFieldEnumCompare(const void *elem1, 
                                              const void *elem2 ){
-  return _tcscmp(((DataFieldEnumEntry*)elem1)->mText,
-                 ((DataFieldEnumEntry*)elem2)->mText);
+  return _tcscmp(((const DataFieldEnumEntry*)elem1)->mText,
+                 ((const DataFieldEnumEntry*)elem2)->mText);
 }
 
 void DataFieldEnum::Sort(int startindex){
@@ -948,9 +968,6 @@ void DataFieldInteger::Dec(void){
 int DataFieldInteger::SpeedUp(bool keyup){
   int res=1;  
 
-#ifdef GNAV
-  return res;
-#endif
 
   if (GetDisableSpeedUp() == true) 
     return 1;
@@ -1023,6 +1040,11 @@ double DataFieldFloat::SetMax(double Value){
   mMax = Value;
   return(res);
 };
+double DataFieldFloat::SetStep(double Value){
+  double res = mStep;
+  mStep = Value;
+  return(res);
+};
 
 bool DataFieldFloat::SetAsBoolean(bool Value){
   bool res = GetAsBoolean();
@@ -1083,9 +1105,6 @@ void DataFieldFloat::Dec(void){
 double DataFieldFloat::SpeedUp(bool keyup){
   double res=1.0;
 
-#ifdef GNAV
-  return res;
-#endif
 
   if (GetDisableSpeedUp() == true) 
     return 1;
@@ -1120,8 +1139,20 @@ int DataFieldFloat::SetFromCombo(int iDataFieldIndex, TCHAR *sValue) {
   return 0;
 }
 
+int DataFieldFloat::CreateKeyboard(void){
+	TCHAR szText[20];
+	_tcscpy(szText, GetAsString());
+	dlgNumEntryShowModal(szText,20, false);
+
+	TCHAR*szStop;
+	SetAsFloat(floor((StrToDouble(szText, &szStop)/mStep)+0.5)*mStep);
+
+	return TRUE;
+}
+
+
 int DataFieldFloat::CreateComboList(void) {
-  return CreateComboListStepping();
+	return CreateComboListStepping();
 }
 
 
@@ -1153,19 +1184,18 @@ TCHAR *DataFieldString::GetAsDisplayString(void){
 //----------------------------------------------------------
 ComboListEntry_t * ComboList::CreateItem(int ItemIndex, 
                                         int DataFieldIndex,
-                                        TCHAR *StringValue,
-                                        TCHAR *StringValueFormatted)
+                                        const TCHAR *StringValue,
+                                        const TCHAR *StringValueFormatted)
 {
   int iLen = -1;
   ComboListEntry_t * theItem;
 
   // Copy current strings into structure
   theItem = (ComboListEntry_t*) malloc(sizeof(ComboListEntry_t));
+  LKASSERT(theItem!=NULL); 
   theItem->DataFieldIndex=0;  // NULL is same as 0, so it fails to set it if index value is 0
   theItem->ItemIndex=0;
   
-  ASSERT(theItem!= NULL);
-
   theItem->ItemIndex=ItemIndex;
 
   if (DataFieldIndex != ComboPopupNULL) { // optional
@@ -1175,14 +1205,14 @@ ComboListEntry_t * ComboList::CreateItem(int ItemIndex,
   if (StringValue == NULL)
   {
     theItem->StringValue = (TCHAR*)malloc((1) * sizeof(TCHAR));
-    ASSERT(theItem->StringValue != NULL);
+    LKASSERT(theItem->StringValue != NULL); 
     theItem->StringValue[0]='\0';
   }
   else
   {
     iLen = _tcslen(StringValue);
     theItem->StringValue = (TCHAR*)malloc((iLen + 1) * sizeof(TCHAR));
-    ASSERT(theItem->StringValue != NULL);
+    LKASSERT(theItem->StringValue != NULL);
     _tcscpy(theItem->StringValue, StringValue);
   }
 
@@ -1191,14 +1221,14 @@ ComboListEntry_t * ComboList::CreateItem(int ItemIndex,
   if (StringValueFormatted == NULL) 
   {
     theItem->StringValueFormatted = (TCHAR*)malloc((1) * sizeof(TCHAR));
-    ASSERT(theItem->StringValueFormatted != NULL);
+    LKASSERT(theItem->StringValueFormatted != NULL);
     theItem->StringValueFormatted[0]='\0';
   }
   else
   {
     iLen = _tcslen(StringValueFormatted);
     theItem->StringValueFormatted = (TCHAR*)malloc((iLen + 1) * sizeof(TCHAR));
-    ASSERT(theItem->StringValueFormatted != NULL);
+    LKASSERT(theItem->StringValueFormatted != NULL);
     _tcscpy(theItem->StringValueFormatted, StringValueFormatted);
   }
 
@@ -1228,8 +1258,6 @@ void ComboList::FreeComboPopupItemList(void)
 //----------------------------------------------------------
 
 
-extern HFONT  MapWindowFont;
-extern HINSTANCE hInst;
 WindowControl *ActiveControl = NULL;
 WindowControl *LastFocusControl = NULL;
 
@@ -1242,9 +1270,6 @@ static COLORREF bkColor = RGB_WINBACKGROUND; // PETROL
 static COLORREF fgColor = RGB_WINFOREGROUND; // WHITE
 int WindowControl::InstCount=0;
 HBRUSH WindowControl::hBrushDefaultBk=NULL;
-#if FIXGDI
-HBRUSH WindowControl::mhBrushBk=NULL;
-#endif
 HPEN WindowControl::hPenDefaultBorder=NULL;
 HPEN WindowControl::hPenDefaultSelector=NULL;
 
@@ -1301,15 +1326,9 @@ WindowControl::WindowControl(WindowControl *Owner,
   mColorFore = fgColor; // WHITE
 
   if (InstCount == 0){
-	#if FIXDC
 	hBrushDefaultBk = LKBrush_Petrol;
 	hPenDefaultBorder = LKPen_White_N1;
 	hPenDefaultSelector = LKPen_Petrol_C2;
-	#else
-	hBrushDefaultBk = (HBRUSH)CreateSolidBrush(mColorBack);
-	hPenDefaultBorder = (HPEN)CreatePen(PS_SOLID, DEFAULTBORDERPENWIDTH, mColorFore); // NIBLSCCALE 1 White
-	hPenDefaultSelector = (HPEN)CreatePen(PS_SOLID, DEFAULTBORDERPENWIDTH+2, RGB_LISTHIGHLIGHTCORNER); // NIBS(1)+2, PETROL
-	#endif
   }
   InstCount++;
 
@@ -1344,17 +1363,7 @@ WindowControl::WindowControl(WindowControl *Owner,
   SetWindowLong(mHWnd, GWL_WNDPROC, (LONG) WindowControlWndProc);
 
   mHdc = GetDC(mHWnd);
-  #if FIXDC
-  // mHdcTemp = CreateCompatibleDC(mHdc);  // 101205 made public, initialized by drawscrollbar
-  #else
-  mHdcTemp = CreateCompatibleDC(mHdc); 
-  #endif
 
-  #if FIXGDI
-  if (mhBrushBk != hBrushDefaultBk) { //@ 101117
-	DeleteObject(mhBrushBk);
-  }
-  #endif
   mhBrushBk = hBrushDefaultBk;
   mhPenBorder = hPenDefaultBorder;
   mhPenSelector = hPenDefaultSelector;
@@ -1400,14 +1409,10 @@ void WindowControl::Destroy(void){
   }
 
   ReleaseDC(mHWnd, mHdc);
-  #if FIXDC
   if (sHdc!=NULL) {
 	DeleteDC(sHdc);
 	sHdc=NULL;
   }
-  #else
-  DeleteDC(mHdcTemp); 
-  #endif
   SetWindowLong(mHWnd, GWL_WNDPROC, (LONG) mSavWndProcedure);
   SetWindowLong(mHWnd, GWL_USERDATA, (long)0);
 
@@ -1416,14 +1421,6 @@ void WindowControl::Destroy(void){
   DestroyWindow(mHWnd);
 
   InstCount--;
-  if (InstCount==0){
-	#if FIXDC		// 101205
-	#else
-	DeleteObject(hBrushDefaultBk);
-	DeleteObject(hPenDefaultBorder);
-	DeleteObject(hPenDefaultSelector);
-	#endif
-  }
 
 }
 
@@ -1499,11 +1496,7 @@ void WindowControl::AddClient(WindowControl *Client){
   // -998 to advance one line with more space
   // -997 to advance one line with twice more space
   
-  #if 100927
   if (Client->mY <0){
-  	#if !101112
-	if (Client->mY == -888) Client->mY=ScreenSizeY;
-	#endif
 	if (mClientCount > 1){
 		if (Client->mY==-999) //@ 101008 
 			Client->mY=mClients[mClientCount-2]->mY;
@@ -1515,11 +1508,6 @@ void WindowControl::AddClient(WindowControl *Client){
 					Client->mY = mClients[mClientCount-2]->mY + mClients[mClientCount-2]->mHeight +NIBLSCALE(6);
 				else
 					Client->mY = mClients[mClientCount-2]->mY - ((mClients[mClientCount-2]->mHeight)*Client->mY);
-  #else
-  if (Client->mY == -1){
-	if (mClientCount > 1){
-		Client->mY = mClients[mClientCount-2]->mY + mClients[mClientCount-2]->mHeight;
-  #endif
 		SetWindowPos(Client->GetHandle(), 0,
 			Client->mX, Client->mY,
 			0, 0,
@@ -1528,13 +1516,23 @@ void WindowControl::AddClient(WindowControl *Client){
 	}
   }
 
-  #if !101112
-  if (Client->mX == -888) Client->mX=ScreenSizeX;
-  if (Client->mWidth == -888) Client->mWidth=ScreenSizeX;
-  if (Client->mHeight == -888) Client->mHeight=ScreenSizeY;
-  #endif
-  // Rescale mWidth
-  #if LKWINCONTROL
+  // Rescale to full horizontal width, good only for most-right windows
+  if (Client->mWidth<-1) {
+	// the magic rescaling to full width
+	if (ScreenLandscape)
+		Client->mWidth=ScreenSizeX-(int)((320*ScreenDScale)+Client->mWidth);
+	else
+		Client->mWidth=ScreenSizeX-(int)((240*ScreenDScale)+Client->mWidth);
+	// This is needed to update the geometry, otherwise we neet to issue a SetWidth()!
+	SetWindowPos(Client->GetHandle(), 0,
+		Client->mX, Client->mY,
+		Client->mWidth, Client->mHeight,
+		SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+
+  }
+
+#if 0
+  // THIS WAS WRONG
   if (Client->mWidth<-1) {
 	int i=RescaleWidth(Client->mWidth);
 	Client->mWidth=i;
@@ -1543,10 +1541,11 @@ void WindowControl::AddClient(WindowControl *Client){
 		Client->mWidth, Client->mHeight,
 		SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
   }
-  #endif
+#endif
 	
 }
 
+// 110411 This is always set true because we don't use UserLevel anymore
 void WindowControl::FilterAdvanced(bool advanced){
   if (_tcsstr(mCaption, TEXT("*")) != NULL) {
     if (advanced) {
@@ -1612,7 +1611,7 @@ void WindowControl::SetCaption(const TCHAR *Value){
   }
 
   if (_tcscmp(mCaption, Value) != 0) {
-	_tcscpy(mCaption, Value);
+	LK_tcsncpy(mCaption, Value,MAXSETCAPTION); // destination already sized MAXSETCAPTION+1
 	InvalidateRect(GetHandle(), GetBoundRect(), false);
 	UpdateWindow(GetHandle());
   }
@@ -1634,7 +1633,9 @@ bool WindowControl::SetFocused(bool Value, HWND FromTo){
       rc.bottom = GetHeight();
       InvalidateRect(GetHandle(), &rc, false);
       // todo, only paint the selector edges
+#ifndef WINE
       UpdateWindow(GetHandle());
+#endif /* WINE */
       // Paint(GetDeviceContext());
     }
 
@@ -1723,7 +1724,10 @@ bool WindowControl::SetReadOnly(bool Value){
   bool res = mReadOnly;
   if (mReadOnly != Value){
     mReadOnly = Value;
-    Paint(GetDeviceContext());
+
+   	RECT rc = {0,0,0,0};
+   	GetClientRect(mHWnd, &rc);
+   	InvalidateRect(mHWnd,&rc,false);
   }
   return(res);
 }
@@ -1732,26 +1736,17 @@ COLORREF WindowControl::SetForeColor(COLORREF Value){
   COLORREF res = mColorFore;
   if (mColorFore != Value){
     mColorFore = Value;
-    if (mVisible)
-      Paint(GetDeviceContext());
+    if (mVisible){
+    	RECT rc = {0,0,0,0};
+    	GetClientRect(mHWnd, &rc);
+    	InvalidateRect(mHWnd,&rc,false);
+    }
   }
   return(res);
 }
 
 COLORREF WindowControl::SetBackColor(COLORREF Value){
   COLORREF res = mColorBack;
-  #if FIXGDI
-  if (mColorBack != Value){
-	mColorBack = Value;
-	if (mhBrushBk != hBrushDefaultBk){
-		// JMW possible memory leak if this brush is being used!
-		DeleteObject(mhBrushBk);
-	}
-	mhBrushBk = (HBRUSH)CreateSolidBrush(mColorBack);
-	if (mVisible)
-		Paint(GetDeviceContext());
-  }
-  #else
   if (mColorBack != Value){
 	mColorBack = Value;
 	if (mhBrushBk != hBrushDefaultBk){
@@ -1760,10 +1755,12 @@ COLORREF WindowControl::SetBackColor(COLORREF Value){
 		DeleteObject(mhBrushBk);
 	}
 	mhBrushBk = (HBRUSH)CreateSolidBrush(mColorBack);
-	if (mVisible)
-		Paint(GetDeviceContext());
+	if (mVisible){
+    	RECT rc = {0,0,0,0};
+    	GetClientRect(mHWnd, &rc);
+    	InvalidateRect(mHWnd,&rc,false);
+	}
   }
-  #endif
   return(res);
 }
 
@@ -1806,16 +1803,10 @@ void WindowControl::Redraw(void){
 }
 
 
-#ifdef ALTAIRSYNC
-#else
 extern void dlgHelpShowModal(const TCHAR* Caption, const TCHAR* HelpText);
-#endif
 
 
 int WindowControl::OnHelp() {
-#ifdef ALTAIRSYNC
-    return(0); // undefined. return 1 if defined
-#else
     if (mHelpText) {
       dlgHelpShowModal(mCaption, mHelpText);
       return(1);
@@ -1827,7 +1818,6 @@ int WindowControl::OnHelp() {
 	return(0);
       }
     }
-#endif
 };
 
 void WindowControl::Paint(HDC hDC){
@@ -1845,23 +1835,13 @@ void WindowControl::Paint(HDC hDC){
 
   // JMW added highlighting, useful for lists
   if (!mDontPaintSelector && mCanFocus && mHasFocus){
-    #if FIXDC
     HBRUSH hB = LKBrush_DarkYellow2;
-    //HBRUSH hB = LKBrush_LcdDarkGreen;
-    #else
-    COLORREF ff = RGB_LISTHIGHLIGHTBG;
-    HBRUSH hB = (HBRUSH)CreateSolidBrush(ff);
-    #endif
     rc.left += 0;
     rc.right -= 2;
     rc.top += 0;
     rc.bottom -= 2;
     FillRect(hDC, &rc, hB);
 
-      #if FIXDC
-      #else
-      DeleteObject(hB);
-      #endif
   }
 
   if (mBorderKind != 0){
@@ -1953,109 +1933,175 @@ LRESULT CALLBACK WindowControlWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARA
 }
 
 
-
+//#define TRACE_WNDPROC	1
+//
+// This function is called continously!
+//
 int WindowControl::WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
 
   PAINTSTRUCT ps;            // structure for paint info
   HDC hDC;                   // handle to graphics device context,
 
+  HDC Memhdc;
+  HBITMAP Membitmap;
+  HGDIOBJ Oldbitmap;
+  HWND hWnd;
+  RECT Client_Rect;
+  int win_width;
+  int win_height;
+  
+  POINT ptOffset;
+  HWND hChildWnd;
+
   switch (uMsg){
-
-
     case WM_ERASEBKGND:
+	#if TRACE_WNDPROC
+	StartupStore(_T(".... WNDPROC> ERASEBKGND\n"));
+	#endif
       // we don't need one, we just paint over the top
     return TRUE;
 
     case WM_PAINT:
-      hDC = BeginPaint(GetHandle(), &ps);
-      Paint(hDC);
+	#if TRACE_WNDPROC
+	StartupStore(_T(".... WNDPROC> PAINT\n"));
+	#endif
+    	hWnd = GetHandle();
 
-      DeleteDC(hDC);
-      EndPaint(GetHandle(), &ps);
+    	hDC = BeginPaint(hWnd, &ps);
+
+		GetClientRect(hWnd,&Client_Rect);
+		win_width = Client_Rect.right - Client_Rect.left;
+		win_height = Client_Rect.bottom + Client_Rect.left;
+		Memhdc = CreateCompatibleDC(hDC);
+		Membitmap = CreateCompatibleBitmap(hDC, win_width, win_height);
+		Oldbitmap = SelectObject(Memhdc, Membitmap);
+
+   	  	Paint(Memhdc);
+
+   	  	ptOffset.x = Client_Rect.left;
+   	  	ptOffset.y = Client_Rect.top;
+   	  	ClientToScreen(hWnd, &ptOffset);
+   	  	if((hChildWnd = GetWindow(hWnd, GW_CHILD)) != NULL) {
+			if(IsWindowVisible(hChildWnd)){
+				GetWindowRect(hChildWnd, &Client_Rect);
+				OffsetRect(&Client_Rect, -ptOffset.x, -ptOffset.y);
+				ExcludeClipRect( hDC,Client_Rect.left, Client_Rect.top, Client_Rect.right, Client_Rect.bottom );
+			}
+   	  	}
+
+   	  	BitBlt(hDC, 0, 0, win_width, win_height, Memhdc, 0, 0, SRCCOPY);
+		SelectObject(Memhdc, Oldbitmap);
+   	  	DeleteObject(Membitmap);
+   	 	DeleteDC    (Memhdc);
+
+		DeleteDC(hDC);
+		EndPaint(hWnd, &ps);
     return(0);
 
     case WM_WINDOWPOSCHANGED:
+	#if TRACE_WNDPROC
+	StartupStore(_T(".... WNDPROC> POSCHANGED\n"));
+	#endif
       //ib = (WindowControl *)GetWindowLong(hwnd, GWL_USERDATA);
       //ib->Paint(ib->GetDeviceContext());
     return 0;
 
     case WM_CREATE:
+	#if TRACE_WNDPROC
+	StartupStore(_T(".... WNDPROC> CREATE\n"));
+	#endif
     break;
 
     case WM_DESTROY:
+	#if TRACE_WNDPROC
+	StartupStore(_T(".... WNDPROC> DESTROY\n"));
+	#endif
+        // The Close() was missing, and when clicking on X to quit LK, if a dialog was pending it was not
+        // closed correctly: the modal dialog had previously stopped the message loop dispatcher, and
+        // as a result inside the main message loop in lk8000.cpp we were not getting the QUIT message.
+        // So the main thread was left running, as a ghost process. This could happen only on PC, so far,
+        // but was a pending problem for the cases when we have a full window where you can click an X to quit.
+	Close();
+
     break;
 
     case WM_COMMAND:
+      // This is called several times per second
       if (OnCommand(wParam, lParam)) return(0);
     break;
 
     case WM_LBUTTONDBLCLK:
-      InterfaceTimeoutReset();
+      TouchContext=TCX_PROC_DOUBLECLICK;
+	#if TRACE_WNDPROC
+	StartupStore(_T(".... WNDPROC> DOUBLECLICK\n"));
+	#endif
       if (!OnLButtonDoubleClick(wParam, lParam)) {
-        DisplayTimeOut = 0;
         return(0);
       }
     break;
 
     case WM_LBUTTONDOWN:
-      InterfaceTimeoutReset();
+	#if TRACE_WNDPROC
+	StartupStore(_T(".... WNDPROC> LBUTTONDOWN\n"));
+	#endif
+      TouchContext=TCX_PROC_DOWN;
       if (!OnLButtonDown(wParam, lParam)) {
-        DisplayTimeOut = 0;
         return(0);
       }
       // TODO enhancement: need to be able to focus list items here...
     break;
 
     case WM_LBUTTONUP:
-      InterfaceTimeoutReset();
+      TouchContext=TCX_PROC_UP;
+	#if TRACE_WNDPROC
+	StartupStore(_T(".... WNDPROC> LBUTTONUP\n"));
+	#endif
       if (!OnLButtonUp(wParam, lParam)) {
-        DisplayTimeOut = 0;
         return(0);
       }
     break;
 
     case WM_KEYDOWN:
-      InterfaceTimeoutReset();
-      // JMW: HELP
+      TouchContext=TCX_PROC_KEYDOWN;
       KeyTimer(true, wParam & 0xffff);
 
-      // return(OnKeyDown(wParam, lParam));
-      // experimental 20060516:sgi
       if (!OnKeyDown(wParam, lParam)) {
-        DisplayTimeOut = 0;
         return(0);
       }
       break;
 
     case WM_KEYUP:
-      DisplayTimeOut = 0;
-      InterfaceTimeoutReset();
-      // JMW: detect long enter release
-      // VENTA4: PNAs don't have Enter, so it should be better to find an alternate solution
+        TouchContext=TCX_PROC_KEYUP;
 	if (KeyTimer(false, wParam & 0xffff)) {
 	  // activate tool tips if hit return for long time
 	  if ((wParam & 0xffff) == VK_RETURN) {
 	    if (OnHelp()) return (0);
 	  }
 	} 
-      // return(OnKeyUp(wParam, lParam));
-      // experimental 20060516:sgi
         if (!OnKeyUp(wParam, lParam)) {
-          DisplayTimeOut = 0;
           return(0);
         }
       break;
 
     case WM_MOUSEMOVE:
+      TouchContext=TCX_PROC_MOUSEMOVE;
       OnMouseMove(wParam, lParam);
       return (0);
       break;
 
     case WM_SETFOCUS:
+	#if DEBUG_FOCUS
+	StartupStore(_T("............ WNDCONTROL HAS FOCUS\n"));
+	#endif
+	extern HWND hWndWithFocus;
+	hWndWithFocus=hwnd;
       SetFocused(true, (HWND) wParam);
     return(0);
 
     case WM_KILLFOCUS:
+	#if DEBUG_FOCUS
+	StartupStore(_T("............ WNDCONTROL LOST FOCUS\n"));
+	#endif
       SetFocused(false, (HWND) wParam);
     return(0);
 
@@ -2069,8 +2115,10 @@ int WindowControl::WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
       */
     break;
 
+    // APPARENTLY THIS IS NEVER CALLED. Missing Close(), handled by Destroy() now
     case WM_QUIT:
     case WM_CLOSE:
+      TouchContext=TCX_PROC_CLOSE;
       Close();
     return(0);
 
@@ -2123,11 +2171,7 @@ WndForm::WndForm(HWND Parent, const TCHAR *Name, const TCHAR *Caption,
 
   mhTitleFont = GetFont();
 
-  #if FIXDC
   mhBrushTitle = LKBrush_Black; // 101204
-  #else
-  mhBrushTitle = (HBRUSH)CreateSolidBrush(mColorTitle);
-  #endif
 
   mClientWindow = new WindowControl(this, GetHandle(), TEXT(""), 20, 20, Width, Height);
   mClientWindow->SetBackColor(RGB_WINBACKGROUND);
@@ -2162,10 +2206,6 @@ void WndForm::Destroy(void){
   KillTimer(GetHandle(),cbTimerID);
 
   DestroyAcceleratorTable(mhAccelTable);
-  #if FIXDC
-  #else
-  DeleteObject(mhBrushTitle);
-  #endif
 
   WindowControl::Destroy();  // delete all childs
 
@@ -2232,8 +2272,6 @@ void WndForm::SetToForeground(void)
 }
 
 
-extern HWND hWndMapWindow;  // MapWindow
-
 int WndForm::ShowModal(void){
   return ShowModal(false);
 }
@@ -2243,15 +2281,17 @@ int WndForm::ShowModal(bool bEnableMap) {
   MSG msg;
   HWND oldFocusHwnd;
 
+  SHOWTHREAD(_T("ShowModal"));
+
   enterTime = ::GetTickCount();
 
-#ifndef ALTAIRSYNC
   Message::BlockRender(true);
-#endif
 
   RECT mRc;
   GetWindowRect(GetHandle(), &mRc);
+  #if 0 // REMOVE ANIMATION
   DrawWireRects(&mRc, 5);
+  #endif
 
   SetVisible(true);
 
@@ -2269,21 +2309,6 @@ int WndForm::ShowModal(bool bEnableMap) {
   while ((mModalResult == 0) && GetMessage(&msg, NULL, 0, 0)) {
     DWORD timeMsg = GetTickCount();
 
-//hack!
-    
-    // JMW update display timeout so we don't get blanking
-    /*
-    if (msg.message == WM_KEYDOWN) {
-      if (!Debounce()) {
-	continue;
-      }
-    }
-    */
-
-    if (msg.message == WM_KEYDOWN) {
-      InterfaceTimeoutReset();
-    }
-
     if ((msg.message == WM_KEYDOWN) && ((msg.wParam & 0xffff) == VK_ESCAPE))
       mModalResult = mrCancle;
 
@@ -2295,7 +2320,6 @@ int WndForm::ShowModal(bool bEnableMap) {
           || msg.message == WM_LBUTTONDBLCLK
         )  // screen event
         && msg.hwnd != GetHandle() && !IsChild(GetHandle(), msg.hwnd)  // not current window or child
-#ifndef GNAV
         &&  !( // exception
               bEnableMap
               && msg.hwnd == hWndMapWindow
@@ -2305,7 +2329,6 @@ int WndForm::ShowModal(bool bEnableMap) {
                 || msg.message == WM_MOUSEMOVE
               )
          )
-#endif
     )
       continue;   // make it modal
 
@@ -2354,7 +2377,7 @@ int WndForm::ShowModal(bool bEnableMap) {
       }
       if (msg.message == WM_LBUTTONUP){
         if (mOnLButtonUpNotify != NULL)
-          if (!(mOnLButtonUpNotify)(this, msg.wParam, msg.lParam))
+          if (!(mOnLButtonUpNotify)(this, msg.wParam, msg.lParam)) 
             continue;
 
       }
@@ -2390,23 +2413,6 @@ int WndForm::ShowModal(bool bEnableMap) {
           } */
 
         } else {
-
-          /*
-          if (msg.message == WM_KEYDOWN){
-            if (ActiveControl != NULL){
-              switch(msg.wParam & 0xffff){
-                case VK_UP:
-                  if (ActiveControl->GetOwner() != NULL)
-                    ActiveControl->GetOwner()->FocusPrev(ActiveControl);
-                continue;
-                case VK_DOWN:
-                  if (ActiveControl->GetOwner() != NULL)
-                    ActiveControl->GetOwner()->FocusNext(ActiveControl);
-                continue;
-              }
-            }
-          }
-          */
         } // DispatchMessage
       } // timeMsg
   }
@@ -2415,7 +2421,6 @@ int WndForm::ShowModal(bool bEnableMap) {
     // TODO code: maybe this should block all key handlers to avoid 
     // accidental key presses
     if (!hastimed) {
-#if !defined(GNAV) && !defined(NOKEYDEBONCE)
 	#if defined(PNA) || (WINDOWSPC>0) 
 	if (::GetTickCount()-enterTime<400) { // 091217
 	#else
@@ -2425,7 +2430,6 @@ int WndForm::ShowModal(bool bEnableMap) {
 	} else {
 		hastimed = true;
 	}
-#endif
     }
   } // End Modal Loop
   WndForm::timeAnyOpenClose = GetTickCount(); // static.  this is current open/close or child open/close
@@ -2444,12 +2448,8 @@ int WndForm::ShowModal(bool bEnableMap) {
 
   SetFocus(oldFocusHwnd);
 
-#ifndef ALTAIRSYNC
-  // JMW added to make sure screen is redrawn
   MapWindow::RequestFastRefresh();
-
   Message::BlockRender(false);
-#endif
 
   return(mModalResult);
 
@@ -2461,6 +2461,7 @@ void WndForm::Paint(HDC hDC){
   SIZE tsize;
   HPEN oldPen;
   HBRUSH oldBrush;
+  HFONT oldFont;
 
   if (!GetVisible()) return;
 
@@ -2475,7 +2476,7 @@ void WndForm::Paint(HDC hDC){
   SetBkColor(hDC, mColorTitle);
   SetBkMode(hDC, TRANSPARENT);
 
-  SelectObject(hDC, mhTitleFont);
+  oldFont = (HFONT)SelectObject(hDC, mhTitleFont);
   GetTextExtentPoint(hDC, mCaption, _tcslen(mCaption), &tsize);
   if (_tcslen(mCaption)==0) tsize.cy=0; //@ 101115 BUGFIX
 
@@ -2509,6 +2510,7 @@ void WndForm::Paint(HDC hDC){
 
   SelectObject(hDC, oldBrush);
   SelectObject(hDC, oldPen);
+  SelectObject(hDC, oldFont);
 
 }
 
@@ -2522,7 +2524,7 @@ void WndForm::SetCaption(const TCHAR *Value) {
   }
 
   if (_tcscmp(mCaption, Value) != 0) {
-	_tcscpy(mCaption, Value);
+	LK_tcsncpy(mCaption, Value,MAXSETCAPTION); // destination already sized MAXSETCAPTION+1
 	InvalidateRect(GetHandle(), &mTitleRect, false);
 	UpdateWindow(GetHandle());
   }
@@ -2602,7 +2604,6 @@ int WndForm::OnUnhandledMessage(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
   if (msg.message == WM_KEYUP){
   }
   if (msg.message == WM_KEYDOWN){
-    InterfaceTimeoutReset();
     if (mOnKeyDownNotify != NULL)
       if (!(mOnKeyDownNotify)(this, msg.wParam, msg.lParam))
         return(0);
@@ -2615,7 +2616,6 @@ int WndForm::OnUnhandledMessage(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
   }
   if (msg.message == WM_LBUTTONUP){
     bLButtonDown=false;
-    InterfaceTimeoutReset();
     if (mOnLButtonUpNotify != NULL)
       if (!(mOnLButtonUpNotify)(this, msg.wParam, msg.lParam))
         return(0);
@@ -2631,7 +2631,6 @@ int WndForm::OnUnhandledMessage(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
   }
 
   if (uMsg == WM_KEYDOWN){
-    InterfaceTimeoutReset();
     if (ActiveControl != NULL){
       switch(wParam & 0xffff){
         case VK_UP:
@@ -2708,8 +2707,16 @@ int WndButton::OnLButtonUp(WPARAM wParam, LPARAM lParam){
   POINT Pos;
   (void)wParam;
 
+  #if TRACE_WNDPROC
+  StartupStore(_T(".... WndButton>  UP\n"));
+  #endif
+  TouchContext=TCX_BUTTON_UP;
   mDown = false;
-  Paint(GetDeviceContext());
+
+  RECT rc = {0,0,0,0};
+  GetClientRect(mHWnd, &rc);
+  InvalidateRect(mHWnd,&rc,false);
+
   ReleaseCapture();
 
   Pos.x = lParam & 0x0000ffff; 
@@ -2721,7 +2728,9 @@ int WndButton::OnLButtonUp(WPARAM wParam, LPARAM lParam){
     if (mOnClickNotify != NULL) {
       RECT mRc;
       GetWindowRect(GetHandle(), &mRc);
+      #if 0 // REMOVE ANIMATION
       SetSourceRectangle(mRc);
+      #endif
       (mOnClickNotify)(this);
     }
   }
@@ -2738,15 +2747,13 @@ int WndButton::OnKeyDown(WPARAM wParam, LPARAM lParam){
 	DoStatusMessage(ventabuffer);
 #endif
   switch (wParam){
-#ifdef GNAV
-    // JMW added this to make data entry easier
-    case VK_F4:
-#endif
     case VK_RETURN:
     case VK_SPACE:
       if (!mDown){
         mDown = true;
-        Paint(GetDeviceContext());
+    	RECT rc = {0,0,0,0};
+    	GetClientRect(mHWnd, &rc);
+    	InvalidateRect(mHWnd,&rc,false);
       }
     return(0);
   }
@@ -2756,20 +2763,22 @@ int WndButton::OnKeyDown(WPARAM wParam, LPARAM lParam){
 int WndButton::OnKeyUp(WPARAM wParam, LPARAM lParam){
 	(void)lParam;
   switch (wParam){
-#ifdef GNAV
-    // JMW added this to make data entry easier
-    case VK_F4:
-#endif
     case VK_RETURN:
     case VK_SPACE:
       if (!Debounce()) return(1); // prevent false trigger
       if (mDown){
         mDown = false;
-        Paint(GetDeviceContext());
-        if (mOnClickNotify != NULL) {
+
+        RECT rc = {0,0,0,0};
+    	GetClientRect(mHWnd, &rc);
+    	InvalidateRect(mHWnd,&rc,false);
+
+    	if (mOnClickNotify != NULL) {
           RECT mRc;
           GetWindowRect(GetHandle(), &mRc);
+	  #if 0 // REMOVE ANIMATION
           SetSourceRectangle(mRc);
+	  #endif
           (mOnClickNotify)(this);
         }
       }
@@ -2781,6 +2790,10 @@ int WndButton::OnKeyUp(WPARAM wParam, LPARAM lParam){
 int WndButton::OnLButtonDown(WPARAM wParam, LPARAM lParam){
 	(void)lParam; (void)wParam;
   mDown = true;
+  #if TRACE_WNDPROC
+  StartupStore(_T(".... WndButton>  DOWN\n"));
+  #endif
+  TouchContext=TCX_BUTTON_DOWN;
   if (!GetFocused())
     SetFocus(GetHandle());
   else {
@@ -2793,6 +2806,7 @@ int WndButton::OnLButtonDown(WPARAM wParam, LPARAM lParam){
 
 int WndButton::OnLButtonDoubleClick(WPARAM wParam, LPARAM lParam){
 	(void)lParam; (void)wParam;
+  TouchContext=TCX_BUTTON_DOUBLECLICK;
   mDown = true;
   InvalidateRect(GetHandle(), GetBoundRect(), false);
   UpdateWindow(GetHandle());
@@ -2814,10 +2828,14 @@ void WndButton::Paint(HDC hDC){
 
   // JMW todo: add icons?
 
-  if (mDown){
-    DrawFrameControl(hDC, &rc, DFC_BUTTON, DFCS_BUTTONPUSH | DFCS_PUSHED);
-  }else{
-    DrawFrameControl(hDC, &rc, DFC_BUTTON, DFCS_BUTTONPUSH);
+
+  if(GlobalModelType != MODELTYPE_PNA_MINIMAP || (GlobalModelType == MODELTYPE_PNA_MINIMAP && !HasFocus())) {
+    if(mDown) {
+      DrawFrameControl(hDC, &rc, DFC_BUTTON, DFCS_BUTTONPUSH | DFCS_PUSHED);
+    }
+    else {
+      DrawFrameControl(hDC, &rc, DFC_BUTTON, DFCS_BUTTONPUSH);
+    }
   }
 
   if (mCaption != NULL && mCaption[0] != '\0'){
@@ -2865,28 +2883,12 @@ void WndButton::Paint(HDC hDC){
 
     SelectObject(hDC, oldFont);
 
-//    mLastDrawTextHeight = rc.bottom - rc.top;
 
   }
 
-//  UINT lastAlign = SetTextAlign(hDC, TA_CENTER /*| VTA_CENTER*/);
-//  ExtTextOut(hDC, GetWidth()/2, GetHeight()/2,
-//    /*ETO_OPAQUE | */ETO_CLIPPED, &r, mCaption, _tcslen(mCaption), NULL);
-//  if (lastAlign != GDI_ERROR){
-//    SetTextAlign(hDC, lastAlign);
-//  }
-
-
-// 20060518:sgi old version
-//  ExtTextOut(hDC, org.x, org.y,
-//    /*ETO_OPAQUE | */ETO_CLIPPED, &r, mCaption, _tcslen(mCaption), NULL);
 
 }
 
-
-
-HBITMAP WndProperty::hBmpLeft32=NULL;
-HBITMAP WndProperty::hBmpRight32=NULL;
 
 int     WndProperty::InstCount=0;
 
@@ -2915,14 +2917,12 @@ WndProperty::WndProperty(WindowControl *Parent,
   mDataField = NULL;
   mDialogStyle=false; // this is set by ::SetDataField()
 
+  mUseKeyboard=false;
+
   mhValueFont = GetFont();
   mCaptionWidth = CaptionWidth;
 
-  if (mCaptionWidth != 0){
-    mBitmapSize = DLGSCALE(32)/2;
-  } else {
-    mBitmapSize = DLGSCALE(32)/2;
-  }
+  mBitmapSize = DLGSCALE(32)/2;
   if (mDialogStyle)
     mBitmapSize = 0;
 
@@ -2996,6 +2996,10 @@ WndProperty::WndProperty(WindowControl *Parent,
 			  GetHandle(), NULL, hInst, NULL);
 #endif
   }
+  
+  if(mEditSize.x <= 0) {
+	  ShowWindow(mhEdit, SW_HIDE);
+  }
 
   SetWindowLong(mhEdit, GWL_USERDATA, (long)this);
   mEditWindowProcedure = (WNDPROC)SetWindowLong(mhEdit, GWL_WNDPROC, (LONG) WndPropertyEditWndProc);
@@ -3009,10 +3013,6 @@ WndProperty::WndProperty(WindowControl *Parent,
   SetForeColor(GetOwner()->GetForeColor());
   SetBackColor(GetOwner()->GetBackColor());
 
-  if (InstCount == 0){
-    hBmpLeft32 = LoadBitmap(hInst, MAKEINTRESOURCE(IDB_DLGBUTTONLEFT32));
-    hBmpRight32 = LoadBitmap(hInst, MAKEINTRESOURCE(IDB_DLGBUTTONRIGHT32));
-  }
   InstCount++;
 
   mDownDown = false;
@@ -3027,17 +3027,13 @@ WndProperty::~WndProperty(void){
 void WndProperty::Destroy(void){
 
   InstCount--;
-  if (InstCount == 0){
-    DeleteObject(hBmpLeft32);
-    DeleteObject(hBmpRight32);
-  }
 
   if (mDataField != NULL){
     if (!mDataField->Unuse()) {
       delete mDataField;
       mDataField = NULL;
     } else {
-      ASSERT(0);
+      //ASSERT(0);
     }
   }
 
@@ -3112,6 +3108,10 @@ void WndProperty::UpdateButtonData(int Value){
 
 }
 
+bool WndProperty::SetUseKeyboard(bool Value) {
+	return mUseKeyboard=Value;
+}
+
 int WndProperty::SetButtonSize(int Value){
   int res = mBitmapSize;
 
@@ -3142,9 +3142,7 @@ int WndProperty::WndProcEditControl(HWND hwnd, UINT uMsg,
     case WM_KEYDOWN:
       if ((wParam & 0xffff) == VK_RETURN || (wParam & 0xffff) == VK_F23) { // Compaq uses VKF23
         if (this->mDialogStyle) {
-          InterfaceTimeoutReset();
           if (!OnLButtonDown(wParam, lParam)) {
-            DisplayTimeOut = 0;
             return(0);
           }
         } //end combopicker
@@ -3181,9 +3179,7 @@ int WndProperty::WndProcEditControl(HWND hwnd, UINT uMsg,
     case WM_LBUTTONDOWN:
       // if it's an Combopicker field, then call the combopicker routine
       if (this->mDialogStyle) {
-        InterfaceTimeoutReset();
         if (!OnLButtonDown(wParam, lParam)) {
-          DisplayTimeOut = 0;
           return(0);
         }
       } //end combopicker
@@ -3198,11 +3194,21 @@ int WndProperty::WndProcEditControl(HWND hwnd, UINT uMsg,
         if ((HWND)wParam != GetHandle()){
           SetFocused(true, (HWND) wParam);
         }
+	else {
+		#if DEBUG_FOCUS
+		StartupStore(_T("............ WNDPROCEDIT HAS FOCUS\n"));
+		#endif
+		extern HWND hWndWithFocus;
+		hWndWithFocus=hwnd;
+	}
       }
     break;
 
     case WM_KILLFOCUS:
       KeyTimer(true, 0);
+	#if DEBUG_FOCUS
+	StartupStore(_T("............ WNDPROCEDIT LOST FOCUS\n"));
+	#endif
       if ((HWND)wParam != GetHandle()){
         SetFocused(false, (HWND) wParam);
       }
@@ -3293,6 +3299,8 @@ int WndProperty::OnKeyDown(WPARAM wParam, LPARAM lParam){
   return(1);
 };
 
+extern BOOL dlgKeyboard(WndProperty* theProperty);
+
 int WndProperty::OnLButtonDown(WPARAM wParam, LPARAM lParam){
   (void)wParam;
   POINT Pos;
@@ -3301,7 +3309,9 @@ int WndProperty::OnLButtonDown(WPARAM wParam, LPARAM lParam){
   {
     if (!GetReadOnly())  // when they click on the label
     {
-      dlgComboPicker(this);
+    	if(!mUseKeyboard || !dlgKeyboard(this)) {
+   	       dlgComboPicker(this);
+    	}
     }
     else 
     {
@@ -3400,7 +3410,7 @@ int WndProperty::DecValue(void){
 
 void WndProperty::Paint(HDC hDC){
 
-  RECT r;
+  //  RECT r;
   SIZE tsize;
   POINT org;
   HBITMAP oldBmp;
@@ -3410,13 +3420,17 @@ void WndProperty::Paint(HDC hDC){
 
   WindowControl::Paint(hDC);
 
-  r.left = 0;
-  r.top = 0;
-  r.right = GetWidth();
-  r.bottom = GetHeight();
+  // r.left = 0;
+  // r.top = 0;
+  // r.right = GetWidth();
+  // r.bottom = GetHeight();
 
   SetTextColor(hDC, GetForeColor());
-
+#ifdef WINE
+  // JMW make it look nice on wine
+  if (!GetFocused())
+    SetBkColor(hDC, GetBackColor());
+#endif /* WINE */
   SetBkMode(hDC, TRANSPARENT);
   HFONT oldFont = (HFONT)SelectObject(hDC, GetFont());
 
@@ -3575,7 +3589,9 @@ int WndFrame::OnKeyDown(WPARAM wParam, LPARAM lParam){
   if (mIsListItem && GetOwner()!=NULL){
     RECT mRc;
     GetWindowRect(GetHandle(), &mRc);
+    #if 0 // REMOVE ANIMATION
     SetSourceRectangle(mRc);
+    #endif
     return(((WndListFrame*)GetOwner())->OnItemKeyDown(this, wParam, lParam));
   }
   return(1);
@@ -3629,7 +3645,7 @@ void WndFrame::SetCaption(const TCHAR *Value){
   }
 
   if (_tcscmp(mCaption, Value) != 0){
-    _tcscpy(mCaption, Value);  // todo size check
+    LK_tcsncpy(mCaption, Value,MAXSETCAPTION); // destination already sized MAXSETCAPTION+1
     InvalidateRect(GetHandle(), GetBoundRect(), false);
     UpdateWindow(GetHandle());
 
@@ -3716,42 +3732,6 @@ void WndListFrame::Paint(HDC hDC){
 
 	HDC HdcTemp = CreateCompatibleDC(hDC);
 
-	#if NO_LKWINCONTROL // -----------------------------  100515
-	int ri=mClients[0]->GetWidth();
-	if (ri <-1) {
-		StartupStore(_T("........ rescaling Paint width mClients =%d\n"),ri); // REMOVE
-		mClients[0]->SetWidth(RescaleWidth(ri));
-		StartupStore(_T("........ new rescaled Paint width mClients =%d\n"),mClients[0]->GetWidth()); // REMOVE
-	}
-	HBITMAP BmpMem = CreateCompatibleBitmap(hDC,
-               mClients[0]->GetWidth(),
-               mClients[0]->GetHeight());
-
-	HBITMAP oldBmp = (HBITMAP)SelectObject(HdcTemp, BmpMem);
-
-	for (i=0; i<mListInfo.ItemInViewCount; i++){
- 
-		HFONT oldFont = (HFONT)SelectObject(HdcTemp, mClients[0]->GetFont());
-
-		if (mOnListCallback != NULL){
-			mListInfo.DrawIndex = mListInfo.TopIndex + i;
-			if (mListInfo.DrawIndex == mListInfo.ItemIndex) continue;
-			mOnListCallback(this, &mListInfo);
-		}
-
-		mClients[0]->PaintSelector(true);
-		mClients[0]->Paint(HdcTemp);
-		mClients[0]->PaintSelector(false);
-
-		BitBlt(hDC,
-			mClients[0]->GetLeft(), i*mClients[0]->GetHeight(),
-			mClients[0]->GetWidth(), mClients[0]->GetHeight(),
-			HdcTemp,
-			0,0,
-			SRCCOPY
-		);
-
-	#else  // --------------------------------------
     HBITMAP BmpMem = CreateCompatibleBitmap(hDC,
                mClients[0]->GetWidth(),
                mClients[0]->GetHeight());
@@ -3780,7 +3760,6 @@ void WndListFrame::Paint(HDC hDC){
           0,0,
           SRCCOPY
         );
-	#endif // --------------------------  not LKWINCONTROL
 
       SelectObject(HdcTemp, oldFont);
 
@@ -3803,13 +3782,6 @@ void WndListFrame::Redraw(void){
 
 
 void WndListFrame::DrawScrollBar(HDC hDC) {
-
-  static HBITMAP hScrollBarBitmapTop = NULL;
-  static HBITMAP hScrollBarBitmapMid = NULL;
-  static HBITMAP hScrollBarBitmapBot = NULL;
-  #ifndef FIXDC
-  static HBITMAP hScrollBarBitmapFill = NULL; //101205
-  #endif
   RECT rc;
   HPEN hP, hP3;
   HBITMAP oldBmp;
@@ -3824,54 +3796,23 @@ void WndListFrame::DrawScrollBar(HDC hDC) {
 	#define SHRINKSBFACTOR 0.75 
 	#endif
 
-	ScrollbarWidth = (int) (SCROLLBARWIDTH_INITIAL * InfoBoxLayout::dscale * SHRINKSBFACTOR);  
+	ScrollbarWidth = (int) (SCROLLBARWIDTH_INITIAL * ScreenDScale * SHRINKSBFACTOR);  
 	if (mClientCount > 0) {
 		ScrollbarTop = mClients[0]->GetHeight() + 2;
 	} else {
-		ScrollbarTop = (int)(18.0 * InfoBoxLayout::dscale + 2);
+		ScrollbarTop = (int)(18.0 * ScreenDScale + 2);
 	}
   }
 
-  #if NO_LKWINCONTROL
-  int w;
-  if (GetWidth()<-1) 
-	w = RescaleWidth(GetWidth()) - (ScrollbarWidth);
-  else 
-	w = GetWidth()- (ScrollbarWidth);
-  #else
 
   int w = GetWidth()- (ScrollbarWidth);
-  #endif
   int h = GetHeight() - ScrollbarTop;
 
-  #if FIXDC
   if ( (sHdc==NULL) || (hScrollBarBitmapTop == NULL)) {
-	//StartupStore(_T("... sHdc Create\n")); // REMOVE
 	sHdc = CreateCompatibleDC(hDC); 
   }
-  if (hScrollBarBitmapTop == NULL) {
-	hScrollBarBitmapTop=LoadBitmap(hInst, MAKEINTRESOURCE(IDB_SCROLLBARTOP));
-  }
-  #else
-  if (hScrollBarBitmapTop == NULL) 
-	hScrollBarBitmapTop=LoadBitmap(hInst, MAKEINTRESOURCE(IDB_SCROLLBARTOP));
-  #endif
-  if (hScrollBarBitmapMid == NULL)
-	hScrollBarBitmapMid=LoadBitmap(hInst, MAKEINTRESOURCE(IDB_SCROLLBARMID));
-  if (hScrollBarBitmapBot == NULL)
-	hScrollBarBitmapBot=LoadBitmap(hInst, MAKEINTRESOURCE(IDB_SCROLLBARBOT));
-  #ifndef FIXDC // 101205
-  if (hScrollBarBitmapFill == NULL)
-	hScrollBarBitmapFill=LoadBitmap(hInst, MAKEINTRESOURCE(IDB_SCROLLBARFILL));
-  #endif
 
-  #if FIXDC	// 101205
   hP = LKPen_Black_N1;
-
-  #else	// ------  REMOVABLE 1/1/2011
-  hP = (HPEN)CreatePen(PS_SOLID, DEFAULTBORDERPENWIDTH, RGB_SCROLLBARBORDER);
-  #endif // -------- END REMOVABLE
-
   SelectObject(hDC, hP);
 
   // ENTIRE SCROLLBAR AREA
@@ -3887,10 +3828,6 @@ void WndListFrame::DrawScrollBar(HDC hDC) {
   rcScrollBar.bottom=rc.bottom;
 
   if (mListInfo.BottomIndex == mListInfo.ItemCount) { // don't need scroll bar if one page only
-	#if FIXDC
-        #else
-	DeleteObject(hP);
-	#endif
 	return;
   }
 
@@ -3912,21 +3849,13 @@ void WndListFrame::DrawScrollBar(HDC hDC) {
   }
 
   unsigned long ctUpDown =0;
-  unsigned long ctScroll =0;
 
   bool bTransparentUpDown = true;
-  bool bTransparentScroll = true;
 
   if (bTransparentUpDown)
 	ctUpDown=SRCAND;  //Combines the colors of the source and destination rectangles by using the Boolean AND operator.
   else
 	ctUpDown=SRCCOPY;  //Copies the source rectangle directly to the destination rectangle.
-
-  if (bTransparentScroll)
-	ctScroll=SRCAND;  //Combines the colors of the source and destination rectangles by using the Boolean AND operator.
-  else
-	ctScroll=SRCCOPY;  //Copies the source rectangle directly to the destination rectangle.
-
 
   // TOP Dn Button 32x32
   // BOT Up Button 32x32
@@ -3983,22 +3912,12 @@ void WndListFrame::DrawScrollBar(HDC hDC) {
 	}
 
 	// box around slider rect
-	#if FIXDC
 	hP3=LKPen_Black_N2;
-
-	#else // ------- REMOVABLE
-	hP3 = (HPEN)CreatePen(PS_SOLID, DEFAULTBORDERPENWIDTH * 2, RGB_SCROLLBARBOX); 
-	#endif // -------- REMOVABLE
-
 	int iBorderOffset = 1;  // set to 1 if BORDERWIDTH >2, else 0
 	SelectObject(hDC, hP3);
 	// just left line of scrollbar
 	DrawLine2(hDC, rc.left+iBorderOffset, rc.top, rc.left+iBorderOffset, rc.bottom, rc.right, rc.bottom); 
 	DrawLine2(hDC, rc.right, rc.bottom, rc.right, rc.top, rc.left+iBorderOffset, rc.top); // just left line of scrollbar
-	#if FIXDC  
-	#else
-	DeleteObject(hP3);
-	#endif
 
   } // more items than fit on screen
 
@@ -4009,10 +3928,6 @@ void WndListFrame::DrawScrollBar(HDC hDC) {
   rcScrollBarButton.top=rc.top;
   rcScrollBarButton.bottom=rc.bottom;
 
-  #if FIXDC
-  #else
-  DeleteObject(hP);
-  #endif
 }
 
 
@@ -4111,10 +4026,6 @@ int WndListFrame::OnItemKeyDown(WindowControl *Sender, WPARAM wParam, LPARAM lPa
 	(void)Sender;
 	(void)lParam;
   switch (wParam){
-#ifdef GNAV
-    // JMW added this to make data entry easier
-    case VK_F4:
-#endif
   case VK_RETURN:
     if (mOnListEnterCallback) {
       mOnListEnterCallback(this, &mListInfo);
@@ -4122,7 +4033,6 @@ int WndListFrame::OnItemKeyDown(WindowControl *Sender, WPARAM wParam, LPARAM lPa
       return(0);
     } else 
       return(1);
-    //#ifndef GNAV
   case VK_LEFT:
     if ((mListInfo.ScrollIndex>0)
 	&&(mListInfo.ItemCount>mListInfo.ItemInPageCount)) {
@@ -4205,6 +4115,8 @@ int WndFrame::OnLButtonDown(WPARAM wParam, LPARAM lParam) {
 	(void)wParam;
 
   if (mIsListItem && GetOwner()!=NULL) {
+
+    LKASSERT(GetHandle()!=NULL);
  
     if (!GetFocused()) {
       SetFocus(GetHandle());  
@@ -4220,12 +4132,35 @@ int WndFrame::OnLButtonDown(WPARAM wParam, LPARAM lParam) {
     WndListFrame* wlf = ((WndListFrame*)GetOwner());
     RECT mRc;
     GetWindowRect(GetHandle(), &mRc);
+    LKASSERT(wlf!=NULL);
     wlf->SelectItemFromScreen(xPos, yPos, &mRc);
   }
   isselect = false;
   return(1);
 }
 
+void WndListFrame::SetItemIndexPos(int iValue)
+{
+int Total = mListInfo.ItemCount;
+	mListInfo.ScrollIndex = 0;
+	mListInfo.ItemIndex=iValue;
+
+  if(Total > mListInfo.ItemInPageCount)
+  {
+	if(iValue >  (mListInfo.ItemInPageCount -1))
+	{
+	  mListInfo.ScrollIndex = iValue - mListInfo.ItemInPageCount ;
+	  mListInfo.ItemIndex   = iValue - mListInfo.ScrollIndex;
+	}
+
+    if((Total -  iValue) < (mListInfo.ItemInPageCount))
+	{
+	  mListInfo.ScrollIndex = Total  - mListInfo.ItemInPageCount ;
+  	  mListInfo.ItemIndex   = iValue - mListInfo.ScrollIndex;
+	}
+  }
+	RecalculateIndices(false);
+}
 
 void WndListFrame::SetItemIndex(int iValue){
   
@@ -4281,19 +4216,16 @@ void WndListFrame::SelectItemFromScreen(int xPos, int yPos,
 
 
 int WndListFrame::OnMouseMove(WPARAM wParam, LPARAM lParam) {  
-  static bool bMoving = false;
 
-  if ( (GetTickCount()) >= LastMouseMoveTime )
+  if ( (GetTickCount()) >= (unsigned int)LastMouseMoveTime )
   {
-    bMoving=true;
-
     POINT Pos;
     Pos.x = LOWORD(lParam); 
     Pos.y = HIWORD(lParam);                     
 
     if (mMouseDown && PtInRect(&rcScrollBar, Pos))
     {
-      int iScrollBarTop = max(1, Pos.y - mMouseScrollBarYOffset);
+      int iScrollBarTop = max(1, (int)Pos.y - mMouseScrollBarYOffset);
 
       int iScrollIndex = GetScrollIndexFromScrollBarTop(iScrollBarTop);
 
@@ -4309,7 +4241,6 @@ int WndListFrame::OnMouseMove(WPARAM wParam, LPARAM lParam) {
       mMouseDown = false; // force re-click of scroll bar
     }
     LastMouseMoveTime = GetTickCount();
-    bMoving=false;
   } // Tickcount
   return(1);
 }
@@ -4323,7 +4254,7 @@ int WndListFrame::OnLButtonDown(WPARAM wParam, LPARAM lParam) {
     
   if (PtInRect(&rcScrollBarButton, Pos))  // see if click is on scrollbar handle
   {
-    mMouseScrollBarYOffset = max(0, Pos.y - rcScrollBarButton.top);  // start mouse drag
+    mMouseScrollBarYOffset = max(0, (int)Pos.y - (int)rcScrollBarButton.top);  // start mouse drag
     mMouseDown=true;
 
   }
@@ -4360,8 +4291,10 @@ inline int WndListFrame::GetScrollBarHeight (void)
   int h = GetHeight() - ScrollbarTop;
   if(mListInfo.ItemCount ==0)
     return h-2*ScrollbarWidth;
-  else
+  else {
+    LKASSERT(mListInfo.ItemCount>0);
     return max(ScrollbarWidth,((h-2*ScrollbarWidth)*mListInfo.ItemInViewCount)/mListInfo.ItemCount);
+  }
 }
 
 inline int WndListFrame::GetScrollIndexFromScrollBarTop(int iScrollBarTop)
@@ -4401,11 +4334,11 @@ inline int WndListFrame::GetScrollBarTopFromScrollIndex()
 }
 
 
-#ifndef ALTAIRSYNC
 #include "InputEvents.h"
 
 void WndEventButton_OnClickNotify(WindowControl *Sender) {
   WndEventButton *wb = (WndEventButton*)Sender;
+  LKASSERT(wb!=NULL);
   wb->CallEvent();
 }
 
@@ -4441,6 +4374,3 @@ WndEventButton::WndEventButton(WindowControl *Parent, const TCHAR *Name,
 }
 
 
-// 
-// 
-#endif

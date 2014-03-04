@@ -5,8 +5,6 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
-#define MAXSAFETYSPEED  100	// 360kmh
-#define MAXSPEED	100	// 360kmh = 100ms
 
 class GlidePolar {
  public:
@@ -20,20 +18,19 @@ class GlidePolar {
 				  const bool isFinalGlide, 
                                   double *timetogo, 
                                   double AltitudeAboveTarget=1.0e6,
+                                #ifdef BCT_ALT_FIX
+                                  double cruise_efficiency=1.0,
+                                  double TaskAltDiff=-1.0e6);
+                                #else
 				  double cruise_efficiency=1.0);
-
-  static double MacCreadyRisk(double HeightAboveTerrain, double MaxThermalHeight,
-                              double MCREADY);
+                                #endif
 
   static void SetBallast();
   static double GetAUW();
 
-  static double AbortSafetyMacCready();
   static double SafetyMacCready;
-  static bool AbortSafetyUseCurrent;
 
   //  static double BallastFactor;
-  static double RiskGamma;
   static double polar_a;
   static double polar_b;
   static double polar_c;
@@ -48,13 +45,22 @@ class GlidePolar {
   
   static double sinkratecache[MAXSPEED+1];
 
+  static double FlapsPos[MAX_FLAPS];
+  static TCHAR  FlapsName[MAX_FLAPS][MAXFLAPSNAME+1];
+  static int FlapsPosCount;
+  static double FlapsMass;
+
   static double SinkRate(double Vias);
   static double SinkRate(double Vias, 
                 double loadfactor);
   static double SinkRate(double a,double b, double c, 
                          double MC, double HW, double V);
   static double FindSpeedForSinkRate(double w);
+  static double FindSpeedForSinkRateAccurate(double w);
   static double SinkRateFast(const double &MC, const int &v);
+
+  static double EquMC(double ias);
+
  private:
   static double _SinkRateFast(const double &MC, const int &v);
   static double MacCreadyAltitude_internal(double MCREADY, 
@@ -66,7 +72,12 @@ class GlidePolar {
                                            double *VMacCready, 
                                            const bool isFinalGlide, 
                                            double *timetogo,
+                                         #ifdef BCT_ALT_FIX
+                                           const double cruise_efficiency,
+                                           const double TaskAltDiff);
+                                         #else
 					   const double cruise_efficiency);
+                                         #endif
 
   static double MacCreadyAltitude_heightadjust(double MCREADY, 
                                                double Distance, 
@@ -78,7 +89,12 @@ class GlidePolar {
                                                const bool isFinalGlide, 
                                                double *timetogo,
                                                const double AltitudeAboveTarget,
+                                             #ifdef BCT_ALT_FIX
+                                               const double cruise_efficiency,
+                                               const double TaskAltDiff);
+                                             #else
 					       const double cruise_efficiency);
+                                             #endif
 
 };
 

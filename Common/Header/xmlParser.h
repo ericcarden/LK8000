@@ -47,16 +47,14 @@
         #define TCHAR TCHAR
     #endif /* TCHAR */
 #else
-
-#rwrwr
     #ifndef LPCTSTR
-        #define LPCTSTR co nst char *
+        #define LPCTSTR const char *
     #endif /* LPCTSTR */
     #ifndef LPTSTR
-        #define LPTSTR c har *
+        #define LPTSTR char *
     #endif /* LPTSTR */
     #ifndef TCHAR
-        #define TCHAR ch ar
+        #define TCHAR char
     #endif /* TCHAR */
 #endif
 #ifndef FALSE
@@ -106,12 +104,13 @@ typedef struct XMLResults
 
 // Structure for XML clear (unformatted) node (usually comments)
 typedef struct {
-    LPCTSTR lpszOpenTag; LPCTSTR lpszValue; LPCTSTR lpszCloseTag;
+    LPCTSTR lpszOpenTag; LPTSTR lpszValue; LPCTSTR lpszCloseTag;
 } XMLClear;
 
 // Structure for XML attribute.
 typedef struct {
-    LPCTSTR lpszName; LPCTSTR lpszValue;
+    LPTSTR lpszName; LPTSTR lpszValue;
+    operator bool () { return (lpszName != NULL && lpszValue != NULL); }
 } XMLAttribute;
 
 struct XMLNodeContents;
@@ -122,7 +121,7 @@ typedef struct XMLNode
   protected:
     typedef struct // to allow shallow copy and "intelligent/smart" pointers (automatic delete):
     {
-        LPCTSTR       lpszName;        // Element name (=NULL if root)
+        LPTSTR       lpszName;        // Element name (=NULL if root)
         int           nChild,          // Num of child nodes       
                       nText,           // Num of text fields
                       nClear,          // Num of Clear fields (comments)
@@ -130,7 +129,7 @@ typedef struct XMLNode
                       isDeclaration;   // Whether node is an XML declaration - '<?xml ?>'  
         XMLNode       *pParent;        // Pointer to parent element (=NULL if root)
         XMLNode       *pChild;         // Array of child nodes      
-        LPCTSTR       *pText;          // Array of text fields
+        LPTSTR       *pText;          // Array of text fields
         XMLClear      *pClear;         // Array of clear fields
         XMLAttribute  *pAttribute;     // Array of attributes
         int           *pOrder;         // order in which the child_nodes,text_fields,clear_fields and 
@@ -139,16 +138,16 @@ typedef struct XMLNode
     XMLNodeData *d;
 
     // protected constructor: use "parse" functions to get your first instance of XMLNode 
-    XMLNode(XMLNode *pParent, LPCTSTR lpszName, int isDeclaration);
+    XMLNode(XMLNode *pParent, LPTSTR lpszName, int isDeclaration);
 
   public:
 
     // You must create your first instance of XMLNode with these 3 parse functions:
     // (see complete explanation of parameters below)
-   
-    static XMLNode parseString   (LPCTSTR     lpszXML, LPCTSTR tag=NULL, XMLResults *pResults=NULL);
-    static XMLNode parseFile     (const char *lpszXML, LPCTSTR tag=NULL, XMLResults *pResults=NULL);
-    static XMLNode openFileHelper(const char *lpszXML, LPCTSTR tag);
+    static XMLNode createXMLTopNode()  { return XMLNode(NULL,NULL,FALSE); }
+    static XMLNode parseString   (LPTSTR     lpszXML, LPCTSTR tag=NULL, XMLResults *pResults=NULL);
+    static XMLNode parseFile     (const TCHAR *lpszXML, LPCTSTR tag=NULL, XMLResults *pResults=NULL);
+    static XMLNode openFileHelper(const TCHAR *lpszXML, LPCTSTR tag);
 
     // The tag parameter should be the name of the first tag inside the XML file.
     // If the tag parameter is omitted, the 3 functions return a node that represents
@@ -202,10 +201,13 @@ typedef struct XMLNode
     static XMLAttribute emptyXMLAttribute;
 
     // The strings given as parameters for these 4 methods will be free'd by the XMLNode class:
-    XMLNode AddChild(LPCTSTR lpszName, int isDeclaration);
-    XMLAttribute *AddAttribute(LPCTSTR lpszName, LPCTSTR lpszValuev);
-    LPCTSTR AddText(LPCTSTR lpszValue);
-    XMLClear *AddClear(LPCTSTR lpszValue, LPCTSTR lpszOpen, LPCTSTR lpszClose);
+    XMLNode AddChild(LPTSTR lpszName, int isDeclaration);
+    XMLAttribute *AddAttribute(LPTSTR lpszName, LPTSTR lpszValuev);
+    LPCTSTR AddText(LPTSTR lpszValue);
+    XMLClear *AddClear(LPTSTR lpszValue, LPCTSTR lpszOpen, LPCTSTR lpszClose);
+    
+    
+    operator bool () { return d != NULL; }
 
 private:
 
@@ -213,9 +215,9 @@ private:
     int ParseClearTag(void *pXML, void *pClear);
     int ParseXMLElement(void *pXML);
     void addToOrder(int index, int type);
-    static int CreateXMLStringR(XMLNodeData *pEntry, LPTSTR lpszMarker, int nFormat);
-    static void *enumContent(XMLNodeData *pEntry,int i, XMLElementType *nodeType);
-    static int nElement(XMLNodeData *pEntry);
+    static int CreateXMLStringR(const XMLNodeData *pEntry, LPTSTR lpszMarker, int nFormat);
+    static const void *enumContent(const XMLNodeData *pEntry,int i, XMLElementType *nodeType);
+    static int nElement(const XMLNodeData *pEntry);
     static void removeOrderElement(XMLNodeData *d, XMLElementType t, int index);
 } XMLNode;
 

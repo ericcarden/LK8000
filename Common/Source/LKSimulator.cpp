@@ -6,35 +6,13 @@
    $Id: LKSimulator.cpp,v 1.2 2010/12/11 19:34:01 root Exp root $
 */
 
-// #ifdef _SIM_
-#include "StdAfx.h"
-#include "options.h"
-#include "XCSoar.h"
-#include "Cpustats.h"
-#include "MapWindow.h"
-#include "Calculations.h"
+#include "externs.h"
 #include "Calculations2.h"
 #include "LKMapWindow.h"
-#include "Dialogs.h"
 
-#include "Process.h"
-
-#include "Utils.h"
-#include "Utils2.h"
-#include "Logger.h"
 #include "McReady.h"
 
-#include <commctrl.h>
-#include <aygshell.h>
-#if (WINDOWSPC<1)
-#include <sipapi.h>
-#endif
 
-#include "Terrain.h"
-#include "device.h"
-
-#include "externs.h"
-#include "Units.h"
 
 #define IASMS		CALCULATED_INFO.IndicatedAirspeedEstimated
 #define IAS		CALCULATED_INFO.IndicatedAirspeedEstimated*TOKPH
@@ -58,7 +36,7 @@ void LKSimulator(void) {
   LockFlightData();
 
   // 
-  GPS_INFO.NAVWarning = FALSE;
+  GPS_INFO.NAVWarning = false;
   GPS_INFO.SatellitesUsed = 6;
   // Even on ground, we can turn the glider in the hangar
   BEARING += SimTurn; 
@@ -68,25 +46,77 @@ void LKSimulator(void) {
   #if SIMLANDING
   static bool crashed=false, landedwarn=true;
   #endif
-  static bool doinit=true, landing=false, stallwarn=true, circling=false;
+  static bool doinit=true, landing=false, stallwarn=true, circling=false, flarmwasinit=false;
   static short counter=0;
 
   double tdistance, tbearing;
   double thermalstrength=0, sinkstrength=0;
 
-  if (doinit||!CALCULATED_INFO.TerrainValid) {
-	if (counter++<3) {
+  extern void SimFlarmTraffic(long id, double offset);
+
+  if (doinit) {
+	if (counter++<4) {
 		UnlockFlightData();
 		return;
 	}
-	if (ALTITUDE==0)
-		if (CALCULATED_INFO.TerrainValid) ALTITUDE= CALCULATED_INFO.TerrainAlt;
+	#if TESTBENCH
+	StartupStore(_T(". SIMULATOR: real init%s"),NEWLINE);
+	#endif
+
+	// Add a couple of thermals for the boys
+	InsertThermalHistory(GPS_INFO.Time-1887, GPS_INFO.Latitude-0.52, GPS_INFO.Longitude-0.52, 873, 1478,1.5);
+	InsertThermalHistory(GPS_INFO.Time-987, GPS_INFO.Latitude-0.41, GPS_INFO.Longitude-0.41, 762, 1367,1.8);
+	InsertThermalHistory(GPS_INFO.Time-100, GPS_INFO.Latitude-0.02, GPS_INFO.Longitude-0.02, 650, 1542,2.2);
+	WayPointList[RESWP_LASTTHERMAL].Latitude  = GPS_INFO.Latitude-0.022;
+	WayPointList[RESWP_LASTTHERMAL].Longitude = GPS_INFO.Longitude-0.022;
+	WayPointList[RESWP_LASTTHERMAL].Altitude  = 650;
+	ThLatitude=GPS_INFO.Latitude-0.022;
+	ThLongitude=GPS_INFO.Longitude-0.022;
+
+	if (EnableFLARMMap) {
+		srand( GetTickCount());
+		SimFlarmTraffic(0xdd8951,22.0+(double)(rand()/1000.0));
+		SimFlarmTraffic(0xdd8944,31.0+(double)(rand()/1000.0));
+		SimFlarmTraffic(0xdd8a43,16.0+(double)(rand()/1000.0));
+		SimFlarmTraffic(0xdd8a42,41.0+(double)(rand()/1000.0));
+	}
 	doinit=false;
   }
+
+  // First Aircraft min altitude is at ground level
+  if (ALTITUDE==0)
+	if (CALCULATED_INFO.TerrainValid) ALTITUDE= CALCULATED_INFO.TerrainAlt;
 
 
   if (ISGAAIRCRAFT) {
 	// todo: fuel consumption, engine efficiency etc.
+  }
+
+  // We cannot use doinit for flarm, because it could be enabled from configuration AFTER startup,
+  // and it must work all the way the same in order not to confuse users.
+  if (EnableFLARMMap) {
+	if (!flarmwasinit) {
+		srand( GetTickCount());
+		// Add a poker of traffic for the boys
+		SimFlarmTraffic(0xdd8951,22.0+(double)(rand()/1000.0));
+		SimFlarmTraffic(0xdd8944,31.0+(double)(rand()/1000.0));
+		SimFlarmTraffic(0xdd8a43,16.0+(double)(rand()/1000.0));
+		SimFlarmTraffic(0xdd8a42,41.0+(double)(rand()/1000.0));
+		DoStatusMessage(gettext(TEXT("_@M279_"))); // FLARM DETECTED (in sim)
+		flarmwasinit=true;
+	} else {
+		// Let one of the objects be a ghost and a zombie, and keep the rest real
+		SimFlarmTraffic(0xdd8951,0);
+		SimFlarmTraffic(0xdd8944,0);
+		SimFlarmTraffic(0xdd8a43,0);
+
+		// update relative altitude for ghost/zombie traffic
+		extern int FLARM_FindSlot(NMEA_INFO *GPS_INFO, long Id);
+		int flarmslot=FLARM_FindSlot(&GPS_INFO, 0xdd8a42);
+		if (flarmslot>=0) 
+			GPS_INFO.FLARM_Traffic[flarmslot].RelativeAltitude = GPS_INFO.FLARM_Traffic[flarmslot].Altitude - GPS_INFO.Altitude;
+
+	}
   }
 
   if (ISPARAGLIDER || ISGLIDER) {
@@ -151,7 +181,7 @@ void LKSimulator(void) {
 	// Update altitude with the lift or sink, 
 	ALTITUDE+=simlift;
 	// Update the new altitude with the natural sink, but not going lower than 0
-	ALTITUDE-=(sinkias+0.1); // rounding errors require a correction
+	ALTITUDE-=sinkias;
 	if (ALTITUDE<=0) ALTITUDE=0;
 
 	#if SIMLANDING
@@ -207,10 +237,12 @@ void LKSimulator(void) {
   }
 
 
-  FindLatitudeLongitude(GPS_INFO.Latitude, GPS_INFO.Longitude, 
-                          GPS_INFO.TrackBearing, GPS_INFO.Speed*1.0,
+  if (GS>0) {
+      FindLatitudeLongitude(GPS_INFO.Latitude, GPS_INFO.Longitude, 
+                          GPS_INFO.TrackBearing, ((int)GPS_INFO.Speed)*1.0,
                           &GPS_INFO.Latitude,
                           &GPS_INFO.Longitude);
+  }
   GPS_INFO.Time+= 1.0;
   long tsec = (long)GPS_INFO.Time;
   GPS_INFO.Hour = tsec/3600;
@@ -218,6 +250,21 @@ void LKSimulator(void) {
   GPS_INFO.Second = (tsec-GPS_INFO.Hour*3600-GPS_INFO.Minute*60);
 
   UnlockFlightData();
-  }
+}
 
-// #endif
+
+#if (WINDOWSPC>0)
+void SimFastForward() {
+
+  double gs=GPS_INFO.Speed*10.0;
+  if (gs<100) gs=100;
+  FindLatitudeLongitude(GPS_INFO.Latitude, GPS_INFO.Longitude, 
+                          GPS_INFO.TrackBearing, gs,
+                          &GPS_INFO.Latitude,
+                          &GPS_INFO.Longitude);
+
+}
+
+
+#endif
+

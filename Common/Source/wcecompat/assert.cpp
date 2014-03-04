@@ -26,14 +26,16 @@
 #include <stdlib_extras.h>
 #include <errno.h>
 
+#include "utils/heapcheck.h"
 
 void abort(void)
 {
-  // JMW no abort in XCSoar!	  exit(errno);
+    exit(errno);
 }
 
 void _assert(void* expression, void* file, unsigned line)
 {
-	fprintf(stderr, "Assertion failed: %s, file %s, line %d\n", (char*)expression, file, line);
+	//fprintf(stderr, "Assertion failed: %s, file %s, line %u\n", (char*)expression, file, line);
+	StartupStore(_T("Assertion failed: %S, file %S, line %u\n"), (char*)expression, file, line);
 	abort();
 }

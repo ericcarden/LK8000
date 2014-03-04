@@ -1,0 +1,1792 @@
+======================
+Changes in LK8000 v2.3
+======================
+
+Version 2.3z becomes 3.0a on February 15th 2012
+---------------------------------------
+. Fix possible critical bug in Oracle, using non-eng languages
+
+. Fix version number on startup no more using map font, which could be custom.
+
+. Adjust label fonts for 800x480 resolution, making them a bit smaller.
+
+
+
+Version 2.3y  February 13, 2012
+-------------------------------
+
+NEW
+
+.  Support LX16xx direct logger declaration, no need for manual setup anymore.
+
+.  Added map bitmaps icons for CUP style 10 (NDB) and custom LK style 31 (LKTHERMAL)
+   To use style 31, you need to have cup waypoints with style 31, of course!
+
+
+CHANGES
+
+.  Use MAGENTA color for bearing line, for better visibility and compatible with Garmin instruments
+
+.  TASK LINE/CYL/SECTOR COLOR lines adjustments. Thinner lines, dark green colors.
+   Previously using hpBearing black colors, and too thick lines.
+
+.  Update FINAL, CRUISE  and THERMAL icons by Jiri
+
+.  New sideview airspace handler, allows:
+    overlapped AS
+    embedded AS
+    correct display of AGL airspaces
+    much faster and more precise
+    multiselect AS
+
+.  Pan mode is showing still cross sight , for smoothing effect
+
+
+FIXES
+
+
+. Fix bug on PNA requesting  LK to be restarted upon exit, even with no reason.
+
+. Fix ballast dump external instrument update, sometimes not updating below 55%.
+  Updates are performed, as usual, max every 5 seconds.
+
+. Many memory management fixes, added "Out of memory" message
+
+. Fix bug printing white text on white background when airport labels were printed on "BlackScreen".
+  Text black is correctly inverted to white, but NOT on white boxes!
+
+
+
+
+
+Version 2.3x  February 8, 2012
+-------------------------------
+
+NEW
+
+.  Preliminar support for 854x358 resolution
+
+.  New Customkey FreeFlight Restart for motorgliders
+   Working only after takeoff!
+
+.  Add takeoff and freeflight "cabin chime" sounds, and remove takoeff status message on display
+ 
+
+CHANGES
+
+.  Retune topology lines thickness for smaller sizes.
+
+.  Add map icon for Cup styles "Dam" and "Sender". Adjust size of MtTop for hires, adjust Markers bitmaps
+
+.  Reset forced in configuration for the PGAutoZoomthreshold and AoutOrientScale values, necessary after the change of 2/2
+
+.  AGL referenced asp vertical distances based on intersection point terrain height, not on the current one
+   http://www.postfrontal.com/forum/topic.asp?whichpage=1&TOPIC_ID=5947&#53002
+
+.  Use nearest airspace distances for infoboxes, when no manual selection
+
+. Changed bitmaps icons for lowres devices
+. Adjust level-1 sonar sound
+
+.  Reset config for terrain contrast and brightness, defaulted to 50, airspace warning acknowledgement time reset 
+   and raised from 15m to 30m.
+
+.  Average efficiency time reset and default to 30s.
+
+.  Near AS search radius changed from 5km to 10km
+
+.  Sideview airspaces with frames.
+   Too far message warning reenabled
+   if no near AS is found, sideview to the right wing instead of East view.
+
+
+
+
+FIXES
+
+.  Fix Waypoint editor bug in new comment. If you pressed comment button and leave it blank, weird chars appearing and possible crash.
+    Thanks michele.
+    As seen in http://www.postfrontal.com/forum/topic.asp?TOPIC_ID=5964
+
+.  Fix task edit dialog not allowing to load more than 12 waypoints.
+
+.  Add missing bitmap for task waypoints, only at high zoom levels
+
+.  Fix in 2.3w bitmap for landables waypoint offsetted in hires devices.
+
+.  Fix map label shifted away from icon on hi resolution devices, since 2.3w
+
+.  Fix small bug not setting language file on first configuration, causing LK to request restart even if not changing language.
+
+.  Fix bug not resetting on full reset BUGS to 100%
+
+.  Asp vertical distance calculation was wrong, when asp base defined in AGL altitude
+   http://www.postfrontal.com/forum/topic.asp?whichpage=1.6&TOPIC_ID=5938
+
+.  Fix bottom bar TRM0 still selectable during thermalling even if disabled by configuration
+
+.  Fix bug in configuraion not saving decimals for PG autozoom threshold, and for North Up Above.
+
+. Fix NextETA bug for PGs
+
+
+
+
+
+Version 2.3w  February 1, 2012
+-------------------------------
+
+NEW
+
+. Airspaces SONAR
+  In the nearest airspace page  (which is available from airspace warning window, or from menu Info 1/2 
+  or as a customkey) SONAR mode is making a PING sound proportional to the distance to the nearest airspace.
+  Sonar is intended to be used as an instrument to control proximity to airspace.
+  This means it is usuful expecially when for any reason a pilot is compelled to fly
+  near by an airspace without entering it, for example during a competition.
+  In Nearest airspace Mode, the sonar will start alerting when either near to asp horizontally
+  or vertically.
+  The sound will increase in pitch and frequency as much as we get closer to the airspace.
+  The most alerting sound is an almost permanent signal, warning about a very close ASP.
+  Horizontal distance is considered risky between 150m and 0m (500ft to 0).
+  Vertically, distance is considered risky between 40m (120ft) and 0.
+  Pilot are supposed to avoid the risky condition, as soon as they get the permanent sonar sound
+
+. New  safety MacCready indicator on overlay.
+  Like for safetyaltitude, this indicator appears whenever the multitarget is using safety MC.
+  This happens when the current MC is set to a value which is lower than the safety.
+  When the value is higher, safety is ignored being more conservative! In this case no indicator appears.
+
+. New highresolution bitmaps for map objects (and also landables).
+  Supporting icons for CUP styles: turnpoint, bridge, mountain top, mountain pass, intersection.
+
+
+CHANGES
+
+. Remove analysis button from airspace details window, incorrectly stating to be relative to
+  the airspace, while we still have no "select airspace analysis".
+
+. Calculate 3d distance on airspaces, and choose nearest for sideview based on this value
+
+. Sideview rework.
+    Drawing blue sea level
+    Printing the heading direction N NW E SE etc under the north arrow
+    printint the viewing direction N NW etc under the binocular
+    color optimization for max contrast
+
+
+
+FIX
+
+. Fix very old bug forgetting alternates1 and alternates2 on exit, if one of them was unassigned.
+
+. Fix bug not updating Basic setting efficiency when changing efficiency in config menu.
+  Thanks Enrico.
+
+. Fix infobox TskETE not taking into account the fast final glide.
+  Committed by Mathias Muench.
+
+. Fix minor bug not resetting to 100% efficiency after full profile reset
+
+. Fix minor bug in 240x400 resolution, not displaying the MacCready mode overlay indicator in the correct position.
+
+. PGs optimized routes:
+   Use TP elevation when terrain is not configured
+
+
+
+Version 2.3v  January 26,  2012
+-------------------------------
+
+NEW
+
+. Fast PANNING mode
+    In pan mode the map is redrawn dynamically while a bitmap is repainted for a smoothing effect.
+    At the same time, upper and lower map fast zoom are enabled. Entering full screen will allow to
+    use in SIM mode also the rotate command for a great user experience while browsing the map.
+    Pure HangarWare.
+
+(THE SONAR IS NOT AVAILABLE IN 2.3v! NEXT VERSION)
+. Airspaces SONAR
+  In the nearest airspace page  (which is available from airspace warning window, or from menu Info 1/2 
+  or as a customkey) SONAR mode is making a PING sound proportional to time and distance to the nearest airspace.
+  The closer the airspace, the closer the beeps. This can be disabled for the whole flight with the button .
+  SONAR is working only in Nearest Airspace page, not externally. At least by now.
+(------------------------------------------------)
+
+. Westerboer support for bidirectional MC, wingload, bugs, ballast dump, auto-MC
+
+. New average efficiency (glide ratio) intervals in config menu 5: 3s,5s,10s,45s.
+
+. Add polar file for Ka-8b
+
+
+CHANGES
+
+. Turn on autozoom in PG mode, if waypoint distance below autozoom threshold
+  http://www.postfrontal.com/forum/topic.asp?TOPIC_ID=5750
+
+. Faster data exchange on LX16xx instruments
+
+. Analysis pages:
+    - Removed Temperature page if no probe present
+    - Rename Analysis to Sideview
+
+
+FIXES
+
+. Optimized routes for paragliders:
+    . Calc Altitude with terrain for Optimized Wpt
+    . Use Optimized Wpt for ArrMC0, TaskArr, NxrAltR
+
+
+. Fix loading DAT waypoints file.
+
+. Fix bug in Profiles not loading ZoomCat05 (coast areas), and setting it to 0. Same for TrueWind calc speed and the first AirspaceMode
+
+. Fix configuration page 5 not saving average LD time, always set to 60s for gliders and 15s for PGs.
+  Thanks enrico.
+
+
+
+
+Version 2.3u  January 20,  2012
+-------------------------------
+
+NEW
+
+. Support for CUP files with no header line
+
+. Nearest airspace Sideview rescaled dynamically while approaching an airspace
+
+.  Reset topology zoom levels in configuration to defaults.
+   This is needed because old values in previous profiles were saved as km, not as meters.
+   Changing the name of variable for profile does the job. Old variables are not read, and new variables will be saved.
+
+
+
+CHANGES
+
+. Faster zoom in/out with full topology and airspace rendering.
+
+
+.  Nearest airspace Sideview fixes
+
+   Deactivate ballast buttons in basic config when polar has no ballast
+
+   Work on analysis pages:
+    Polar page
+      Added Glider Name
+      Bigger Font
+      Color adjustments for inverted colors
+
+    Airspace sideview
+      Sky shading in inverted colors mode
+      Color adjustments for inverted colors
+      Added current view name in title
+
+    Nearest AS
+      added too far warning
+
+    Baro page
+      Sky shading in inverted colors mode
+      500m scaling if meter altitudes
+      Color adjustments for inverted colors
+
+    Climb page
+      Sky shading in inverted colors mode
+      0.5 m scaling if m/s climb
+      Color adjustments for inverted colors
+
+    Task
+      Bigger font
+      adjusted colors
+
+
+. Topology configuration setting steps lowered from 0.5 to 0.1.
+  This is needed to grant compatibility while changing distance units.
+
+
+
+FIXES
+
+.  Fix: Flying below or above NOFLY ASP zones causes the yellow warning to disappear
+   http://www.postfrontal.com/forum/topic.asp?TOPIC_ID=5868
+
+.  Distance & ETE to Start : use Optimized Wpt when PGOptimize=ON
+   Change Optimized Wp to Correct Side of SG for Exit SG
+
+.  Fix flickering startup problem, workaround.
+   Since 2.2, selecting profile on startup would show for a while the first left button in a wrong position.
+   Use Correct Finish raduis in PGOptimize
+
+.  Fix two critical memory leaks (LoadSplash and CreateProgress)
+
+.  Fix bug in Notepad and Logbook view: long notes would crash the software.
+   Now we split a long note into two or more notes with the same title.
+   Current note sizes are: max 300 notes per file, each note max 200 characters per title, and 5k in size, 
+   and max 300 lines per single note.
+
+.  Fix Max Height Gain should not be reset after task start or restart.
+   It is reset only on free flight detection after takeoff.
+
+.  fix PG Optimized Wp with Exit Start
+.  Use Optimized Wp for NextETE if PGOtimize=ON
+
+.  Fix Topology thresholds
+    There was a big problem derived from Kalman's 407af5370979b3aaeaa2d8e01240ffb126988e3b commit.
+    Many part of the software rely on absolute mapscale values for deciding what to print and how.
+    For example, topology items. The problem was that if we decide to print small towns at 5km mapzoom,
+    with the new system we shall be printing small towns at.. 5nm mapzoom as well. This is resulting
+    in totally messy map if using any distance unit other than metrics.
+
+.  Fix wrong thresholds for moving map painting when using non-metric distances (nautical or statue miles):
+     - max zoom level for shading terrain 
+     - max zoom level for colored snail trail
+     - max zoom level for drawing thermal circles
+     - 
+
+.  Fix RealScale for Activemap nearestwaypoint: on non-metric distance units selected, it was hard to select a waypoint
+   on the moving map clicking on it, not enough tolerance!
+
+.  Fix RealScale for Heading (track) line, appearing wrongly also at low zoom levels when non-metric distance units selected.
+   The heading track line, if activated, should only appear within a reasonable zoom level.
+
+.  Fix RealScale for WaypointInRange: for non metric distance units, more waypoints than necessary were processed for calculations.
+
+.  Fix RealScale for Waypoint printing on the map.
+   For non-metric distance units, waypoints were not correctly printed depending on map scale.
+
+.  Fix problem with non-metric distance unit, setting configurable topology thresholds incorrectly.
+    This was resulting in quite wrong rendering of topology!! Selecting for example 5 for small cities,
+    would show small cities up to 5km in the original intentions, but really it was also showing them
+    up to 5nm , if nautical miles were in use.
+    Now the topology configuration must show corrected scaled values for topology, and convert them
+    between different distance units.
+
+.  Fix problem in topology settings, also in 2.2, not saving decimal values .
+
+
+
+
+
+
+Version 2.3t  January 14,  2012
+------------------------------
+
+NEW
+
+. Pilot profile configuration separated by system profile.
+
+. Profile full reset warning system
+    In profile-SYSTEM a virtual RESET LK8000 profile is selectable: if chosen, LK will reset
+    default aircraft, default pilot and default system profiles to factory defaults.
+    LK will display this pending situation on the splash screens.
+
+
+CHANGES
+
+- Flight Log Book changes/fixes:
+  (LogBook should be reset with the Reset Logbook button)
+
+.  CR/LF spare character in logbook generated by PNAs, appearing as a bad character
+.  Takeoff and Landing locations added, Pilot name, UTC times
+.  Add Towing time and towed altitude to the Flight Book
+     Will not be accurate of course for Winch launches!
+     It is active only for gliders, not paragliders.
+
+. LoadSplash, load a bitmap on welcome screen background
+
+
+Airspaces
+---------
+. Print airspace name in header line on warnings, remove unnecessary warning type.
+. Make some room for analysis button in warning message.
+. Change airspace warning window and call analysis airspace
+. Info 1/2 Nearest airspace jumps directly into Analysis nearest Airspace
+. Diagram colors inverted in Analysis Pages depending on Config 11 apearence
+
+. Change Config 2/3 Clear marks moved to 3/3, Profiles moved to 2/3 and renamed Save System
+. Save System profile button triggering Profiles, no more allowed to LOAD a profile on runtime.
+
+Paragliders:
+-----------
+
+. Fix paraglider overlay showing SAFETY boxed in place of +1234 value for example.
+. Fix PG Optimisation with Start In (Exit)
+. Automatic Disable PGOptimize if only one Wp in task
+. Don't draw optimized track for Wp before active Wp if PGOptimize=ON
+. wrong optimization if two last cylinder are the same WPT.
+. wrong optimized target when the distance to the cylinder is very small ....\
+
+
+FIXES
+
+. Fix possible critical problem locking the software (dead-lock)
+
+. Draw thermal band under overlays
+  http://www.postfrontal.com/forum/topic.asp?TOPIC_ID=5850
+
+
+
+
+
+
+
+
+Version 2.3s  January 7,  2012
+------------------------------
+
+NEW
+
+. LK Flight LogBook. 
+  Each time that a landing status is detected, three files are created/updated automatically inside _Logger folder.
+
+  LOGBOOK.LST is a notepad formatted file, textual, where each flight is saved on a single line.
+  It can be read using Info 2/2 LogBook "LogBook List" menu button.
+  Only relevant informations such as date, flytime, takeoff landing and aircraft rego are written.
+  The pilot has all the flights listed here, similar to other instruments logbooks.
+  In case of SIM mode, a "SIM" field is appended to the flight line.
+  The LOGBOOK.LST can be reset by user request in LK, using reset button in Logbook menu.
+  
+  LOGBOOK.TXT is a notepad formatted file, textual, and it can be read from LK using 
+  Info 2/2 LogBook "LogBook Details" menu button. 
+  This file is reporting aircraft type, time of takeoff, 
+  landing, flytime, max altitude reached, odometer, OLC distance ,max height gained.
+  In case of SIM mode, SIMULATION is added also.
+  Each flight is on a single dedicated note page, and it is possible to browse through all flights using the arrow keys.
+  The LOGBOOK.TXT can be reset by user request in LK, using reset button in Logbook menu.
+
+  LOGBOOK.CSV is in Comma Separated Value format, and can be open as-is by any spreadsheet.
+  It has fewer informations, and it is never reset by the software.  It is made for external
+  usage.
+  In case of SIM mode, a "SIM" field is appended to the flight line.
+
+  Notes on LogBook:
+  - A flight is added to the logbook when the landing status is detected.
+  - It is also added on lk program exit, if the aircraft is still flying.
+  - On PNA/PPC versions, Logbook is kept only in FLY mode.
+  - On PC version Logbook is made also in SIM mode.
+  - A Takeoff must be detected, in any case, in order to "start" a flight that can be "closed" with a landing.
+  - Remember that the LANDING event is detected automatically about 45 seconds after real landing.
+
+
+
+. New configurable Efficiency parameter in Safety config menu 6.
+  This is the default value for the Basic setting's efficiency
+  and it is loaded on startup.
+
+
+
+CHANGES
+
+. Work in progress with the new Airspace Analysis pages
+
+. Decrease airspace warnlevel to yellow, when leaving a nonfly zone
+
+    This was missing, because the original approach was to not give repeated
+    red warnings when circling on an asp border. However the right behavior
+    should be to give warnings, and the user has to ack it if he doesn't want
+    to see that warning. It is also important if flying near an asp border in
+    parallel with it.
+
+.  Change Timegates to Time Gates on new PG button caption
+
+. Paragliders routes by Bruno:
+
+    Fix : Out Start work only with start gate (only for paraglider)
+
+    Fix PG Task opt.
+    cf. http://www.postfrontal.com/forum/topic.asp?TOPIC_ID=5369&whichpage=2
+
+    Optimize Finish radius if PG Optmize Route
+
+    Draw Bearing to Optimized Start And Finish only if PG Optimize = ON
+
+    Fix Optimisation of very big Cylinder
+
+    Allow Disable AAT for Paraglider
+
+
+. Retuned NOTEPAD window, bigger buttons
+
+. Retune NOTEPAD limits to max 300 notes, each note max 200 lines, and max 5k.
+  Previously the limit was to max 20 notes
+
+
+
+FIXES
+
+.  Fix bug loading some parameters from profiles.
+
+.  SafetyMacCready, SAFTEYSPEED (max speed in polar), WindCalcSpeed (truewind speed calc)
+
+.  Fix NOTEPAD window not fullscreen, text overlapping scrollbar
+
+.  Fix Flarm on map help, inverted Enabled and Disabled meaning
+
+
+
+
+
+Version 2.3r December 31, 2011
+------------------------------
+
+NEW
+
+. DUAL PROFILES: SYSTEM + AIRCRAFT
+  Aircraft parameters (those in config page 7: Category,Polar type, Max Speed, Handicap, Ballast dump time, Aircraft type, Registration,
+  Competition classe, Competition ID) are saved separately from system profiles.
+  They can be saved in the config page 7 (either as new, or overwriting an old one).
+  They can be loaded on startup from the profile subpage in the first start screen.
+  On program termination, aircraft profile is saved to DEFAULT_AIRCRAFT.acf file, like for DEFAULT_PROFILE.prf.
+  If you change anything in the configuration regarding aircraft, it will be automatically be saved into the
+  DEFAULT_AIRCRAFT file. Remember to "save as" or "save new" if you want it to give a name to the aircraft config.
+
+  Aircraft profiles can only be selected on startup, not during runtime.
+
+  Startup screen profile page is showing pilot name and aircraft, and they are updated while changing profiles.
+  However, remember that these choices are saved to defaults ONLY if you enter the program, and NOT if you
+  exit without running really the LK. In that case, in fact, no profile will be saved.
+
+. AIRSPACE ANALYSIS  new nearest airspace side view
+  by Ulli, really useful
+
+. Print real version number on splash screen.
+
+
+
+CHANGES
+
+. Changed "V rough air" into "Max speed" .
+  More practical and intuitive.
+
+. Disable old configuration labels inside system profiles. Reconfiguration of page 7 is required!
+
+. Add new button to dlgTaskOverview to access PG timegates dialog
+  http://www.postfrontal.com/forum/topic.asp?TOPIC_ID=5730
+
+. Add optimized route config option to dlgTimegates
+  http://www.postfrontal.com/forum/topic.asp?TOPIC_ID=5730
+
+. Change default pilot to Wolf Hirth with Standard Cirrus
+
+. Change bottom bar STA3 Radial into MaxAlt
+  Max Altitude reached is more requested
+
+
+
+
+FIXES
+
+. GRecord logger signature is now embedded, but can be also custom for special contests using a different key.
+
+. Fix minor problem with HeadWind display on startup, showing bad value before a valid GPS signal.
+  Fix bug not saving Use baro altitude in config menu 5
+
+
+
+
+
+Version 2.3q December 22, 2011
+------------------------------
+
+NEW
+
+.  New infoboxes for Alternates and BestAlternate Distance and Bearing
+
+.  New configurable bottom bar TRM0 in system setup : if disabled, 
+   while circling the bottom bar will not switch automatically to thermal mode.
+
+.  CustomKey TopRight is available for PGs as well.
+
+.  New customkey change screen colors backwards
+
+. New infoboxes for Max Altitude reached, Max Height Gained, Head Wind Speed.
+
+    [Max Altitude Reached]
+    Max altitude reached during the current flight.
+    It is reset at takeoff and at task restart.
+
+    [Max Height Gained]
+    This height is calculated using the min and max heights detected AFTER the start of free flight.
+    This value is normally used for badges.
+
+    [Head Wind Speed]
+    This is the wind component relative to your current track.
+    It is the difference between the TAS true airspeed and GS ground speed.
+    A positive value indicates a HEAD WIND, and a negative value indicates a TAIL WIND.
+    If true airspeed is not available, estimated TAS is used.
+    In this case the value is only guessed against the current wind set.
+
+
+. New support for LX 16xx device
+
+. New priority based automatic selection of baro altitudes, when more than one baro altitude is available 
+
+
+
+CHANGES
+
+. FLARM-on-map objects by default DISABLED, because in simulator it is annoying after a few tests
+
+. Change bottom bar defaults NAV1 and STA3, little changes.
+
+. Modified Airspace sideview in dlgStatistics.cpp
+
+. Paragliding Race to goal task optimisation update
+
+. Default logger interval during cruise mode for gliders set to 2 seconds, to reduce size of logs
+  This can be eventually changed in engineering menu. Paragliders still keep 1 second.
+  During thermalling 1 seconds for every mode.
+
+FIXES
+
+. Fix 2.3p logger not using Grecord
+
+. Fix bug not initialising TakeOffSpeedThreshold when changing profile with a new aircraft modality
+   Bug found by Eric
+
+.Fix screen "flashing" sometimes, painting only terrain.
+
+. Fix Config/Runtime variables for AutoWind, EnableTrailDrift, AutoZoom, AltitudeMode
+   All parameters that can be changed with a button at runtime should not affect the default system setup configuration.
+
+. Fix TrailActive not loaded correctly from new profile, setting only runtime
+
+. Fux bug in dlgStatistics not coming back to previously selected page , calling Analysis button
+
+
+
+Version 2.3p December 3, 2011
+------------------------------
+
+NEW
+
+. New G record validation scheme, not using DLL anymore.
+  (Still using xcs key though). 
+  We are adding new files in _System folder with Grecord stuff.
+  This is totally temporary. GRecord validation will not be available
+  for PC versions, only for PDA/PNAs.
+  This version is intended to be obsoleted by 3.0 G record validation soon.
+
+. CHANGES
+  none
+
+. FIXES
+
+  If using a custom folder on PC in place of My Documents/LK8000 (or whatever it is called on your pc),
+  then there were problems with saving task and saving history of gotos.
+
+
+
+Version 2.3o November 25, 2011
+------------------------------
+
+NEW
+
+
+. New profiles engine, will save correctly all parameters to each profile
+  Will solve many load/save problems with previous engine
+  It is no more using windows registry
+
+. New CustomKey  for OLC Analysys
+
+. Advance in Analysis pages clicking on the right part of screen like on Nearest pages.
+
+. Add profile "RESET DEFAULT PROFILE" at startup choice, it will reset factory defaults in LK8000.
+
+
+CHANGES
+
+. Changed defaults: pilot name is hanna reitsch, NorthupAbove changed from 10 to 7. AverEffTime changed from 2 minutes to 60 seconds.
+  All DEMO files are configured back, also. Retuned default zoom levels.
+
+
+
+Version 2.3n November 18, 2011
+-----------------------------
+
+NEW
+
+
+. New user friendly map scale zoom levels
+
+. Add new autozoom threshold option for paragliders
+  https://github.com/LK8000/LK8000/issues/40
+  http://www.postfrontal.com/forum/topic.asp?TOPIC_ID=4630
+
+. FastZoom for all devices: quickly clicking on the moving map will trigger
+  a fast zoom request skipping topology painting, for a very fast map redraw.
+  Sound clicks will only happening for the first zoom request, and not for the
+  next fastzoom clicks, because sound clicks are slowing down PNA devices most of the times.
+  The zoom speed is between 5 and 6 times faster than before.
+
+
+
+CHANGES
+
+. Show user friendly mapscale values with changing units as needed
+
+. Show pg initial zoom values as numbers in config page 23
+
+. Modify mapscale precision printed on map, give 2 decimals when using non-metric units
+
+. Change Close button with Save button in basic config
+
+. LK_TONEUP.WAV and TONEDOWN.WAV moved to System sounds folder.
+
+. Remove unneeded texts from pg climb zoom config option
+  As requested by users on forum
+
+
+FIXES
+
+none
+
+
+
+
+Version 2.3m November 11, 2011
+-----------------------------
+
+NEW
+
+- Improve dlgStatistics airspace page
+    -New: Show wpt name,distance,arrival altitude
+    -Bugfix: Place wpt vertical marker line to the correct distance
+    -New: Draw blue "estimated gliding line" based on arrival and safety altitude when looking towards selected target
+    -New: Draw target bearing difference to diagram
+
+
+CHANGES
+
+- Show correct target waypoint in asp analysis
+
+    -Show wpt name
+    -Show wpt position with a white dashed line in the diagram
+    -Scale diagram distance according to wpt distance
+    -Draws "no data" when no wpt selected
+
+- Make asp analysis diagram x axis scaling more user friendly
+
+- Add YELLOW and RED colors to airspace warnings.
+
+- Tune ungestures area: the click area for quickly flipping infopages and nearest pages
+    without using gestures is enlarged a bit for better response.
+    Show overtarget prefix in asp analysis page
+
+- Faster zoom in/out for PC
+
+
+
+FIXES
+
+- Bugfix predicted asp warning messages can show up before takeoff
+
+- Print correct bearing value on dlgstatistics asp analysis page
+
+- Fix bug not showing bearing line correctly when assigned TAKEOFF as current multitarget destination.
+
+- Fix BestCruise track indicator is only relative to T> , and should not appear in other
+  multitarget modes.
+
+- Fix final glide bar mode flashing orange and red.
+  The final glide bar will no more indicate X or orange flashing, to simplify things:
+  red for negative altitude, green for positive.
+
+
+
+
+Version 2.3l November 4, 2011
+-----------------------------
+
+NEW
+
+. Analysis airspace page allows now to switch beetween heading and next wp bearing.
+. New customkey "Nearest airspace"
+
+. Oracle's dialogs can be translated
+
+CHANGES
+
+. Improve dlgStatistics airspace page altitude resolution to 100m
+  Limit Y axis range to 3300m in every case.
+
+
+
+FIXES
+
+. Fix dlgStatistics airspace page ground surface drawing - limit terrain alt to diagram lowest point
+
+
+
+
+
+Version 2.3k October 28, 2011
+-----------------------------
+
+NEW
+
+
+CHANGES
+
+. It is possible to deselect a selected airspace
+
+. Fonts for 320x240 retuned
+
+
+FIXES
+
+. Fix bug since 2.3e: waypoint search missing left and right arrows for sorting direction, distance etc.
+
+. Fix logger header declaring PPC2003 even for PNAs
+
+. Fix 2.3j problem on PPCs, that would not manage hide taskbar correctly, and detect the hardware keys correctly
+
+. Reapplying bugfix by kalman may 31st 2011
+  Fix cheap chinese PNA bug, when system messages appear lk is crashing with exception 0xC000001C
+
+. Bugfix: missing drawing of an airspace disabled in previous session
+  Disable, shutdown, restart, enable -> asp won't show up on map until zoom in/out
+
+. Bugfix: asp openair parser DA sentences
+
+    On forum Posted by GVACILOTTO on 07/10/2011 :  17:02:22
+    At this version i can't see all cylinder airspaces, like a:
+    AC P
+    AN SBP 541 INDUSTRIAS QUIMICAS
+    AL GND
+    AH 2000AGL
+    V X=25:21:08 S 049:02:36 W
+    DA 0.53,0,360
+
+    Parser bug in DA sentence processing fixed.
+
+. Fix possible problem with CE6 devices, freezing the PNA after reloading terrain in configuration
+
+
+Version 2.3j October 21, 2011
+------------------------------
+
+
+CHANGES
+
+. Add modelname and hw type for logger header
+
+. Waypoint engine retuned and optimized
+
+. Terrain shading disabled at low zoom levels, automatically.
+  Previously too low zoom level, resulting in shading still effective
+  even at resolutions where it actually created visibility problems.
+
+. Topology labels on 480x272 no more in italic by default.
+  On a typical 4.3 inches screen we gain some space and readability.
+
+
+FIXES
+
+. Fix default profile not loading from special local directory on PC.
+  The old classic folder was used to load and save DEFAULT profile, 
+  of course only on PC version.
+
+. Fix font edit problem. Enabling custom fonts would also resume old font settings that were no more tunable.
+  Mainly the button and dialog fonts were affected.
+
+. Fix language help limit of 500 characters per line.
+
+
+
+
+
+Version 2.3i October 14, 2011
+------------------------------
+
+NEW
+
+. Topology lines for roads and rivers are now painted with larger line width, on some resolutions.
+
+. Dialogs xml files inside _System/Dialogs/GA  or /GLIDER  /PARAGLIDER /CAR  .
+  These files - if available - have priority over the internal one.
+  It is possible, now, to customise configuration dialogs and menus for each aircraft type.
+
+
+
+FIXES
+
+. Fix snail trail flashing colors. Colors are shown only at a meaningful zoom level, better tuned.
+
+. Fix bug 2.3 Alarms not showing warning message correctly for feet altitude units
+
+
+
+
+
+
+Version 2.3h October 6, 2011
+------------------------------
+
+NEW
+
+. Use dedicated aircraft menus: GLIDER_MENU.TXT, PARAGLIDER_MENU.TXT, GA_MENU.TXT, CAR_MENU.TXT and DEFAULT_MENU as fallback.
+  Currently these menu have the same content, to be changed.
+
+. Add new button Auto MC Thermal+Final , missing.
+
+. Magnetic declination internal calculator for truewind and maybe in the future for true bearings
+
+
+CHANGES
+
+. Old JPG2000 terrain files in old XCM maps are no more supported.
+  If you are still using old XCM maps and you want to convert them to LKM 
+  please contact us. NOTE: Norway was already converted over 60 DEG !
+
+. Moved TotalEnergy button in another position
+
+. Selected airspace has flashing borders
+
+. Airspace warning generation fine-tuning nonfly zone warning messages
+    In the following scenario asp warning generation was wrong:
+    1.Flying under a nonfly zone, with vertical distance>margin from the base of the airspace
+    2.Leaving the zone horizontally, actually flying away from it
+    3.Climbing, that vertical distance to base < margin
+    4.Because horizontal distance is still low, and vertical distance gets low, warning msg generated.
+
+. Change +SAFETY with + safety altitude arrival  numerical value on overlays
+
+. Reduced vario width for 240x320 portrait resolution
+  Only a small reduction, otherwise it becomes invisible in real use
+
+. Transparent vario bar has no borders, for better transparency
+
+. Reduced Topology label character width 700 to 600 in 480x272. Changed label colors making them lighter a bit.
+  On sept,9th I had darkened them too much.
+
+
+
+
+FIXES
+
+. Oracle should not work when there is no valid Gps fix.
+
+. Fix TrueWind using Magnetic declination to correct true heading
+
+. (minor) Correct PG/Delta Time Gates into PG/HG
+
+. FIX BestAlternate search bugs, excluding nearest outlanding when low on terrain and choosing not the best.
+  OVERSAFETY altitude (100m) no more used, because of too conservative results. We use only 70% glide best capability
+  and safety altitude.
+
+
+
+
+
+Version 2.3g September 23 2011
+------------------------------
+
+
+NEW
+
+. Airspace 2.4 page settings are now permanently saved to a config file on shutdown.
+  It is now possible to select and airspace, enable/disable a single airspace, and 
+  make these changes permanent.
+  Be careful that changing airspace file will also remove old settings!
+
+. New Battery indicator is appearing in the right bottom corner
+  decreasing in green and becoming red when battery is nearly empty.
+
+. New Logger indicator near the battery indicator in the right bottom corner.
+    If autologger is disabled, and logging was NOT manually enabled, then
+    this indicator will NOT show up. 
+    The logger indicator in fact appear only when logging is automatic or 
+    manually enabled.
+
+    Orange dot blinking means: ready to log as soon as takeoff is detected.
+    Red dot steady (not blinking) means: logging in progress.
+
+. New Logger INFOBOX, showing  ON if logger is active, no!  if disabled and not manually forced, Auto
+    if enabled but not logging because before takeoff.
+
+. New IS28B2 Lark polars
+
+
+
+CHANGES
+
+. Change delta to hang glider in messages
+
+. Fast Topology cache re-enabled after fixing a problem with zoomed topology.
+
+. BestAlternate rotate multitarget available for PG/HG only if a valid bestalternate
+    was ever found so far during the flight. If no landables are configured, or if these
+    landables have never been elected to a bestalternate, then rotation will skip this choice.
+    In other words: if nothing can be found, even if an old bestalternate which is now unreachable,
+    then instead of showing --- we skip it.
+
+
+
+FIXES
+
+. FIX critical problem that could lead to software crash on some PNAs
+
+. FIX 2.3f problem with Master Time Reset on some gps units.
+  Causing severe system malfunctions: no ground thermal detection, no loggin, unusable !!
+
+
+. FIX infobox geometry in engineering menu removed, it was crashing the sw being unused.
+
+. Fix profile saving: on exit, only default profile is rewritten.
+    Selecting on startup a profile will load that profile, and save it as default on exit.
+    If you want to re/write an existing profile, you must do it manually.
+    It will not be automatically overwritten on exit.
+
+. Fix profile problem not loading aircraft type bitmaps, unless using DEFAULT profile.
+    Still changing aircraft type requires software restarts,
+
+. Fix: do not use airspaces with no name defined.
+
+. Fix airspace parser reads wrong altitude
+    Malformed alt specification causes the parser to read wrong values.
+    For ex:
+    AL FL 65 (MNM ALT 5500FT)
+
+
+
+
+Version 2.3f September 16 2011
+------------------------------
+
+NEW
+
+. New Total Energy configuration in Safety parameters
+    When TotalEnergy is in use, LK will calculate the height you would gain by pulling up the aircraft at the current speed, up
+    until the speed becomes the optimal for best glide.
+    For example if you are flying at 200kmh with a discus with no ballast, the speed energy would be calculated as if you would
+    pull up and slow down to 100kmh: you would certainly climb to a better altitude of course.
+    This speed height will be added to all arrival altitudes. By default this feature is DISABLED, for safety reasons.
+
+    The totalenergy in LK does not affect glide ratio values. Only arrival altitudes.
+
+. New Total Energy button in Config 2/3 menu
+
+. New customkey Toggle Total Energy
+. New customkey Notepad
+
+. New Button DISPLAY 1/3 and CustomKey "Change Terrain Color".
+    It will rotate among the available terrain colors, in real time.
+    So it's now possible to adapt map colors to the current terrain.
+
+. New +SAFETY overlay indicator on map display.
+    When the multitarget is a landable waypoint, and safetyaltitude is in use,
+    and safetyaltitude was set as at least 50m, then the +SAFETY is printed
+    below the arrival altitude.
+
+
+CHANGES
+
+. Task speeds <99 are now printed with one decimal value.
+    Airspace selection back available with a long click on them on the moving map, even if
+    no activemap is enabled. Airspace selection has priority over all customkeys, as it was before.
+
+. Overlay distance for paragliders using 3 decimals.
+    Bottom bar using max 2 decimals, even for paragliders.
+    Lets remember that the gps fix precision is not better than 4-5 meters
+    in the best of cases! When logging for a competition with another logger,
+    the two gps may have different distances to the waypoint, and using 3
+    decimals will result in a false reading.
+
+. Removed FLARM on MAP/Scaled mode: confusing, and never fixed.
+    If an icon is painted on the map, it should be in its correct position.
+    Scaled mode was an earlier radar mode in fact, but LK has no radar mode implemented.
+
+. Oracle 2, "The Oracle Strikes Back" (more serious sounds, using also big cities, more informations, all uppercase)
+
+
+
+FIXES
+
+. Bugfix TaskETE was not calculated when not enough height to complete the task.
+    Task ETE is a simple DistanceToGo / SpeedAchievedSoFar
+
+
+
+
+Version 2.3e September 10 2011
+------------------------------
+
+NEW
+
+. The Oracle
+  Oracle is printing informations about your position, by examining both topology and waypoints,
+  and figuring out a reasonable position reporting to be used via the radio.
+  Oracle is creating a verbose description of your position.
+  You can call the oracle with a button in INFO 1/2  and also with a customkey that you can 
+  configure. By default it is assigned to the new CENTER SCREEN customkey.
+
+
+. New customkey CENTER SCREEN, and changes in airspace selection.
+    Center Screen is a customkey called by clicking for at least 1 second
+    in the map center area (with some good tolerance). By default this CK
+    is assigned with the "Oracle" function.
+    If PAN mode is enabled, this key will not work.
+    >>Airspace details now are possible by clicking on them only if ActiveMap is enabled.
+
+. PC version using current execution directory as LK8000 folder, if _System/_SYSTEM folder and file are found.
+    If no directory _System is found , or there is no _SYSTEM file inside, then we go using the old classic
+    Documents LK8000 folder, as usual, which is the old default folder.
+
+. Ungestures: in 2.x 3.x 4.x pages, an alternate mode for advancing through pages (aside gestures, still valid) is to
+    simply click on the left and right screen border, in the center.
+    +-----------------+
+    |                 |
+    |                 |
+    |X               X|
+    |                 |
+    |                 |
+    +-----------------+
+
+    Gestures are still available of course, but this facility is speeding up page flipping a lot!
+
+
+. Add FLARM traffic to simulator, if FLARM on Map is enabled in system config menu 13.
+    Four flarm objects are added around the plane. One of them will become a ghost and a zombie quite soon.
+    Objects are moving a bit, but just to let you experiment with traffic on LK.
+    Page 4.1 TRF is of course enabled, and FlarmNet is used as in real life.
+    Overlay multitarget F> is also enabled, and need an object selected in 4.1.
+    Selecting a target in 4.1 will show it in page 4.3 and 4.2 .
+    All of this is useful for making practice with FLARM traffic and explore the 4.3 sight page.
+    Do not expect to have a videogame, because traffic is not moving as in real life.
+
+    >> If you dont want FLARM simulation, please disable "Flarm on Map" in config menu 13
+
+
+CHANGES
+
+. E.20s added one decimal for LD value
+. Airspace details now are possible by clicking on them ONLY if ActiveMap is enabled.
+
+. Custom key selection list is now alpha-sorted.
+. Overlay distances for paragliders have always 3 decimal digits, when the distance is not 0 and below 99.
+
+. Topology labels using a darker PETROL color, for better contrast on the moving map
+
+. Radius size in task setting has now a 0.05 step for better precision
+  So it is now possible to use correct cylinder sizes expressed in imperial
+  units like miles.
+
+. MC buttons will hide AutoMC buttons if manual changes are selected.
+  This will show screen overlays in landscape mode.
+  Pressing on Manual, will make them appear again.
+
+
+FIXES
+
+. Analisys page correctly working full screen with better visibility
+. (2.3) Font quality not applied correctly (antialiasing)
+. Fix 2.3 paraglider Home overlay H> no more working using TAKEOFF
+
+. Fix topology problem making small towns not appear immediately on the map
+  and appearing back only after some zooms.
+  (Bug due to accelerator engine which is now temporarily disabled until fixed:
+   some huge topology files may run slower now, until the accelerator is back).
+
+. Fix Simulator problem when no valid terrain available.
+  Looping into creation of thermals and flarm objects !!
+
+
+
+
+
+
+--------------------------
+Version 2.3d  August 26 2011
+
+AAT Rework by Mat, changes & fixes:
+
+. Drawing of thermal bar disabled for Target PAN map mode
+. Target PAN sectors position set to the screen center
+. AAT target symbols printing fixed
+. Drawing of a AAT task fixed for Target PAN screen
+. Drawing of bearing to the target instead of waypoint fixed for AAT task
+
+. Target dragging switched to clicking for AAT Target PAN dialog
+  Dragging a small circle on the screen is not a turbulence proof interface.
+  It is extremely hard to do it during a turbulent flight. Now a click is
+  enough to move AAT target inside the AAT area.
+
+. Target PAN zoom level increased a bit to make it easier to move the target
+. Orientation of active waypoint fixed in Target PAN to not rotate the screen constantly while selecting AAT target
+. Multitarget bearing line fixed for non-waypoint overlays in AAT task
+
+
+NEW
+
+. OziExplorer waypoint format supported
+
+. New PLKAS   NMEA sentence.
+    The syntax is:
+    $PLKAS,nnn,*checksum
+    where nnn is the Indicated Air Speed in m/s *10
+    and checksum is the NMEA checksum
+    Example for nnn  346 = 34.6 m/s  which is = 124.56 km/h
+    This sentence can be sent anytime, with any device connected.
+    It is normally a sub sentence of the LK8EX1 device.
+
+. New customkey Screen Lock
+
+. New Location Markers 
+
+  To mark the current position in a waypoint, use the button on the main menu or the customkey.
+  A virtual waypoint called MK123456  will be created , assuming in the example that the time
+  was 12:34.45 (local time). 
+  The waypoint detail's description field will report the nearest known waypoint 
+  (for example   Near: London).
+  Markers will appear as waypoint inside both 2.3 TPS and 3.1 COMMON pages.
+  Markers are inserted in the COMMON 3.1 pages as Last-in First-out.
+  They are inserted after the usual commons (home, bestalternate, alternates, task points..).
+  Up to 10 virtual waypoints for markers are allowed. Creating a new marker beyond this number
+  will overwrite the oldest existing marker.
+  On the moving map, markers will appear with a yellow Flag icon.
+
+  All markers are also saved to a CUP file called with the current date, like LKyyyymmdd.cup .
+  So each flight in a different day will have its own markers cup file, that can be reloaded as
+  an ordinary waypoint file anytime.
+
+
+CHANGES
+
+. Initial circling zoom increased a bit
+. Fix simulator mode speed for paragliders.
+  Dragging the aircraft was causing the ground speed to raise too much
+
+. Airspace support for airspace files containing V sentences
+  with no space beetween V and X characters (for example, Rieti's official airspaces)
+
+. Reduced config page 12.Font edit
+    Only Map waypoints and Topology labels can be changed for fonts.
+    Anything else is under control of fine tuned configuration.
+
+. Fix sticky AutoMC problem using EqMC.
+    Leaving a thermal, EqMC wouldnt be set valid if flying below MC 0 speed. In this case, AutoMC would not
+    be set with a valid EqMC and thus would remain sticky to the old value, in use before entering the thermal.
+    Now we accept negative MC between >-1.0 and we assume for example that a -0.3MC is really a 0.3.
+
+. Old HomeWaypoint, Alternates and TeamReference waypoint  no longer valid, due to change of internal waypoint structure
+
+. Using DEFAULT_MENU.TXT common for all languages.
+  We can have different menus for GA, Paragliders, gliders now.
+  Old ENG_MENU  FRA_MENU  etc. are no longer used. Translators will need to only work on a single MSG file.
+  DEFAULT_MENU.TXT is now positioned inside the System folder and it is not supposed to be edited by users.
+
+. Fix FL (Flight Level) using standard pressure altitude.
+  Current altitude (Baro if available, otherwise Gps altitude) is transformed into pressure relative to the
+  current QNH stored, and then this pressure is converted back to altitude using 1013.25 QNE pressure.
+  The resulting altitude -QNE Altitude- is converted to feet, and divided by 100. The integer part of this
+  number is the Flight Level.
+
+
+
+FIXES
+
+. (2.3) Fix align flags chars in 2.4 nearest asp page, SFE chars overwriting brg in some portrait mode
+. (2.3) Fix 2.3 bug Font Smoothing no more working correctly.  Apply font smoothing changes work also on PC version.
+. (2.3) Fix L> last thermal name not updated.
+        It was correctly pointing to the new thermal, but the name was not updated.
+
+. (2.3) Fix for determining flaps settings when using different units than kph
+
+. (2.3) Fix system setup bug: Number of time gates wrong position, missing header
+
+. (2.3) remove screen flicker on all Dialog
+
+
+
+
+
+--------------------------
+Version 2.3c  July 31 2011
+
+NEW
+
+. New support for Medion S3747 aka Royaltek BV-3200 aka other brands. Baro altitude is managed.
+
+. New support for Holux FunTrek aka CompeGps rebranded device, full support for battery power,
+  resolution, baro altitude etc.
+
+. New page 3.3 Thermal History
+
+  This page can be also disabled as usual. It will list up to 50 thermals, out of a max 100,
+  related to current flight. Thermals cannot be saved! 
+  Each thermal listed is showing usual values as in the nearest page, and the average lift.
+  You can sort by distance, bearing, lift and name.
+
+  The thermal name is the local time you entered the thermal , example: th1437 if you entered
+  this thermal at 2:37pm .
+
+  Selecting as usual a thermal will pop up a page where you can SELECT it.
+  Once selected, the thermal is assigned to the L> multitarget, and you are instantly brought
+  to L> moving map.
+
+  - In the thermal details page, a Team Code is shown in order to let you broadcast via radio
+    the position of this thermal to friends.
+
+  - A nearby location is shown also in thermal details title window
+    The nearest waypoint within 15km is used for this purpose.
+
+  After a new thermal is detected (after thermalling), this thermal is automatically assigned to
+  the L> multitarget.
+
+  The L> is always showing the thermal name, ex. H1237  and no more a simple "THERMAL".
+  In the 3.3 page, the selected thermal has its name leaded by a > .
+  Example:      >H1237
+  
+  The 3.3 page is listing red and italic all thermals that are currently unreachable.
+
+  >> The thermal position is assigned using the aircraft position just after started thermalling,
+     and its altitude. Thus you will be pointed exactly to the place you were (right or wrong)
+     just before you started climbing. <<
+
+    When selecting multitarget L> in map mode, a circle will appear around the
+    center of the selected thermal, at high zoom levels.
+    The circle will not appear at low zoom levels, being not enough visible on
+    a small screen.
+    The circle is drawn around the thermal center, while the multipoint L> target
+    is slightly different because it is indicating the point you have actually
+    entered the thermal, and its altitude.
+    Thus on the moving map you will see both the entering point, and the thermal center,
+    giving you an exact idea of how you started thermalling there, and were you ended up to.
+
+    Some thermals are added for the simulator, appearing in 3.3 in SIM mode only.
+    The closest thermal is .. real for the SIM, meaning that going to that
+    thermal will show real sink and lift!
+
+. New ALTITUDE ALARMS in Menu Config 15
+
+    There are 3 available altitude (height, really) alarms available.
+    An alarm will be triggered everytime the configured altitude is reached or crossed.
+    The alarm will not be repeated within the next 60 seconds.
+    After 1 minute, if altitude has been lower than Max Altitude and then becomes higher again, alarm will sound again.
+    To disable this alarm, set it to 0.
+    The altitude used for alarm is the one chosen in Config menu 5 "Use baro altitude".
+    Multiple alarms set at the same altitude will have no effect.
+    Glider pilots should be careful not to set alarms below a safety altitude, during critical phases of flight.
+    Each alarm can be repeated max 30 times. After 30 times, an alarm will automatically self disable for the current flight.
+    The visual alarm message automatically disappears after 12 seconds.
+    Each alarm has a custom sound that can be changed inside _System _Sounds folder.
+    They are named LK_ALARM_ALTx.WAV
+    Default is 0 (no alarm).
+
+.   Optimized routes for paragliders.
+    Draft, but fully working. Leaning on AAT locked target and virtual waypoints, a pretty effective result.
+    THANKS to Donato, DigiFly Europe, for some important parts of the code, help, and support!
+
+    Optimization can be enabled in Paragliders config menu 23, and as a customkey.
+    When enabled, the T> overlay, the Next waypoint distance, altitude diff, bearing etc.
+    are all related to the optimized turn point on the cylinder.
+    The correct optimized point of turn is visualized also.
+    The optimized turnpoint is named with a "!" leading. Example: turnpoint name is "JACKHILL"
+    as optimized point it will appear as T>!JACKHILL   and also in turnpoint list and nearest pages.
+    This is a virtual waypoint, like thermal, takeoff etc.
+
+    Since Optimized Route (O.R.) rely on the internal AAT engine for gliders, it is better that
+    paragliders check the TARGET  cylinder radius to be at -100% , in order to let the calculator
+    consider the max radius as a turnpoint. By default, but only when you create a new task as
+    paraglider with this version, all radius are set to -100%. To check, menu NAV 2/3 and then
+    "Target" , then select turnpoints exluding first and last (start and finish).
+    Check that Range is -100%, and Radial is 0.
+
+. New Configurable AutoMC on/off on startup, and new overlay indicators aside MC overlay.
+  When autoMC is enabled, an "A" is painted aside MC overlay.
+  AutoMC indicator is : F (Final glide) A (Average climb)  E (Equivalent)
+
+. New AutoMC buttons and configuration. It is possible to change AutoMC type at runtime now.
+  The AutoMC mode is shown as overlay indicator, and through MC buttons a pilot can change
+  on the fly MC among manual and all auto modes. Configuration is kept for default value.
+
+. New device driver for Westerboer VW1150
+
+. New customkeys: Airspace Analysis and Toggle Map<>Airspaces page
+
+. New customkeys: Zoom in, Zoom in more, Zoom out, Zoom out more.
+
+. New customkey: Toggle Optimize Route
+  Optimize route is a function for paragliders only, right now.
+
+. New Airspace details page, two new buttons for SELECT and ANALYSIS.
+
+   SELECT is used to choose an airspace to be monitored for Hdist and Vdist infoboxes.
+   We call the Selected airspace "Preferred".
+   
+. New airspace 2.4 page flags (the * column on the right)
+  E = Enabled
+  D = Disabled
+  S = Selected
+  F = Fly-In modality
+
+  When flying inside an airspace, the Distance instead of 0 is showing IN 
+  When flying near an airspace in yellow condition, the Distance is showing a trailing "!".
+
+  All 2.4 rows are painted white, red or yellow (light colors)  following alerting situation.
+
+. New airspace drawing options for drawing airspaces with borders and outlines
+  This will actually tell you at a glance where is the internal side of airspace.
+  (Warning, this can slow down devices with high screen resolution or slow processor, use with caution!)
+
+. Support 320x234 and 234x320 screen resolutions. Preliminary.
+. Support for 240x400 portrait mode
+
+. LOCK mode (Config 1, Lock Mode button) is available for all aircraft modes.
+  Paragliding/Hanggliding mode will automatically unlock the device a few seconds after takeoff.
+  Other modes (car, GA, gliding) will keep device locked until manually unlocked.
+  This is useful on some devices that are pocket-sized such as Funtrek.
+
+. Add ACT indicator in mapscale for ActiveMap status
+  ActiveMap can be enabled/disabled with both a customkey and menu button.
+  When it is enabled, the indicator appears near the map scale.
+
+. New support for Zander ZS1 including MC and Wind 
+
+. New extended polars with flaps extensions for flaps support:
+	SZD-38A Jantar
+	LS-6-15
+	Lak17A-15
+	Lak17A-18
+	Nimbus 4
+	SZD-56-2 Diana2
+	Ventus 2Cx (18m)
+
+.   Add PREROTATE and ENDROTATE external execution programs.
+    PREROTATE1.exe PREROTATE2.exe and PREROTATE3.exe will be executed before anything else.
+    On exit, ENDROTATE1.exe ENDROTATE2.exe ENDROTATE3.exe will be executed before ENDLOAD_99.EXE .
+    Example of how to make the screen rotate 90 degrees on startup, and make it back normal on exit:
+    - Copy rotate.exe from System CEUtils folder of LK in the LK8000 folder, where LK8000-PNA.exe is.
+    - Rename rotate.exe into  PREROTATE1.exe
+    - Copy rotate.exe again, and rename to ENDROTATE1.exe
+    - Copy rotate.exe again, and rename to ENDROTATE2.exe
+    - Copy rotate.exe again, and rename to ENDROTATE3.exe
+
+    This way, screen is rotate to 90 degrees on startup, and by 270 degrees on exit.
+
+.   Reset FLARM after a task declaration.
+
+
+
+
+CHANGES
+
+. Huge code cleanup, smaller executable size.
+
+. IBOX mode is no more available (button still there, but no effect)
+
+. WEATHER support for RASP is no more available.
+
+. Weather button no more available in menu.
+
+. Enable Contest Engine also for non-glider aircrafts, IF infopage 1.5 is enabled.
+
+    This means that using glider mode will not require 1.5 to be enabled.
+    But using paragliding, GA or Car mode will require 1.5 to BE ENABLED otherwise the
+    calculation engine will NOT run.
+    Be careful enabling during flight calculation engine, because all previous point since the
+    takeoff will not be valid, and the freeflight detection will be wrong of course.
+    (This feature was really added in 2.3B but forgotten to be mentioned!)
+
+. Show overlay BEARING while circling.
+    We could not display bearing difference while thermalling, because it was constantly changing.
+
+. Use manually selected airspace for distance infoboxes. 
+  In order to see Hdist and Vdist infoboxes, an airspace must be selected from Airspace details page.
+
+. Airspace warnings working only after 1 minute have passed since takeoff
+  This is to reduce pilot overload during critical phases of flight.
+
+. (2.3) ArSpcH Airspace Horizontal distance below 1000m (~3300ft) will display 2 decimals.
+  Example, instead of 0.7km it will show 743m  .
+
+. Glide terrain shadow appearing also when not flying, in SIM mode and with an altitude over terrain >100m.
+
+. Enlarge fonts for 400x240 resolution. Nearest pages have now 6 rows.
+  Better visibility on small screens.
+
+
+. Following configuration items were REMOVED from Engineering mode, thus becoming PERMANENTLY removed from LK:
+
+	- VirtualKeys
+	VirtualKeys were obsoleted when the new SIM system was active. No need to use them anymore.
+	They were basically used at the very beginning of LK to change altitude and speed in infoboxes
+	for simulations. Active map is now available on demand by a simple button at runtime.
+
+	- MapLock
+	The old maplock system is permanently removed from the code.
+	Paragliders have a new screen locking mechanism, much better.
+
+	- STF Risk Factor
+	- Block Speed To Fly
+	- Text Input Style 
+	- Animation
+	- Status Message alignement
+	- WindArrow
+
+. Following configuration items are MOVED to Engineering mode, thus becoming candidated for permanent removal from LK:
+
+	. ActiveMap
+	ActiveMap is a good candidate for no configuration. There is a button to activate active map on demand.
+	There is also a customkey for it.
+
+. AAT min time step is now 5 minutes, and no more 10
+
+. Traffic page updated for data only every 5 seconds, like all nearest pages.
+
+
+FIXES
+
+. Fix problem with HP314 resetting flight stats
+
+. Fix do not allow resizing menu buttons on PNA 800x480 devices
+
+. Bugfix Logger problem: it may not write correctly the entire task declaration to IGC file.
+
+. Fix possible crash upon switching off and back on after some hours the PNA during flight.
+
+. Fix problem with huge waypoint files, when turnpoints and landables > 500 in the range of 75km (tps) or 150km (lnd).
+  This is a borderline situation, but may happen expecially with turnpoints since we use flat land distance approximation.
+  We are talking about having more than 500 waypoint around us, in 75km radius.
+
+. Fix update in-range waypoint list when we get first valid GPS fix! Update also on SIMMODE pan reposition.
+  This was an annoying problem: the nearest pages were made using a range waypoint list that was using
+  as a current position our homewaypoint, or our center-terrain (assigned as Takeoff, which was assigned to HomeWaypoint).
+  This is ok, but only until we do get a real valid fix. Now as soon as we get the first valid fix, we
+  recalculate the in-range waypoints.
+
+. Fixed (2.3) "unknown airspace warning message" when a message gets repeated during flying outside a fly zone
+. Fixed (2.3)  Do not calculate airspace data when no valid gps fix
+
+. Fixed no nearest turnpoints showing if no landables were available in at least on waypoint file.
+  Bug introduced when nearest turnpoint pages and landables were unified at code level. Very old.
+
+. Fix (2.3) dlgairspacedetails range field, displaying "to enter" or "to leave" based on horiz ditance, not inside, which includes altitude as well.
+
+. Fix bug AAT next waypoint target bearing and bearing diff wrong .
+  They were always related to waypoint center, and not to the target
+
+. Task Edit / Analysis  will bring to task analysis page, which was not working.
+
+. Fix glidebar painting arrow based on a value that was ignoring safetyMC in some cases.
+
+. Fix LK not checking battery with LKBatteryManager while inside infopages. This might result in delayed warnings about battery.
+
+. Fix (2.3) Flaps using characters for name, and not a number. This was a real problem, since you could not assign for
+  example S1 to a flap position related to a IAS speed, for example.
+
+. Fix (2.3) bug in infopage traffic, not advancing beyond first page.
+
+. Fix airspace parser arc and sector calc
+  If someone wants to make an arc within  0-7.5degree or (360-7.5)-360 degree range nothing added to the polygon list...
+
+. Fix replay logger problem not resetting some variables in flightstats
+
+    This will not solve at 100% all replay problems when replaying several IGC files. Currently the only safe solution is
+    to restart LK to be sure all statistics are reset correctly.
+
+. Fix bug not calculating TC.Avg and Th.All at flight startup.
+
+    LKCalculation freeflight detection was resetting StartClimbMode and this was bad.
+    Because StartClimbMode is set before we actually start climbing, and discarded if
+    after a few turns we are not really circling.
+    FF engine is also using the first thermal to detect FF, and this was causing a sort of a loop.
+    The problem was more likely to appear only in IGC flight replay mode in simulation.
+    However, even in real flight there was 1/100 of chances to get this (minor) problem.
+
+
+
+
+
+-------------------
+Version 2.3b 110609
+
+NEW
+
+. Menu 15 in config, for Alarms - still not operational
+
+
+CHANGES
+
+. Orbiter enabled only after 50m thermal gain achieved. Below this gain, we assume the thermal center is not valid.
+  Orbiter will autodisable after 700m thermal gain. Thus it is now working in the 50-700m th.gain range.
+. 2.4 nearest airspace page contains airspaces in maximum 100km range
+. Airspace nearest vertical distance infobox shows vertical distance to an airspace directly above or below at current position (or to leave a fly zone)
+. Airspace nearest horizontal distance infobox shows horizontal distance to an airspace at the current altitude (or to leave a fly zone)
+
+. Config menu 15 Task rules moved to Menu 14 as a button
+
+FIXES
+
+. Fix a bug in 2.3a causing again sometimes the "White Screen of Pain" problem on startup.
+. Fix Airspace parser, coordinate parsing fails if coords given in DD:MM:SS<spc><spc>X format
+
+
+-------------------
+Version 2.3a 110603
+
+NEW
+
+. New configuration for Polars (requires reconfiguring polar type!)
+. Many new polars
+
+. New FLAPS setting calculator , for extended polars 
+
+. New IMI ERIXX logger support, also for task declaration
+
+. New configurable BottomBar.
+    System config menu 10 let you configure individually each bottombar stripe.
+    While rotating, only desired stripes will be shown.
+    Even if all bars are set off, NAV1 is shown.
+    Thermal mode will keep showing THR 0 bar.
+
+. New configurable Infopages.
+    System config menu 10 let you configure individually each infopage, except traffic.
+    If all pages of a branch (for example, all 2.x pages) are OFF, then that branch will not be selected
+    during rotation.
+    Direct access to pages through custom keys is always possible, bypassing this configuration.
+    Traffic pages 4.x - when Flarm is detected - are always available. If you don't want traffic informations, 
+    then please disable these traffic data being sent by flarm in its protocol, and save CPU.
+
+. New Color scheme for GA: relative terrain.
+    This scheme will show red any terrain above current altitude.
+    Anything below, up to 500ft below, will be graded to yellow.
+    This scheme is NOT good for gliders, because it does not consider the loss of altitude while gliding.
+    It is intended to be used by general aviation mode, optionally activated by a button.
+
+. New Info Status System indicators for :
+	Simulator mode
+	GPS device in use for fix
+	Software version
+
+. New infobox Home Arrival altitude
+
+. ------- New AIRSPACE handling ENGINE ----------
+
+  . NEW 2.4 nearest airspace page
+
+  . New airspace storage classes (CAirspace, CAirspaceCicrle, CAirspaceArea)
+  . New CAirspaceManager singleton class for managing airspace operations
+  . New openair parser based on the old one
+  . New airspace distance calculation algorithms
+  . New TMZ airspace class for handling TMZ zones separated from OTHER zones
+
+  . NOFLY/FLY airspaces introduced.
+    . NOFLY zones - works like the old airspaces. You are in a wrong position when you are inside a nofly zone.
+      Warning events based on this, so if you try to enter a nofly zone you get warnings to not do that.
+    . FLY zones - Zones you should be in to be safe. You are in a good position when you are inside a fly zone.
+      Warning event based on to remain in a fly zone, so if you try to leave it you get warnings to not do that.
+      Flying to an adjacent fly zone is permitted, in that case no warnings issued. (For ex. corridors beetween
+      different fly zones)
+      In the openair file the AF sentence defines a zone as fly, or you can change it from the UI.
+
+  . Current / predicted position
+    Predicted position of the aircraft calculated by lk. This calculation based on current mode (circling/cruise),
+    ground and vertical speed, and the configured warning time. This is the time before an airspace warning event
+    is estimated at which the system will warn the pilot. Warning messages based on predicted and current position
+    as well.
+
+  . Warning levels, warning messages
+    . Yellow warning:
+      Your current position near a warning situation. This means that you have a possibility to be in a wrong position
+      in the given warning time. (30sec by default). There are two types of yellow situation:
+      Predicted warning situation - your predicted posititon in a wrong zone (same as old airspaces case)
+      Near to a warning situation - You too close horizontally or vertically to a warning position.
+      (Too close comes from actual speed and nearest warning point distance and from the configured warning time)
+    . Red warning:
+      Your current position is wrong, you shouldn't be there because that position violates airspace rules.
+      (For example you enter a nofly zone, or you leave a fly zone)
+    . New airspace warning dialog
+      . Shows the reason of the message, warning level, name of airspace, horizontal and vertical distance, airspace
+        base and top altitude
+      . Dialog auto closes after a configured time automatically, or you can close it
+      . There is a possibility to acknowledge the given warning level for a configured time to not show up again.
+      . The old one still accessible under Info1/Analysis/Airspace/Warnings button
+    . Acknowledging
+      . Each airspace has a warning level and a corresponding ack level. 
+      . Actual warning level calculated by LK based on distances, fly/nofly zones, etc.
+      . Ack level set by the user, by acknowledging warning messages.
+      . The warning message appears only if the warning level increases above the ack level. Lets see a few examples:
+          1.You are circling in a position where a no warning/yellow warning situation flipping. When a yellow warning
+            situation occurs a warning dialog appears. If you do not press the ack button then in every circle the new
+            warning dlg will appear beacuse warning level > ack level. But if you ack the yellow warning then the dialog
+            not shows up again in the yellow warning case for a configured time. If the ack time (120s) expires, then the
+            ack level goes back to zero, so the warning will appear again.
+          2.The same case if you are circling at a nofly zone border. Half circle inside the zone. This is a yellow/red
+            warning flipping. If you ack the red warning for a time, then you won't get a new warning message on every circle.
+      . Daily acknowledging - enable/disable an airspace
+        There is a possibility to disable an airspace (until lk restart). You can do that from airspace
+        details dialog (long click on map), pressing the Disable button. Disabling an airspace means that warning
+        dialog will never appear for that airspace, and it is not shown on the map as well.
+    . Warning dialog messages can be:
+      . "Predicted leaving FLY zone" : Current position inside, predicted position outside a flyzone (YELLOW)
+      . "Near leaving FLY zone" : Current position inside a flyzone, but you are too close to the border to leave it (YELLOW)
+      . "Leaving FLY zone" : You have just leaved the fly zone (RED)
+      . "Predicted entering NOFLY zone" : Current position outside, predicted position inside a nofly zone (YELLOW)
+      . "Near entering NOFLY zone" : Current position outside a flyzone, but you are too close to the border to enter it (YELLOW)
+      . "Entering NOFLY zone" : You have just entered the nofly zone (RED)
+    . New airspace info messages
+      . When leaving a nonfly zone
+      . When entering a (new)fly zone
+
+  . New UI features
+    . Long click on the map shows an extended airspace details dialog. 
+      . In the type field FLY/NOFLY displayed
+      . There is a new button to set an airspace to FLY/NOFLY.
+      . Daily Ack changed to Enable/Disable
+      . Enable/Disable and Fly/Nofly buttons do not close the dialog automatically, and do not pop up a confirmation dialog 
+      . The order of the airspaces sorted by top altitude. Lowest first.
+    . Airspace warning labels on map
+      . Can be disabled from config page2/Warnings
+      . Shows a red mark on the nearest posititon to a warning situation
+      . Shows airspace name, and the vertical distance to the border
+      . Vertical distance negative if airspace border above, positive if below your current altitude. (like in landables case)
+      . Label color means:
+        - Black - vertical distance ok, you are in good position vertically
+        - Red - vertical distance wrong against that nofly zone
+        - Orange - vartical distance wrong against that fly zone
+
+    . New infobox showing nearest vertical distance to an airspace (or to leave a fly zone)
+    . New infobox showing nearest horizontal distance to an airspace (or to leave a fly zone)
+
+
+CHANGES
+
+. Polars are now files inside _Polars folder, and can be viewed and edited.
+. Extended polars are possible for use of FLAPS settings indicator. See Example.plr  file in _Polars.
+
+. Device configuration has type "DISABLED", no more confusion.
+
+. Changes regarding airspaces:
+  . Drawing order of airspaces changed. They are draw from lowest top altitude first.
+  . Daily acked (now disabled) airspaces are not drawed on the map
+  . Infobox nearest airspace shows the horizontal distance to the nearest airspace (or to leave a fly zone)
+  . In airspace details dialog (long click on map) ACKDay button behaviour changed, now it shows a simple question to toggle actual ackday setting.
+  . Airspace ACK Day functionality changed to disabled/enabled
+  . Enable/Disable and Fly/Nofly buttons do not close the dialog automatically, and do not pop up a confirmation dialog 
+  . Config page 2 reordered, some parameters moved under page accessible by pressing the "Warnings" button
+
+. Paragliders screen unlock is valid by doubleclicking only on lower right screen corner.
+    Previously any position was good, leading to possible false unlocks during takeoffs.
+
+
+BUG FIX
+
+. Fix bug in 4.1 traffic page: using this page for a long time may lead to system locks. This is a critical fix.
+
+. Fix AutoQNH problem. Takeoff wp was used in place of Home first!
+    Correct mode now is: look for home, if no home nearby, look for another known waypoint near 2km.
+    Do not consider TAKEOFF as a valid waypoint for QNH because it is itself assigned an altitude!
+    If no waypoints nearby, and no home, use terrain altitude if available.
+
+. Fix a possible problem of UTF8 characters on very old devices, that may show as funny tokens appearing in place of text.
+  This was due to missing UTF8 support on some old operating system like Windows CE 3.0. The patch has been tested on
+  CE 3.0 Ipaq 3630.
+
+. Fix cheap chinese PNA bugs, when system messages appear lk is crashing with exception 0xC000001C
+
+

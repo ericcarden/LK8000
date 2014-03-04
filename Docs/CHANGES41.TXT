@@ -1,0 +1,647 @@
+MANUAL ADDENDUM for 4.1 
+
+
+BLUETOOTH EASY SERIAL PORT SETUP
+
+If your device has Bluetooth radio and it is compatible with LK:
+
+MENU > CONFIG > CONFIG > LK8000 Setup > Device Setup
+
+You will find a new button on the left:  Bluetooth.
+
+1 Switch on the external device you want to connect to LK, switch on its BT radio, and make it a discoverable *VISIBLE) device.
+  NOTE: LK is AUTOMATICALLY SWITCHING ON AND OFF BLUETOOTH ON THE PNA
+
+2 Then click on the Bluetooth button , and you will see a new page with a list of known devices, if existing.
+3 Click on the left button "Lookup" to search for new devices in range.
+4 Select the device you want to use, and then click on the button "Pair".
+5 Enter the pin code to pair device, normally 0000 or 1234 , but some devices have a different number so please check, then press OK.
+6 The new device is now listed as "Paired".
+7 Close and return to Device configuration. Click on Port selection.
+8 Scroll at the bottom of devices, you will find your new device! Select it.
+
+you are done! The device is now connected.
+
+Remeber to switch on the device before running LK next time. If you dont do that, you will get an error on startup, but no problems. Switch on device, and then config config config  Reset comms.
+
+
+BLUETOOTH IGC LOGFILE TRANSFER to SMARTPHONES
+
+Some PNA with BlueTooth support such as the Vertica V2 and similar devices, can transfer a log file to another device, like an android smartphone. 
+
+Call MENU, INFO, INFO, LOGBOOK  >  new button "IGC Send File".
+You are now looking at the list of files inside the Logger folder.
+Choose one file and then press SEND button.
+
+In order to work, the smartphone must:
+1) Have BlueTooth switched ON and in VISIBLE state
+2) accept OBEX file transfers through BlueTooth.
+
+Normally Android phones do not have OBEX support, so you need to install a small APP you can find on Google Play, such as "BlueTooth File Transfer" by Medieval Software, which is free of charge or less than 2 euro without advertising.  
+This APP offers in configuration also the capability to be VISIBLE : remember to do it.
+Your phone BT must be set VISIBLE in order to let LK discover it!
+
+After you click on SEND button, LK8000 will search for BT devices in range, and offer you the list of discovered devices offering OBEX support: choose yours and the file transfer will begin.
+In a few seconds, you will normally find the IGC file inside the root folder of your SD card (on an android phone running the Medieval Software app).
+
+
+INTERNAL GPS DRIVER 
+
+On some PNAs it is possible to by-pass the selection of the COM port, and "talk" directly to the GPS through the use of a library called "Intermediate driver". We call this device "Internal".
+If for any reason you dont want or you cannot access the internal GPS on a COM port, you can try to use this approach.
+
+Config > Config > Device Setup > Name
+you normally had "Generic" here, if you were using the internal gps. Go to beginning of the list and select
+> Internal
+
+You will not see the COM port anymore, because it is no longer used by the intenal driver.
+
+
+PC SCREEN RESOLUTION SETTINGS
+
+Support any PC resolution by startup parameters, passed to command line.
+Example:  -x=500 -y=300
+An alternate method to obtain -480x272  is -x=480 -y=272
+x and y must be in the range of 100 to 3000 pixels.
+
+
+NEW CUSTOMKEYS
+
+Reset View . It will instantly bring screen to moving map , and reset all infopages to the first.
+
+
+
+OTHER IMPORTANT CHANGES IN 5.0
+
+TASK FILE FORMAT is now XML, text-based, and can be edited.
+Old task files can still be loaded.
+
+Multimap page 2, final glide page, empowered with new informations.
+Automatically providing the minimal, current and max MC possible for the final glide, considering wind and obstacles.
+
+============
+Version 4.1n
+============
+
+NEW
+
+
+
+CHANGES
+
+
+
+
+FIXES
+
+
+
+
+
+
+
+============
+Version 4.1m
+============
+
+NEW
+
+Add customkey DspMode , accessing Display 3/3 page.
+    Changed DspMode buttons to automatically close menu after press.
+    Display a status message with current mode selected.
+
+HSI page with glide slope indicator showing angle of descent to destination
+    showing also QFU if available
+    working between 5 and 1 miles from destination. Last mile has no glide slope.
+HSI: when landing display vertical speed in Ft/min
+
+New device LXV7 easy
+    simple reception of voltage, IAS and baro altitude from V7, but nothing else.
+    V7 is standalone for configuration, and LK too. What you do on V7 is unrelated to what you do on LK.
+
+New icons for missing CUP tunrpoints type
+
+CHANGES
+
+Conical ESS Turnpoint can be reached less to Cone base Altitude
+PG Optimized Task : always optimize "conical ESS" turnpoint like goal turnpoint.
+
+ Allow PC keys up and down to step in units of 1 (1 kmh, 1 kt) while changing ground speed.
+    This is necessary expecially while checking MC STF using imperial units.
+
+Wind ZigZag more accurate, but requiring also more samples on startup
+
+GA Task: start at departure, remove start-end popups, draw WP lines
+
+
+FIXES
+
+fix eqMC calculation 
+
+Fix 1.7 page appearing before 1.6 when nothing else available on startup
+
+Fix display mode in display page 3/3 should not be saved to profile.
+    We risk thermal mode be disabled, and no indicator is telling us.
+
+fix Y-Grid in MM3 did not exclude SeaLevel indicator
+
+Fix Multiple start point loading
+Fix Multiple Start point dialog layout in portrait mode
+Fix  : overlays value like "Next Arrival Alt Diff" is not updated on multimap
+
+
+
+
+
+
+
+
+============
+Version 4.1k *not good, not released*
+============
+
+NEW 
+
+XXX Task Overview with additional statistic line and revert button
+XXX show split FAI sectors when transition between 28% to 25% rule
+
+Add customkey DspMode , accessing Display 3/3 page.
+    Changed DspMode buttons to automatically close menu after press.
+    Display a status message with current mode selected.
+
+HSI page with glide slope indicator showing angle of descent to destination
+
+
+
+CHANGES
+
+Conical ESS Turnpoint can be reached less to Cone base Altitude
+PG Optimized Task : always optimize "conical ESS" turnpoint like goal turnpoint.
+
+XXX show split FAI sectors when transition between 28% to 25% rule
+XXX FAI indicator in Task Analysis and PAN
+
+
+
+
+FIXES
+
+fix eqMC calculation 
+
+Fix 1.7 page appearing before 1.6 when nothing else available on startup
+
+Fix display mode in display page 3/3 should not be saved to profile.
+    We risk thermal mode be disabled, and no indicator is telling us.
+
+
+
+
+
+
+
+
+
+
+
+
+============
+Version 4.1j
+============
+
+NEW
+
+Keyboard driver 3
+
+
+FIX
+
+Fix debouncing of keys in bluetooth keyboard not working
+Fix keyboard 2 enter key not working
+Fix battery warning CHARGING issued without waiting for 5 minutes interval.
+Fix possible crash or problems using time gates in german language
+Fix 1.7 page problem not appearing when all other infopages are disabled
+
+
+
+
+===========
+Version 4.1I
+===========
+
+NEW
+
+Add "restart Com Port" to customKeys or Custom Menu
+Add support for another bluetooth keyboard and mode 1 and mode 2 usage
+
+CHANGES
+
+. Faster drawing of snail trail
+
+. Update conical ESS tunpoint :
+  add parameters for radius of base
+
+. Faster ZOOM response
+
+. Automatic COM port reset timeout after 45 seconds. Previously 3 minutes, too much.
+
+
+
+FIXES
+
+. Fixed bug in 4.1 top right screen customkey called also when not in multimap, and resulting in reqA sort box not working in the landables pages.
+
+. Fixed a possible lockup problem on program exit
+
+===========
+Version 4.H
+===========
+
+NEW
+
+ThermalBar configuration option for "always", aside Thermal only and thermal+cruise
+
+ Add support for the chinese bluetooth keyboards.
+    This is the first layout manager, BTK1.
+    The keyboard should be kept vertically with the space key on the right.
+    There is no need to look at it for using LK: simply think to be clicking on a screen:
+    think of the keyboard like it was a touchscreen.
+    The only special key is the corner SHIFT which is used as <enter> to confirm a goto.
+    To advance to next pages such as in landables, turnpoints etc, use the top screen keys.
+to use the keyboard, configure device type in device page, Keyboard 1.
+
+Added bearing to next waypoint indication to HSI
+Draw CDI scale anyway in grey also during direct GOTO.
+
+Add Sonar Warning configuration in config Alarm page.
+    By default Sonar is enabled. The configuration choice is set on startup.
+    It is still possible to change sonar on and off with button and custom keys, but
+    on startup the configuration choice will always be loaded.
+
+Add PNA_GENERIC_BTK1 2 and 3  new devices.
+    Only Keyboard 1 is available in device config.
+
+
+
+CHANGES
+
+PGs:
+Change task Requiered Altitude Calculation :
+    if next Tp Requiered Altitude is less than current tp altitude, use current tp altitude for requiered altitude...
+     - AAT Task : altitude of AAT Target point is used if upper center altitude, otherwise, center altitude is used.
+All task turmpoint altitude need to be accounting for task requiered calculation.
+
+
+
+FIXES
+
+Add turnpoint radius for first & last tunrpoint in Task Overview dialog
+"Will this be the finish?" question before add Waypoint can't be removed before refactoring usability of task edition
+fix broken Start Turnpoint in/out Type.
+
+Fix bug in 4.0 vario bar in multimaps black screen
+
+IMI Erixx : use hardcoded baudrate (4800) when the port doesn't support it
+
+Fix Glide Bar should not be visible when there is no valid start, if it is configured to show task arrival altitude.
+    Beside, the value shown without a valid start was wrong.
+
+
+
+
+DETAILS BY BETA VERSIONS:
+
+============
+Version 4.1G
+============
+
+NEW
+
+Infopage 1.7 HSI indicator, optionally can be disabled in configuration of infopages
+
+CHANGES
+
+Reduced size of executable
+
+FIX
+
+LiveTracker back working
+
+
+
+============
+Version 4.1F
+============
+
+NEW
+
+BlueFlyVario support (add to custom menu "DEVICE A/B" for special configuration options)
+
+Conical ESS for paraglider's optimized task system
+
+GPX file format support to load task files
+
+
+CHANGES
+
+Airspace warning configuration is now offering the choice to change the timeout for non-ack asp warnings
+
+
+
+FIXES
+
+Fix logger problem when lat or long minutes are exactly 0 sharp in W or S .
+fix wrong error message claiming the filesystem is not writable while the system folder is just missing.
+fix McCready Speed calculation 
+
+
+
+
+============
+Version 4.1E
+============
+
+NEW
+
+Reverse order of task waypoints (task revert).
+ Expecially useful for GA people but also good for many pilots that are doing an out-and-return through several waypoints.
+ This function is available in MENU > NAV 3/3 > Reverse Task .
+ The button is not selectable if a real task is not running.
+
+
+CHANGES
+Change task Requiered Altitude Calculation :
+    if next Tp Requiered Altitude is less than current tp altitude, use current tp altitude for requiered altitude...
+     - AAT Task : altitude of AAT Target point is used if upper center altitude, otherwise, center altitude is used.
+     - PG optimized : always use Optimized point altitude.
+
+
+
+
+FIX
+Attempt not to freeze while dealing with system level GPS PNA malfunction 
+
+Allow alphanumeric pass key for bluetooth pairing
+
+
+
+============
+Version 4.1D
+============
+
+NEW
+
+added BUGS and BALLST to Borgelt driver
+Sending BUGS, BALLAST and MC using the CAI302 funtions according to the Borgelt documentation
+
+Calculate wind using Enhanced Kalman Filter when IAS is available.
+(Original code from John Wharington in xcsoar)
+To use the EKF wind select  ZigZag or Both  in wind setup window, and/or in configuration system setup menu 5, Auto Wind > ZigZag or Both.
+Wind is updated every 10 seconds, during non-circling flight mode.
+
+Added "Line" sector type that allows to switch to the next waypoint when
+crossing the bisector line between route legs. This is expecially for GA mode.
+
+
+
+CHANGES
+
+. improve "time gates" map overlays,
+- Alternate "Start x/y" and waypoint name each 2sec ( upperleft corner )
+- Alternate Gate status "Gate Open" -> "Next hh:mm" -> "Wrong side" ( right side )
+
+
+FIXES
+
+
+Fix bluetooth problem in 4.1C not switching off correctly
+fix missed time gates initialize after task loading.
+fixed showing the bearing in Taskoverview
+fix drawing artefact if airspace polygon is not closed.
+
+
+
+
+
+============
+Version 4.1C
+============
+
+NEW
+
+. EASY BLUETOOTH SERIAL PORT
+  Totally automatic setup for BT serial connections: automatic switch on/off of BT radio, discovery of devices, pairing.
+  No need to choose a serial port, because it is automatically used, with no possible mistakes.
+  (Tested on Oudie II, Vertica V2, HTC P3600).
+
+. BLUETOOTH IGC LOGFILE TRANSFER TO SMARTPHONE
+  Send Igc log files using BlueTooth OBEX Push Protocol.
+  "Info 2/2" -> "LogBook" -> "IGC Send File"  button
+
+. GPS Intermediate Driver
+  choose "internal" device in "device config" to use the internal gps with no need to specify the COM port.
+  Working on some PNAs, not all . Suggested to be used on V2.
+
+. additional device info and serial number in info dialog for external devices (LX and Westerboer)
+
+. On PC only> remember screen view mode (orientation and resolution)
+
+
+CHANGES
+
+. Add "Port" parameter in live Tracker config (default : 80)
+
+. North up view for FLARM radar added 
+
+. LK now receives the also the QNH form the V7, so it is also bidirectional now
+
+
+FIXES
+
+. AAT Target dialog has all elements also in portrait mode 
+. corrected AutoQNH Altitude display in  feet (number was in meter but unit was feet)
+
+. Fix task loading error : http://www.postfrontal.com/forum/topic.asp?TOPIC_ID=7338
+. fix task loading error with multiple start point.
+. Fix crash with LX V7_EXP driver
+. Fix AAT task : turnpoint Type sector, Start radial and finish radial items values not remembered.
+
+
+
+============
+Version 4.1B
+============
+
+NEW
+
+Multiselect
+-----------
+After a long click on any multimap the new Multiselect dialog opens with a list of the interesting objects in this area (Airspaces, Waypoints, Flarm objects, Taskpoints)
+(the center customkey is no more available for this reason)
+
+
+
+Icons for waypoints, airfields, outlanding, airspaces, Flarmobjects and Taskpoints in the dialogs
+
+Gear warning (with two different modes for mountain and flat lands, setup in Config page 15.
+
+New draw mode Task and FAI, the selected mode will remain on next startup.
+
+New custom key map orientation
+
+FAI Sectors with 25/45% FAI rule for big triangles (500km/750km threshold can be set in Config page 14 Task rules)
+
+Show FAI Sectors for active Task point before takeoff, instead of FAI optimizer
+
+Active keyboard removes keys not leading to a valid waypoint and searches for substrings in the waypoint name.
+Dont auto advance Task Start before freefly detection
+
+Disabled airspaces can automatically be re-enabled on next startup (Setup Page2 Airspaces)
+
+graphical Task editor. By selecting a Task turnpoint in Multiselect, PAN mode opens with moving the task turnpoint.
+
+Add Funtrek GM-132 (same as Funtrek GM-130)
+
+
+CHANGES
+
+New white wing symbol for glider sites
+Automatically remember the selected button bar for next startup
+Removed center custom key (was needed multiselect)
+Show disabled airspaces as grey outlined.
+Disable sky background in sideview if terrain is disabled.
+
+Store selected Map Orientation for main and multimaps (removed from Config, only En-/Disabled now)
+Store Flarm Radar Orientation
+
+
+Wingloading basic settings step changed to 0.5 for gliders, and to 0.1 for paragliders.
+Minimum wingloading for paragliders set to 1 .
+
+Time Gates Changes :
+   - Make end time of last target configurable ( default value is 23:59 )
+   - Remove time gates parameter from system configuration ( is saved with task )
+
+
+
+FIXES
+
+Improved FLARM-Task declaration for more than five waypoints and with checksum.
+Fixed Westerboer STF-switch problem.
+
+C-Probe Device, wrong absolute pressure calculated from GPS Altitude if baro alt is not provided by CProbe
+
+fix OpenAir Altitude parsing error :
+         2000M ASFC -> 2000M MSL
+         2000FT SFC -> SFC
+         2000M SFC -> SFC
+
+
+ 
+VIDEOS 
+
+http://www.youtube.com/watch?v=bIz9s6HYMJE
+http://www.youtube.com/watch?v=Iyk-r6MDpCI
+http://www.youtube.com/watch?v=r_VeQFbUSlg
+
+
+
+
+---------------
+Version 4.1A 
+---------------
+
+NEW
+
+. New fine controls for PC simulator keys:
+SHIFT + (left/right) changes the Track bearing by +- 0.1 degree
+SHIFT + (PgUp/PgDn) changes the altitude by +- 100m
+
+
+. Numeric keyboard as alternate to scroll list:
+
+System Config
+ Waypoint Edit
+ Truewind IAS
+ Safety Altitude
+ Terrain Height
+ Safety Mc
+ Efficiency
+ Menu Timeout
+ Waypoints
+ All the Task Radius (Start Radius/Sector Radius/Finish Radius)
+ Max Altitude 1, 2, 3
+ Task Start time
+ Gates Interval
+
+Basic Settings
+ QNH
+ Altitude
+
+Wind Settings
+ Speed
+ Direction
+
+
+. Support any PC resolution by startup parameters, passed to command line.
+Example:  -x=500 -y=300
+An alternate method to obtain -480x272  is -x=480 -y=272
+x and y must be in the range of 100 to 3000 pixels.
+
+
+. New human readable tsk file format
+All task option is saved with task ( rule, time gate, aat target .... )
+
+. Added information about landable waypoint on Task Edit screen
+
+. Draw thin green dash line from Current position to Active TurnPoint center
+
+. New MultiTarget Task Center, for rotation of multitarget and as a button in standard menu
+  Only for paragliders, and only when Optimized Route is enabled
+
+. Support for PnaDump tool (also in 4.0b)
+
+.  FLARM version in status, and managed flarm device disconnection.
+   Specify baro altitude from flarm if available.
+
+. Multimap 2 empowered: better printed values on screen as boxed overlays, and final glide MC overlay.
+
+. New customkey Reset View . It will instantly bring screen to moving map , and reset all infopages to the first.
+
+. AAT task : Use AAT optimized turn point for overlay data
+
+. NMEA logger creating separated logs for each port, plus a common mixed log.
+
+. Unselect sideview zoom after MM change in Flarm Radar (same as other multimaps).
+  300m default zoom for sideview
+
+.     Fix text keyboard not resetting content on startup. We show old content, before deleting it upon any key activity, except DEL.
+    With DEL , we only cancel last character keeping the old content.
+
+. Add airspace type in dialogs, colored accordingly , to be intuitive.
+
+
+
+
+
+CHANGES
+
+Default zoom level for multimap MM1 in paragliding mode changed to 20km.
+
+NavFunctions: Use precise formula in FindLatitudeLongitude()
+
+Target dialog for AAT sector fixed
+Before the change a Target dialog for narrow AAT sector (like 90o - 180o) was
+centered at the center of the circle used to draw the sector and zoomed
+to view 2x its radius. Because of that sector was really hard to manage in
+AAT tasks. Now the same sector is centered on the screen and stretched on full
+screen.
+
+Skip Alternate 1, Alternate 2 and Last Thermal in multitarget rotate if is not defined.
+
+
+
+
+FIXES
+
+Fix wrong lines drawing in task and topology at high zoom levels, due to overflow in distance calculations
+

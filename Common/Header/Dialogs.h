@@ -5,91 +5,113 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
-#include <windows.h>
+#include "dlgTools.h"
 
 void LKReadLanguageFile(void);
+void LKUnloadMessage();
 
 void SetWindowText_gettext(HWND hDlg, int entry);
-// TCHAR* gettext(const TCHAR* text);
-#define gettext	LKGetText
 void ClearStatusMessages(void);
 
 void StartupScreen();
 
-HWND CreateProgressDialog(TCHAR *text);
+HWND CreateProgressDialog(const TCHAR *text);
 void CloseProgressDialog();
-void StepProgressDialog();
-BOOL SetProgressStepSize(int nSize);
 void StartHourglassCursor();
 void StopHourglassCursor();
 
-extern void DoStatusMessage(const TCHAR* text, const TCHAR* data = NULL);
 
-#define NUMPOLARS 7 // number of in-built polars
+#define GC_SUB_STRING_THRESHOLD 1
 
-#include "dlgTools.h"
+#define IM_AIRSPACE   1
+#define IM_WAYPOINT   2
+#define IM_FLARM      3
+#define IM_THERMAL_PT 4
+#define IM_TOPO_PT    5
+#define IM_TASK_PT    6
+#define IM_AIRFIELD   7
+#define IM_OUTLAND    8
+#define IM_OWN_POS    9
+#define IM_ORACLE     10
+#define IM_TEAM       11
+
+
+typedef	struct{
+  char type;
+  void* ptr;
+
+  int iIdx;
+  double Dist;
+  char Subtype;
+
+} ListElement;
+
 
 bool dlgAirspaceWarningShowDlg(bool force);
 // int dlgWayPointSelect(void);
 int dlgWayPointSelect(double lon=0.0, double lat=90.0, int type=-1, int FilterNear=0);
 int dlgAirspaceColoursShowModal(void);
+ListElement* dlgMultiSelectListShowModal(void);
+void dlgAddMultiSelectListItem(long* pNew ,int Idx, char type, double Distance);
+int dlgGetNoElements(void);
 int dlgAirspacePatternsShowModal(void);
 bool dlgAirspaceShowModal(bool colored);
 void dlgBasicSettingsShowModal(void);
 void dlgBrightnessShowModal(void);
 void dlgHelpShowModal(const TCHAR* Caption, const TCHAR* HelpText);
-void dlgChecklistShowModal(void);
-void dlgConfigurationShowModal(void);
+void dlgChecklistShowModal(short checklistmode);
+void dlgConfigurationShowModal(short mode);
 void dlgVegaDemoShowModal(void);
 bool dlgConfigurationVarioShowModal(void);
 void dlgLoggerReplayShowModal(void);
-void dlgBasicSettingsShowModal(void);
-#if LKSTARTUP
-bool dlgStartupShowModal(void);
-#else
-void dlgStartupShowModal(void);
-#endif
+short dlgStartupShowModal(void);
 void dlgTaskCalculatorShowModal(void);
 void dlgWindSettingsShowModal(void);
 void dlgStartTaskShowModal(bool *validStart, double Time, double Speed, double Altitude);
-void dlgAnalysisShowModal(void);
+void dlgAnalysisShowModal(int inpage);
 void dlgStatusShowModal(int page);
 void dlgSwitchesShowModal(void);
-void dlgTaskWaypointShowModal(int itemindex, int type, bool addonly=false);
-void dlgTaskOverviewShowModal(void);
+void dlgTaskWaypointShowModal(int itemindex, int type, bool addonly=false, bool Moveallowed=false);
+void dlgTaskOverviewShowModal(int Idx=-1);
 void dlgVoiceShowModal(void);
-void dlgWayPointDetailsShowModal(void);
+void dlgWayPointDetailsShowModal(short mypage);
 short dlgWayQuickShowModal(void);
-void dlgTextEntryShowModal(TCHAR *text, int width=0);
+int  dlgTextEntryShowModal(TCHAR *text, int width=0, bool WPKeyRed= false);
+void dlgNumEntryShowModal(TCHAR *text, int width, bool );
 void dlgTeamCodeShowModal(void);
 void dlgStartPointShowModal(void);
-#include "MapWindow.h"
 void dlgWaypointEditShowModal(WAYPOINT *wpt);
-void dlgWeatherShowModal(void);
 void dlgAirspaceSelect(void);
-void dlgTarget(void);
+void dlgTarget(int TaskPoint = -1);
 bool dlgTaskRules(void);
-void dlgAirspaceDetails(int the_circle, int the_area);
+void dlgAirspaceDetails(CAirspace *airspace);
 bool dlgAirspaceWarningVisible(void);
-void dlgFlarmTrafficShowModal(void);
 void dlgLKTrafficDetails(int indexid);
+void dlgThermalDetails(int indexid);
 void dlgTimeGatesShowModal(void);
-#if LKTOPO
 void dlgTopologyShowModal(void);
-#endif
 void dlgCustomKeysShowModal(void);
-void dlgProfilesShowModal(void);
-
+void dlgBottomBarShowModal(void);
+void dlgInfoPagesShowModal(void);
+void dlgProfilesShowModal(short mode);
+void dlgAirspaceWarningParamsShowModal(void);
+void dlgMultimapsShowModal(void);
+void dlgIgcFileShowModal(void);
 
 #if (WINDOWSPC>0)
 #ifdef DEBUG
-//#define DEBUG_TRANSLATIONS
 #pragma warning( disable : 4786 ) 
 #endif
 #endif
 
 void WriteMissingTranslations(void);
+
 void dlgTextEntryKeyboardShowModal(TCHAR *text, int width=0);
-void dlgNumberEntryKeyboardShowModal(int *value, int width=0);
+void dlgNumEntryShowModal(TCHAR *text, int width,bool WPKeyRed);
+
+namespace DlgBluetooth {
+    void Show();
+};
+
 
 #endif

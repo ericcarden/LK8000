@@ -5,11 +5,12 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
-#include <windows.h>
-#include "Sizes.h"
 
 #define CIRCLE 0
 #define SECTOR 1
+#define DAe    2 // only Exist for not AAT and Not PGTask.
+#define LINE   3 // only Used for Save Start and Finish Type in xml file.
+#define CONE   4 // Only Used In PG Optimized Task
 
 typedef struct _START_POINT
 {
@@ -56,6 +57,13 @@ typedef struct _TASK_POINT
   double AATTargetLon;
   POINT	 Target;
   bool   AATTargetLocked;
+  bool	 OutCircle;
+  double AATTargetAltitude;
+  double PGConeSlope; // Slope Ratio for PG Cone Turn point
+  double PGConeBase; // Base Altitude of Cone Turn Point 
+  double PGConeBaseRadius; // radius At Base Altitude of Cone Turn Point 
+  // always add new members at the End of this struct
+  //   needed for compatibility with old task file.
 }TASK_POINT;
 
 typedef TASK_POINT Task_t[MAXTASKPOINTS +1];
@@ -77,7 +85,7 @@ extern bool TargetModified;
 extern TCHAR LastTaskFileName[MAX_PATH];
 
 void ReplaceWaypoint(int index);
-void InsertWaypoint(int index, bool append=false);
+void InsertWaypoint(int index, unsigned short append=0);
 void SwapWaypoint(int index);
 void RemoveWaypoint(int index);
 void RemoveTaskPoint(int index);
@@ -92,9 +100,10 @@ void guiStartLogger(bool noAsk = false);
 void guiStopLogger(bool noAsk = false);
 void guiToggleLogger(bool noAsk = false);
 
-void LoadNewTask(TCHAR *FileName);
-void LoadTask(TCHAR *FileName,HWND hDlg);
-void SaveTask(TCHAR *FileName);
+void LoadNewTask(LPCTSTR FileName);
+bool LoadCupTask(LPCTSTR FileName);
+bool LoadGpxTask(LPCTSTR FileName);
+void SaveTask(const TCHAR *FileName);
 void DefaultTask(void);
 void ClearTask(void);
 void RotateStartPoints(void);
@@ -102,6 +111,9 @@ bool ValidTaskPoint(int i);
 bool ValidWayPoint(int i);
 bool ValidNotResWayPoint(int i);
 bool ValidResWayPoint(int i);
+bool ValidStartPoint(size_t i);
+
+int GetTaskSectorParameter(int TskIdx, int *SecType, double *SecRadius);
 
 double FindInsideAATSectorRange(double latitude,
                                 double longitude,
@@ -122,8 +134,7 @@ void CalculateAATIsoLines(void);
 
 void SaveDefaultTask(void);
 
-void ResumeAbortTask(int set = 0);
+const WAYPOINT* TaskWayPoint(size_t idx);
 
-bool TaskIsTemporary(void);
-
+void ReverseTask();
 #endif

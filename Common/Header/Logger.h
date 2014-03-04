@@ -7,7 +7,7 @@
 
 #include <windows.h>
 void DoLogger(TCHAR *strAssetNumber);
-void StartLogger(TCHAR *strAssetNumber);
+void StartLogger(void);
 void LogPoint(double Lattitude, double Longditude, double Altitude,
               double BaroAltitude);
 void AddDeclaration(double Lattitude, double Longditude, TCHAR *ID);
@@ -19,6 +19,13 @@ void LoggerDeviceDeclare();
 void EW_Strings(double Lattitude, double Longditude, TCHAR *ID);
 void EW_Download(TCHAR *strAssetNumber);
 
+void UpdateLogBook(bool welandedforsure);
+bool UpdateLogBookTXT(bool welandedforsure);
+bool UpdateLogBookCSV(bool welandedforsure);
+bool UpdateLogBookLST(bool welandedforsure);
+void ResetLogBook(void);
+
+
 extern bool DeclaredToDevice;
 bool CheckDeclaration(void);
 
@@ -28,7 +35,7 @@ class ReplayLogger {
   static void Stop(void);
   static void Start(void);
   static TCHAR* GetFilename(void);
-  static void SetFilename(TCHAR *name);
+  static void SetFilename(const TCHAR *name);
   static bool IsEnabled(void);
   static double TimeScale;
  private:
@@ -47,16 +54,16 @@ class ReplayLogger {
 bool LoggerClearFreeSpace();
 void StopLogger(void);
 bool IGCWriteRecord(char *szIn);
-void LinkGRecordDLL(void);
 bool LoggerGActive();
 #define MAX_IGC_BUFF 255
 
+#if LOGFRECORD
 bool LogFRecordToFile(int SatelliteIDs[], short Hour, short Minute, short Second, bool bAlways);
 bool LogFRecord(int SatelliteIDs[], bool bAlways ) ;
 void SetFRecordLastTime(double dTime);
 double GetFRecordLastTime(void);
 void ResetFRecord(void);
-
+#endif
 
 #endif
 

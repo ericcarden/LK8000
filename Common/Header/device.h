@@ -1,19 +1,50 @@
 
 #ifndef	DEVICE_H
 #define	DEVICE_H
- 
-#include <windows.h>
-#include "Sizes.h"
-#include "Port.h"
-#include "MapWindow.h"
+
+#include "MapWindow.h" 
+#include "ComPort.h"
+#include "BtHandler.h"
+#include <vector>
+#include <string>
 
 #define DEVNAMESIZE  32
 #define	NUMDEV		 2
-#define	NUMREGDEV	 25 // Max number of registered devices
+#define	NUMREGDEV	 34 // Max number of registered devices
 
 #define	devA()	    (&DeviceList[0])
 #define	devB()	    (&DeviceList[1])
 #define devAll()    (NULL)
+
+class COMMPortItem_t {
+public:
+    inline COMMPortItem_t(const TCHAR* szName, const TCHAR* szLabel =_T("")) { 
+		_sName = szName;
+		_sLabel = szLabel;
+	}
+	
+    inline COMMPortItem_t(const CBtDevice* pDev) : _sName(pDev->BTPortName()), _sLabel() { 
+        _sLabel = _T("BT:") + pDev->GetName();
+    }
+    
+    inline COMMPortItem_t& operator=(const CBtDevice* pDev) { 
+        _sName = pDev->BTPortName();
+        _sLabel = _T("BT:") + pDev->GetName();
+        return (*this);
+    }
+    inline bool IsSamePort(const TCHAR* szName) const { return _sName == szName; } 
+    
+    inline const TCHAR* GetName() const { return _sName.c_str(); }
+    inline const TCHAR* GetLabel() const { return _sLabel.empty()?_sName.c_str():_sLabel.c_str(); }
+    
+    inline operator const TCHAR*() const { return GetLabel(); }
+    
+protected:
+    std::wstring _sName;
+    std::wstring _sLabel;
+};
+
+typedef std::vector<COMMPortItem_t> COMMPort_t;
 
 typedef	enum {dfGPS, dfLogger, dfSpeed,	dfVario, dfBaroAlt,	dfWind, dfVoice, dfNmeaOut, dfRadio} DeviceFlags_t;
 
@@ -29,9 +60,10 @@ typedef struct Declaration {
 
 typedef	struct DeviceDescriptor_t{
   int	Port;	 
-  FILE  *fhLogFile;
   ComPort *Com;
   TCHAR	Name[DEVNAMESIZE+1];
+
+  BOOL (*DirectLink)(DeviceDescriptor_t *d, BOOL	bLinkEnable);
   BOOL (*ParseNMEA)(DeviceDescriptor_t *d, TCHAR *String, NMEA_INFO *GPS_INFO);
   BOOL (*PutMacCready)(DeviceDescriptor_t	*d,	double McReady);
   BOOL (*PutBugs)(DeviceDescriptor_t *d, double	Bugs);
@@ -51,10 +83,13 @@ typedef	struct DeviceDescriptor_t{
   BOOL (*PutQNH)(DeviceDescriptor_t *d, double NewQNH);
   BOOL (*OnSysTicker)(DeviceDescriptor_t *d);
   BOOL (*PutVoice)(DeviceDescriptor_t *d, TCHAR *Sentence);
-  BOOL (*IsCondor)(DeviceDescriptor_t	*d);
+  BOOL (*Config)(DeviceDescriptor_t	*d);
   DeviceDescriptor_t *pDevPipeTo;
 
   int PortNumber;
+  bool Disabled;
+  
+  void InitStruct(int i);
 }DeviceDescriptor_t;
 
 typedef	DeviceDescriptor_t *PDeviceDescriptor_t;
@@ -63,7 +98,6 @@ typedef	DeviceDescriptor_t *PDeviceDescriptor_t;
 #define Port2WriteNMEA(s)	devWriteNMEAString(devB(), s)
 
 void devWriteNMEAString(PDeviceDescriptor_t d, const TCHAR *Text);
-void VarioWriteNMEA(const TCHAR *Text);
 void VarioWriteSettings(void);
 PDeviceDescriptor_t devVarioFindVega(void);
 
@@ -74,6 +108,7 @@ typedef	struct{
 } DeviceRegister_t;
 
 
+extern COMMPort_t COMMPort;
 
 extern DeviceDescriptor_t	DeviceList[NUMDEV];
 extern DeviceRegister_t   DeviceRegister[NUMREGDEV];
@@ -81,17 +116,22 @@ extern int DeviceRegisterCount;
 extern DeviceDescriptor_t *pDevPrimaryBaroSource;
 extern DeviceDescriptor_t *pDevSecondaryBaroSource;
 
+void RefreshComPortList();
+
 BOOL devRegister(const TCHAR *Name,	int	Flags, BOOL (*Installer)(PDeviceDescriptor_t d));
 BOOL devRegisterGetName(int Index, TCHAR *Name);
 
-BOOL devInit(LPTSTR CommandLine);
+BOOL devInit(LPCTSTR CommandLine);
 BOOL devCloseAll(void);
 PDeviceDescriptor_t devGetDeviceOnPort(int Port);
 BOOL ExpectString(PDeviceDescriptor_t d, const TCHAR *token);
 BOOL devHasBaroSource(void);
+bool devIsDisabled(int devindex);
 
+BOOL devDirectLink(PDeviceDescriptor_t d,	BOOL bLink);
 BOOL devParseNMEA(int portNum, TCHAR *String,	NMEA_INFO	*GPS_INFO);
 BOOL devPutMacCready(PDeviceDescriptor_t d,	double MacCready);
+BOOL devRequestFlarmVersion(PDeviceDescriptor_t d);
 BOOL devPutBugs(PDeviceDescriptor_t	d, double	Bugs);
 BOOL devPutBallast(PDeviceDescriptor_t d,	double Ballast);
 BOOL devPutVolume(PDeviceDescriptor_t	d, int Volume);
@@ -106,9 +146,6 @@ BOOL devIsLogger(PDeviceDescriptor_t d);
 BOOL devIsGPSSource(PDeviceDescriptor_t	d);
 BOOL devIsBaroSource(PDeviceDescriptor_t d);
 BOOL devIsRadio(PDeviceDescriptor_t d);
-BOOL devIsCondor(PDeviceDescriptor_t d);
-BOOL devOpenLog(PDeviceDescriptor_t d, TCHAR *FileName);
-BOOL devCloseLog(PDeviceDescriptor_t d);
 
 BOOL devPutQNH(DeviceDescriptor_t *d, double NewQNH);
 BOOL devOnSysTicker(DeviceDescriptor_t *d);

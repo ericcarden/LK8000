@@ -8,24 +8,27 @@
 
 //  Create common shared graphic objects, from MapWindow
 
-#include "StdAfx.h"
-#include "compatibility.h"
-#include "Defines.h"
-#include "LKUtils.h"
-#include "options.h"
-#include "Cpustats.h"
-#include "Utils.h"
-#include <windows.h>
-#include <math.h>
-#include <tchar.h>
 #include "externs.h"
 #if (WINDOWSPC>0)
 #include <wingdi.h>
 #endif
-#include "LKObjects.h"
 
-#if LKOBJ
+#define STATIC_LKOBJECTS
+#include "LKObjects.h"
+#include "Bitmaps.h"
+
+#include "RGB.h"
+
+extern COLORREF ChangeBrightness(long Color, double fBrightFact);
+
+
 void LKObjects_Create() {
+
+  int i;
+
+  #if TESTBENCH
+  StartupStore(_T("... LKObjects_Create\n"));
+  #endif
 
   // STOCK BRUSHES
   LKBrush_White = (HBRUSH)GetStockObject(WHITE_BRUSH);
@@ -48,6 +51,7 @@ void LKObjects_Create() {
   LKBrush_Blue = CreateSolidBrush(COLORREF RGB_BLUE);
   LKBrush_Indigo = CreateSolidBrush(COLORREF RGB_INDIGO);
   LKBrush_LightGrey = CreateSolidBrush(COLORREF RGB_LIGHTGREY);
+  LKBrush_DarkGrey = CreateSolidBrush(RGB(100,100,100));
   LKBrush_LcdGreen = CreateSolidBrush(COLORREF RGB_LCDGREEN);
   LKBrush_LcdDarkGreen = CreateSolidBrush(COLORREF RGB_LCDDARKGREEN);
   LKBrush_Grey = CreateSolidBrush(COLORREF RGB_GREY);
@@ -56,6 +60,15 @@ void LKObjects_Create() {
   LKBrush_LightCyan = CreateSolidBrush(COLORREF RGB_LIGHTCYAN);
   LKBrush_RifleGrey = CreateSolidBrush(COLORREF RGB_RIFLEGREY);
 
+  LKBrush_Vario_neg4 = CreateSolidBrush(ChangeBrightness(RGB_BLUE, 0.4));
+  LKBrush_Vario_neg3 = CreateSolidBrush(ChangeBrightness(RGB_BLUE, 0.6));
+  LKBrush_Vario_neg2 = CreateSolidBrush(ChangeBrightness(RGB_BLUE, 0.8));
+  LKBrush_Vario_neg1 = CreateSolidBrush(ChangeBrightness(RGB_BLUE, 1.0));
+  LKBrush_Vario_0    = CreateSolidBrush(ChangeBrightness(RGB_YELLOW, 0.8));
+  LKBrush_Vario_pos1 = CreateSolidBrush(ChangeBrightness(RGB_GREEN, 0.6));
+  LKBrush_Vario_pos2 = CreateSolidBrush(ChangeBrightness(RGB_GREEN, 0.7));
+  LKBrush_Vario_pos3 = CreateSolidBrush(ChangeBrightness(RGB_GREEN, 0.8));
+  LKBrush_Vario_pos4 = CreateSolidBrush(ChangeBrightness(RGB_GREEN, 1.0));
   // CUSTOM PENS
   LKPen_Black_N0 = (HPEN) CreatePen(PS_SOLID,0,RGB_BLACK);
   LKPen_Black_N1 = (HPEN) CreatePen(PS_SOLID,NIBLSCALE(1),RGB_BLACK);
@@ -77,9 +90,102 @@ void LKObjects_Create() {
   LKPen_Red_N1 = (HPEN) CreatePen(PS_SOLID,NIBLSCALE(1),RGB_RED);
   LKPen_Blue_N1 = (HPEN) CreatePen(PS_SOLID,NIBLSCALE(1),RGB_BLUE);
 
+  LKPen_Grey_N0 = (HPEN) CreatePen(PS_SOLID,1,RGB_GREY);
   LKPen_Grey_N1 = (HPEN) CreatePen(PS_SOLID,NIBLSCALE(1),RGB_GREY);
   LKPen_Grey_N2 = (HPEN) CreatePen(PS_SOLID,NIBLSCALE(2),RGB_GREY);
-  LKPen_GABRG = (HPEN) CreatePen(PS_SOLID,NIBLSCALE(3),RGB_MAGENTA);
+
+
+  switch(ScreenSize) {
+	// portrait small screen
+	case ss240x320:
+	case ss240x400:
+	case ss272x480:
+	// landscape small screen
+	case ss320x240:
+	case ss400x240:
+	case ss480x272:
+		MapWindow::hpAircraft = LKPen_Black_N5; // LK v4 has it bolder
+		LKPen_GABRG = (HPEN) CreatePen(PS_SOLID,NIBLSCALE(5),RGB_MAGENTA);
+		break;
+	default:
+		MapWindow::hpAircraft = LKPen_Black_N4; // up to LK version 3
+		LKPen_GABRG = (HPEN) CreatePen(PS_SOLID,NIBLSCALE(3),RGB_MAGENTA);
+		break;
+  }
+
+  //
+  // MapWindow objects
+  //
+
+//  COLORREF ChangeBrightness(long Color, double fBrightFact)
+  for (i=0; i<AIRSPACECLASSCOUNT; i++) {
+	LKASSERT( MapWindow::iAirspaceColour[i]< NUMAIRSPACECOLORS);
+	MapWindow::hAirspacePens[i] = CreatePen(PS_SOLID, NIBLSCALE(1), MapWindow::Colours[MapWindow::iAirspaceColour[i]]);
+	MapWindow::hBigAirspacePens[i] = CreatePen(PS_SOLID, NIBLSCALE(3),ChangeBrightness( MapWindow::Colours[MapWindow::iAirspaceColour[i]], 0.75));
+  }
+  MapWindow::hAirspaceBorderPen = CreatePen(PS_SOLID, NIBLSCALE(10), RGB_WHITE);
+
+  int iwidth;
+  iwidth=IBLSCALE(MapWindow::SnailWidthScale);
+  MapWindow::hSnailColours[0] = RGB_BLACK;
+  MapWindow::hSnailColours[1] = RGB_INDIGO;
+  MapWindow::hSnailColours[2] = RGB_INDIGO;
+  MapWindow::hSnailColours[3] = RGB_BLUE;
+  MapWindow::hSnailColours[4] = RGB_BLUE;
+  MapWindow::hSnailColours[5] = RGB_LAKE;
+  MapWindow::hSnailColours[6] = RGB_LAKE;
+  MapWindow::hSnailColours[7] = RGB_GREY;
+  MapWindow::hSnailColours[8] = RGB_GREEN;
+  MapWindow::hSnailColours[9] = RGB_GREEN;
+  MapWindow::hSnailColours[10] = RGB_ORANGE;
+  MapWindow::hSnailColours[11] = RGB_ORANGE;
+  MapWindow::hSnailColours[12] = RGB_RED;
+  MapWindow::hSnailColours[13] = RGB_RED;
+  MapWindow::hSnailColours[14] = RGB_DARKRED;
+
+  MapWindow::hSnailPens[0] = (HPEN)CreatePen(PS_SOLID, iwidth/NIBLSCALE(2), MapWindow::hSnailColours[0]);
+  MapWindow::hSnailPens[1] = (HPEN)CreatePen(PS_SOLID, iwidth/NIBLSCALE(2), MapWindow::hSnailColours[1]);
+  MapWindow::hSnailPens[2] = (HPEN)CreatePen(PS_SOLID, iwidth/NIBLSCALE(2), MapWindow::hSnailColours[2]);
+  MapWindow::hSnailPens[3] = (HPEN)CreatePen(PS_SOLID, iwidth/NIBLSCALE(2), MapWindow::hSnailColours[3]);
+  MapWindow::hSnailPens[4] = (HPEN)CreatePen(PS_SOLID,  iwidth/NIBLSCALE(2), MapWindow::hSnailColours[4]);
+  MapWindow::hSnailPens[5] = (HPEN)CreatePen(PS_SOLID,  iwidth/NIBLSCALE(4), MapWindow::hSnailColours[5]);
+  MapWindow::hSnailPens[6] = (HPEN)CreatePen(PS_SOLID,  iwidth/NIBLSCALE(4), MapWindow::hSnailColours[6]);
+  MapWindow::hSnailPens[7] = (HPEN)CreatePen(PS_SOLID,  iwidth/NIBLSCALE(6), MapWindow::hSnailColours[7]);
+  MapWindow::hSnailPens[8] = (HPEN)CreatePen(PS_SOLID,  iwidth/NIBLSCALE(4), MapWindow::hSnailColours[8]);
+  MapWindow::hSnailPens[9] = (HPEN)CreatePen(PS_SOLID,  iwidth/NIBLSCALE(4), MapWindow::hSnailColours[9]);
+  MapWindow::hSnailPens[10] = (HPEN)CreatePen(PS_SOLID, iwidth/NIBLSCALE(2), MapWindow::hSnailColours[10]);
+  MapWindow::hSnailPens[11] = (HPEN)CreatePen(PS_SOLID, iwidth/NIBLSCALE(2), MapWindow::hSnailColours[11]);
+  MapWindow::hSnailPens[12] = (HPEN)CreatePen(PS_SOLID, iwidth/NIBLSCALE(2), MapWindow::hSnailColours[12]);
+  MapWindow::hSnailPens[13] = (HPEN)CreatePen(PS_SOLID, iwidth/NIBLSCALE(2), MapWindow::hSnailColours[13]);
+  MapWindow::hSnailPens[14] = (HPEN)CreatePen(PS_SOLID, iwidth/NIBLSCALE(2), MapWindow::hSnailColours[14]);
+
+  for (i=0; i<NUMAIRSPACEBRUSHES; i++) {
+	MapWindow::hAirspaceBrushes[i] = CreatePatternBrush((HBITMAP)hAirspaceBitmap[i]);
+  }
+  MapWindow::hAboveTerrainBrush = CreatePatternBrush((HBITMAP)hAboveTerrainBitmap);
+
+  MapWindow::hInvBackgroundBrush[0] = LKBrush_White;
+  MapWindow::hInvBackgroundBrush[1] = LKBrush_LightGrey;
+  MapWindow::hInvBackgroundBrush[2] = LKBrush_LcdGreen;
+  MapWindow::hInvBackgroundBrush[3] = LKBrush_LcdDarkGreen;
+  MapWindow::hInvBackgroundBrush[4] = LKBrush_Grey;
+  MapWindow::hInvBackgroundBrush[5] = LKBrush_Lake;
+  MapWindow::hInvBackgroundBrush[6] = LKBrush_Emerald;
+  MapWindow::hInvBackgroundBrush[7] = LKBrush_DarkSlate;
+  MapWindow::hInvBackgroundBrush[8] = LKBrush_RifleGrey;
+  MapWindow::hInvBackgroundBrush[9] = LKBrush_Black;
+
+
+  extern COLORREF taskcolor;
+  MapWindow::hpStartFinishThick=(HPEN)CreatePen(PS_SOLID, NIBLSCALE(2)+1, taskcolor);
+  MapWindow::hpMapScale2 = (HPEN)CreatePen(PS_SOLID, NIBLSCALE(1)+1, RGB_BLACK);
+  MapWindow::hpWindThick = (HPEN)CreatePen(PS_SOLID, NIBLSCALE(4), RGB(255,220,220));
+  MapWindow::hpThermalBand = (HPEN)CreatePen(PS_SOLID, NIBLSCALE(2), RGB(0x40,0x40,0xFF));
+  MapWindow::hpThermalBandGlider = (HPEN)CreatePen(PS_SOLID, NIBLSCALE(2), RGB(0x00,0x00,0x30));
+  MapWindow::hpFinalGlideBelow = (HPEN)CreatePen(PS_SOLID, NIBLSCALE(1), RGB(0xFF,0xA0,0xA0)); // another light red
+  MapWindow::hpFinalGlideAbove = (HPEN)CreatePen(PS_SOLID, NIBLSCALE(1), RGB(0xA0,0xFF,0xA0)); // another light green
+  MapWindow::hpTerrainLine = (HPEN)CreatePen(PS_DASH, (1), RGB(0x30,0x30,0x30)); // shade
+  MapWindow::hpTerrainLineBg = (HPEN)CreatePen(PS_SOLID, NIBLSCALE(2), RGB_LCDDARKGREEN); // perimeter
 
 
 }
@@ -87,54 +193,99 @@ void LKObjects_Create() {
 
 void LKObjects_Delete() {
 
-  // No need to delete stock objects
-  DeleteObject(LKBrush_Petrol);
-  DeleteObject(LKBrush_LightGreen);
-  DeleteObject(LKBrush_DarkGreen);
-  DeleteObject(LKBrush_Ndark);
-  DeleteObject(LKBrush_Nlight);
-  DeleteObject(LKBrush_Mdark);
-  DeleteObject(LKBrush_Mlight);
-  DeleteObject(LKBrush_Red);
-  DeleteObject(LKBrush_Yellow);
-  DeleteObject(LKBrush_Green);
-  DeleteObject(LKBrush_DarkYellow2);
-  DeleteObject(LKBrush_Orange);
-  DeleteObject(LKBrush_Lake);
-  DeleteObject(LKBrush_Blue);
-  DeleteObject(LKBrush_Indigo);
-  DeleteObject(LKBrush_LightGrey);
-  DeleteObject(LKBrush_LcdGreen);
-  DeleteObject(LKBrush_LcdDarkGreen);
-  DeleteObject(LKBrush_Grey);
-  DeleteObject(LKBrush_Emerald);
-  DeleteObject(LKBrush_DarkSlate);
-  DeleteObject(LKBrush_RifleGrey);
-  DeleteObject(LKBrush_LightCyan);
+  int i;
 
-  DeleteObject(LKPen_Black_N0);
-  DeleteObject(LKPen_Black_N1);
-  DeleteObject(LKPen_Black_N2);
-  DeleteObject(LKPen_Black_N3);
-  DeleteObject(LKPen_Black_N4);
-  DeleteObject(LKPen_Black_N5);
-  DeleteObject(LKPen_White_N0);
-  DeleteObject(LKPen_White_N1);
-  DeleteObject(LKPen_White_N2);
-  DeleteObject(LKPen_White_N3);
-  DeleteObject(LKPen_White_N4);
-  DeleteObject(LKPen_White_N5);
-  DeleteObject(LKPen_Green_N1);
-  DeleteObject(LKPen_Red_N1);
-  DeleteObject(LKPen_Blue_N1);
-  DeleteObject(LKPen_Grey_N1);
-  DeleteObject(LKPen_Grey_N2);
-  DeleteObject(LKPen_Petrol_C2);
-  DeleteObject(LKPen_GABRG);
+  #if TESTBENCH
+  StartupStore(_T("... LKObjects_Delete\n"));
+  #endif
+
+  // No need to delete stock objects
+  if(LKBrush_Petrol) DeleteObject(LKBrush_Petrol);
+  if(LKBrush_LightGreen) DeleteObject(LKBrush_LightGreen);
+  if(LKBrush_DarkGreen) DeleteObject(LKBrush_DarkGreen);
+  if(LKBrush_Ndark) DeleteObject(LKBrush_Ndark);
+  if(LKBrush_Nlight) DeleteObject(LKBrush_Nlight);
+  if(LKBrush_Mdark) DeleteObject(LKBrush_Mdark);
+  if(LKBrush_Mlight) DeleteObject(LKBrush_Mlight);
+  if(LKBrush_Red) DeleteObject(LKBrush_Red);
+  if(LKBrush_Yellow) DeleteObject(LKBrush_Yellow);
+  if(LKBrush_Green) DeleteObject(LKBrush_Green);
+  if(LKBrush_DarkYellow2) DeleteObject(LKBrush_DarkYellow2);
+  if(LKBrush_Orange) DeleteObject(LKBrush_Orange);
+  if(LKBrush_Lake) DeleteObject(LKBrush_Lake);
+  if(LKBrush_Blue) DeleteObject(LKBrush_Blue);
+  if(LKBrush_Indigo) DeleteObject(LKBrush_Indigo);
+  if(LKBrush_LightGrey) DeleteObject(LKBrush_LightGrey);
+  if(LKBrush_DarkGrey) DeleteObject(LKBrush_DarkGrey);
+  if(LKBrush_LcdGreen) DeleteObject(LKBrush_LcdGreen);
+  if(LKBrush_LcdDarkGreen) DeleteObject(LKBrush_LcdDarkGreen);
+  if(LKBrush_Grey) DeleteObject(LKBrush_Grey);
+  if(LKBrush_Emerald) DeleteObject(LKBrush_Emerald);
+  if(LKBrush_DarkSlate) DeleteObject(LKBrush_DarkSlate);
+  if(LKBrush_RifleGrey) DeleteObject(LKBrush_RifleGrey);
+  if(LKBrush_LightCyan) DeleteObject(LKBrush_LightCyan);
+
+  if(LKBrush_Vario_neg4) DeleteObject(LKBrush_Vario_neg4);
+  if(LKBrush_Vario_neg3) DeleteObject(LKBrush_Vario_neg3);
+  if(LKBrush_Vario_neg2) DeleteObject(LKBrush_Vario_neg2);
+  if(LKBrush_Vario_neg1) DeleteObject(LKBrush_Vario_neg1);
+  if(LKBrush_Vario_0)    DeleteObject(LKBrush_Vario_0);
+  if(LKBrush_Vario_pos1) DeleteObject(LKBrush_Vario_pos1);
+  if(LKBrush_Vario_pos2) DeleteObject(LKBrush_Vario_pos2);
+  if(LKBrush_Vario_pos3) DeleteObject(LKBrush_Vario_pos3);
+  if(LKBrush_Vario_pos4) DeleteObject(LKBrush_Vario_pos4);
+
+
+  if(LKPen_Black_N0) DeleteObject(LKPen_Black_N0);
+  if(LKPen_Black_N1) DeleteObject(LKPen_Black_N1);
+  if(LKPen_Black_N2) DeleteObject(LKPen_Black_N2);
+  if(LKPen_Black_N3) DeleteObject(LKPen_Black_N3);
+  if(LKPen_Black_N4) DeleteObject(LKPen_Black_N4);
+  if(LKPen_Black_N5) DeleteObject(LKPen_Black_N5);
+  if(LKPen_White_N0) DeleteObject(LKPen_White_N0);
+  if(LKPen_White_N1) DeleteObject(LKPen_White_N1);
+  if(LKPen_White_N2) DeleteObject(LKPen_White_N2);
+  if(LKPen_White_N3) DeleteObject(LKPen_White_N3);
+  if(LKPen_White_N4) DeleteObject(LKPen_White_N4);
+  if(LKPen_White_N5) DeleteObject(LKPen_White_N5);
+
+  if(LKPen_Petrol_C2) DeleteObject(LKPen_Petrol_C2);
+  if(LKPen_Green_N1) DeleteObject(LKPen_Green_N1);
+  if(LKPen_Red_N1) DeleteObject(LKPen_Red_N1);
+  if(LKPen_Blue_N1) DeleteObject(LKPen_Blue_N1);
+  if(LKPen_Grey_N1) DeleteObject(LKPen_Grey_N0);
+  if(LKPen_Grey_N1) DeleteObject(LKPen_Grey_N1);
+  if(LKPen_Grey_N2) DeleteObject(LKPen_Grey_N2);
+  if(LKPen_GABRG) DeleteObject(LKPen_GABRG);
+
+  for (i=0; i<AIRSPACECLASSCOUNT; i++) {
+	if(MapWindow::hAirspacePens[i]) DeleteObject(MapWindow::hAirspacePens[i]);
+	if(MapWindow::hBigAirspacePens[i]) DeleteObject(MapWindow::hBigAirspacePens[i]);
+
+  }
+  DeleteObject(MapWindow::hAirspaceBorderPen);
+
+  for (i=0; i<NUMSNAILCOLORS; i++) {
+	if (MapWindow::hSnailPens[i]) DeleteObject(MapWindow::hSnailPens[i]);
+  }
+
+  for(i=0;i<NUMAIRSPACEBRUSHES;i++) {
+	if (MapWindow::hAirspaceBrushes[i]) DeleteObject(MapWindow::hAirspaceBrushes[i]);
+  }
+  if (MapWindow::hAboveTerrainBrush) DeleteObject(MapWindow::hAboveTerrainBrush);
+  if (MapWindow::hpStartFinishThick) DeleteObject((HPEN)MapWindow::hpStartFinishThick);
+  if (MapWindow::hpMapScale2) DeleteObject((HPEN)MapWindow::hpMapScale2);
+  if (MapWindow::hpWindThick) DeleteObject((HPEN)MapWindow::hpWindThick);
+  if (MapWindow::hpThermalBand) DeleteObject((HPEN)MapWindow::hpThermalBand);
+  if (MapWindow::hpThermalBandGlider) DeleteObject((HPEN)MapWindow::hpThermalBandGlider);
+  if (MapWindow::hpFinalGlideBelow) DeleteObject((HPEN)MapWindow::hpFinalGlideBelow);
+  if (MapWindow::hpFinalGlideAbove) DeleteObject((HPEN)MapWindow::hpFinalGlideAbove);
+  if (MapWindow::hpTerrainLine) DeleteObject((HPEN)MapWindow::hpTerrainLine);
+  if (MapWindow::hpTerrainLineBg) DeleteObject((HPEN)MapWindow::hpTerrainLineBg);
 
 
 }
 
 
 
-#endif
+

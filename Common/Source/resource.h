@@ -1,11 +1,11 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Developer Studio generated include file.
-// Used by XCSoar.rc
+// Used by lk8000.rc
 //
 #define IDS_APP_TITLE                   1
-#define IDC_XCSOAR                      3
+#define IDC_LK8000                      3
 #define IDS_CONNECTWAIT                 4
-#define IDI_XCSOAR                      101
+#define IDI_LK8000                      101
 #define IDM_MENU                        102
 #define IDD_ABOUTBOX                    103
 #define IDD_PROGRESS                    104
@@ -35,6 +35,11 @@
 #define IDB_SMALL                       142
 #define IDB_INVSMALL                    143
 #define IDB_INVTURNPOINT                144
+#define IDB_TURNPOINTH                  145
+#define IDB_SMALLH                      146
+#define IDB_INVSMALLH                   147
+#define IDB_INVTURNPOINTH               148
+#define IDB_EMPTY			150
 #define IDD_REGISTER                    180
 #define IDD_BUGSBALLAST                 181
 #define IDD_AIRSPACEALT                 183
@@ -66,7 +71,8 @@
 #define IDB_TOWN                        218
 #define IDB_MARK                        219
 #define IDB_TERRAINWARNING              220
-#define IDI_XCSOARS                     224
+#define IDB_AIRSPACEWARNING             221
+#define IDI_LK8000S                     224
 #define IDD_LOGGERDETAILS               231
 #define IDB_AIRSPACE                    235
 #define IDD_AUDIO                       236
@@ -77,12 +83,12 @@
 #define IDB_SPLASH                      244
 #define IDD_AIRSPACECOLOUR              247
 #define IDD_AIRSPACECOLOURSEL           248
-#define IDI_XCSOARSWIFT                 250
+#define IDI_LK8000SWIFT                 250
 #define IDB_SWIFT                       251
 #define IDD_GPSSTATUS                   252
 #define IDD_MAPDISPLAY                  255
-#define IDB_GPSSTATUS1                  256
-#define IDB_GPSSTATUS2                  257
+#define IDB_GPSSTATUS1                  256	// unused
+#define IDB_GPSSTATUS2                  257	// unused
 #define IDD_MAPFILES                    258
 #define IDD_ANALYSIS                    259
 #define IDD_INTERFACEFILES              260
@@ -95,14 +101,14 @@
 #define IDB_ABORT                       269
 #define IDB_LOGGER                      271
 #define IDB_LOGGEROFF                   272
-#define IDB_PEAKHIGH                    273
-#define IDB_PEAKLOW                     274
+#define IDB_PEAKHIGH                    273	// unused
+#define IDB_PEAKLOW                     274	// unused
 #define IDB_VARIOSCALE                  277
 #define IDB_FLARMTRAFFIC                278
 #define IDB_AIRSPACE3                   280
 #define IDB_DLGBUTTONLEFT16             281
 #define IDB_DLGBUTTONLEFT32             282
-#define IDB_MAPSCALE_A                  283
+#define IDB_MAPSCALE_A                  283	// unused
 #define IDB_UNIT_KM                     284
 #define IDB_UNIT_SM                     285
 #define IDB_UNIT_NM                     286
@@ -146,6 +152,11 @@
 #define IDB_FINALGLIDEPARA              403
 #define IDB_LKSMALLTOWN			501
 #define IDB_LKVERYSMALLTOWN		502
+#define IDB_BATTERY_FULL_SMALL		503
+#define IDB_BATTERY_70_SMALL		504
+#define IDB_BATTERY_50_SMALL		505
+#define IDB_BATTERY_25_SMALL		506
+#define IDB_BATTERY_15_SMALL		507
 #define IDC_AAT                         1001
 #define IDC_AATTIME                     1002
 #define IDC_AATTIMESPIN                 1003

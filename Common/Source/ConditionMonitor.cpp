@@ -6,27 +6,16 @@
    $Id: ConditionMonitor.cpp,v 8.2 2010/12/10 23:51:14 root Exp root $
 */
 
-#include "StdAfx.h"
-#include "Calculations.h"
-#include "Dialogs.h"
-#include "Task.h"
-#include "device.h"
 #include "externs.h"
-
-#include "compatibility.h"
-#ifdef OLDPPC
-#include "XCSoarProcess.h"
-#else
-#include "Process.h"
-#endif
+#include "LKProcess.h"
 #include "InputEvents.h"
 
 
 class ConditionMonitor {
 public:
-  ConditionMonitor() {
-    LastTime_Notification = -1;
-    LastTime_Check = -1;
+  ConditionMonitor(double interval_Notification, double interval_Check):
+    LastTime_Notification(-1), LastTime_Check(-1), Interval_Notification(interval_Notification), Interval_Check(interval_Check)
+  {
   }
 
   virtual ~ConditionMonitor() {}
@@ -99,11 +88,9 @@ private:
 
 class ConditionMonitorWind: public ConditionMonitor {
 public:
-  ConditionMonitorWind() {
-    Interval_Notification = 60*5;
-    Interval_Check = 10;
-    wind_mag = 0;
-    wind_bearing = 0;
+  ConditionMonitorWind():
+    ConditionMonitor(60*5, 10), wind_mag(), wind_bearing(), last_wind_mag(), last_wind_bearing()
+  {
   }
   virtual ~ConditionMonitorWind() {}
 protected:
@@ -151,11 +138,7 @@ private:
 
 class ConditionMonitorFinalGlide: public ConditionMonitor {
 public:
-  ConditionMonitorFinalGlide() {
-    Interval_Notification = 60*5;
-    Interval_Check = 1;
-    tad = 0;
-  }
+  ConditionMonitorFinalGlide(): ConditionMonitor(60*5, 1), tad(), last_tad() {}
   virtual ~ConditionMonitorFinalGlide() {}
 protected:
 
@@ -216,10 +199,7 @@ private:
 
 class ConditionMonitorSunset: public ConditionMonitor {
 public:
-  ConditionMonitorSunset() {
-    Interval_Notification = 60*30;
-    Interval_Check = 60;
-  }
+  ConditionMonitorSunset(): ConditionMonitor(60*30, 60) {}
   virtual ~ConditionMonitorSunset() {}
 protected:
 
@@ -238,7 +218,7 @@ protected:
 
     bool past_sunset = (d1>sunsettime) && (d0<sunsettime);
 
-    if (past_sunset && !devIsCondor(devA())) {
+    if (past_sunset && !DevIsCondor) {
       // notify on change only
       return true;
     } else {
@@ -259,19 +239,12 @@ private:
 
 class ConditionMonitorAATTime: public ConditionMonitor {
 public:
-  ConditionMonitorAATTime() {
-    Interval_Notification = 60*15;
-    Interval_Check = 10;
-  }
+  ConditionMonitorAATTime(): ConditionMonitor(60*15, 10) {}
   virtual ~ConditionMonitorAATTime() {}
 protected:
 
   bool CheckCondition(NMEA_INFO *Basic, DERIVED_INFO *Calculated) {    
-    #ifndef NOTASKABORT
-    if (!AATEnabled || !ValidTaskPoint(ActiveWayPoint) || TaskIsTemporary()
-    #else
-    if (!AATEnabled || !ValidTaskPoint(ActiveWayPoint) 
-    #endif
+    if (DoOptimizeRoute() || !AATEnabled || !ValidTaskPoint(ActiveWayPoint) 
         || !(Calculated->ValidStart && !Calculated->ValidFinish)
         || !Calculated->Flying) {
       return false;
@@ -302,11 +275,7 @@ private:
 
 class ConditionMonitorStartRules: public ConditionMonitor {
 public:
-  ConditionMonitorStartRules() {
-    Interval_Notification = 60;
-    Interval_Check = 1;
-    withinMargin = false;
-  }
+  ConditionMonitorStartRules(): ConditionMonitor(60, 1), withinMargin() {}
   virtual ~ConditionMonitorStartRules() {}
 protected:
 
@@ -347,12 +316,7 @@ private:
 
 class ConditionMonitorGlideTerrain: public ConditionMonitor {
 public:
-  ConditionMonitorGlideTerrain() {
-    Interval_Notification = 60*5;
-    Interval_Check = 1;
-    fgtt = 0;
-    fgtt_last = false;
-  }
+  ConditionMonitorGlideTerrain(): ConditionMonitor(60*5, 1), fgtt(), fgtt_last() {}
   virtual ~ConditionMonitorGlideTerrain() {}
 
 protected:
@@ -399,9 +363,9 @@ ConditionMonitorGlideTerrain cm_glideterrain;
 void ConditionMonitorsUpdate(NMEA_INFO *Basic, DERIVED_INFO *Calculated) {
   cm_wind.Update(Basic, Calculated);
   cm_finalglide.Update(Basic, Calculated);
-#ifndef FIVV
+  #if 0
   cm_sunset.Update(Basic, Calculated); // it doesnt work in europe..
-#endif
+  #endif
   cm_aattime.Update(Basic, Calculated);  
   cm_startrules.Update(Basic, Calculated);  
   cm_glideterrain.Update(Basic, Calculated);  

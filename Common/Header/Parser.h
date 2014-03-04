@@ -5,24 +5,10 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
-#include <windows.h>
-#include "Sizes.h"
 #include "Flarm.h"
-
-#define NAUTICALMILESTOMETRES (double)1851.96
-#define KNOTSTOMETRESSECONDS (double)0.5144
-
-#define TOKNOTS (double)1.944
-#define TOFEETPERMINUTE (double)196.9
-#define TOMPH   (double)2.237
-#define TOKPH   (double)3.6
-
-// meters to.. conversion
-#define TONAUTICALMILES (double)0.00053996
-#define TOMILES         (double)0.00062137
-#define TOKILOMETER     (double)0.001
-#define TOFEET          (double)3.281
-#define TOMETER         (double)1.0
+#ifndef LINUX
+#include "lkgpsapi.h"
+#endif
 
 typedef struct _FLARM_TRAFFIC
 {
@@ -56,7 +42,21 @@ typedef struct _FLARM_TRAFFIC
   double EIAS;
 } FLARM_TRAFFIC;
 
+//
+// FLARM TRACES
+//
+typedef struct
+{
+        double fLat;
+        double fLon;
+        double fAlt;
+//      double fIntegrator;
+        int iColorIdx;
+} FLARM_TRACE;
 
+
+
+#if USESWITCHES
 typedef struct _SWITCH_INFO
 {
   bool AirbrakeLocked;
@@ -74,7 +74,7 @@ typedef struct _SWITCH_INFO
   bool FlapLanding;
   // bool Stall;
 } SWITCH_INFO;
-
+#endif
 
 typedef struct _NMEA_INFO
 {
@@ -96,13 +96,13 @@ typedef struct _NMEA_INFO
   int Month;
   int Day;
   int Year;
-  int NAVWarning;
+  bool NAVWarning;
   double IndicatedAirspeed;
   double TrueAirspeed;
   double BaroAltitude;
   double MacReady;
   BOOL BaroAltitudeAvailable;
-  BOOL ExternalWindAvailalbe;
+  BOOL ExternalWindAvailable;
   double ExternalWindSpeed;
   double ExternalWindDirection;
   BOOL VarioAvailable;
@@ -112,9 +112,9 @@ typedef struct _NMEA_INFO
   double NettoVario;
   double Ballast;
   double Bugs;
-  double Gload;
   BOOL AccelerationAvailable;
   double AccelX;
+  double AccelY;
   double AccelZ;
   int SatellitesUsed;
   BOOL TemperatureAvailable;
@@ -131,19 +131,42 @@ typedef struct _NMEA_INFO
   unsigned short FLARM_GPS;
   unsigned short FLARM_AlarmLevel;
   bool FLARM_Available;
+  bool haveRMZfromFlarm;
+  double FLARM_SW_Version;
+  double FLARM_HW_Version;
   FLARM_TRAFFIC FLARM_Traffic[FLARM_MAX_TRAFFIC];
+  FLARM_TRACE	FLARM_RingBuf[MAX_FLARM_TRACES];
+  bool FLARMTRACE_bBuffFull;
+  int  FLARMTRACE_iLastPtr;
+#ifdef DEVICE_SERIAL
+  int HardwareId;
+  int SerialNumber;
+  double SoftwareVer;
+#endif  
+  #if LOGFRECORD
   int SatelliteIDs[MAXSATELLITES];
+  #endif
 
   double SupplyBatteryVoltage;
 
+  #if USESWITCHES
   SWITCH_INFO SwitchState;
-
-  BOOL MovementDetected;
+  #endif
 
   double StallRatio;
+  
+  BOOL MagneticHeadingAvailable;
+  double MagneticHeading;  
+
+  BOOL GyroscopeAvailable;
+  double Pitch;
+  double Roll;
 
 } NMEA_INFO;
-
+#ifndef OLD_TIME_MODIFY
+double TimeModify(NMEA_INFO* pGPS, int& StartDay);
+double TimeModify(const TCHAR* FixTime, NMEA_INFO* info, int& StartDay);
+#endif
 
 class NMEAParser {
  public:
@@ -156,6 +179,12 @@ class NMEAParser {
   void _Reset(void);
 
   BOOL ParseNMEAString_Internal(TCHAR *String, NMEA_INFO *GPS_INFO);
+ 
+#ifndef LINUX 
+  static BOOL ParseGPS_POSITION(int portnum,
+			      const GPS_POSITION& loc, NMEA_INFO& GPSData);  
+  BOOL ParseGPS_POSITION_internal(const GPS_POSITION& loc, NMEA_INFO& GPSData);
+#endif
   bool gpsValid;
   int nSatellites;
 
@@ -178,7 +207,6 @@ class NMEAParser {
 			       int DesiredFieldNumber);
 
  private:
-  BOOL GSAAvailable;
   BOOL GGAAvailable;
   BOOL RMZAvailable;
   BOOL RMAAvailable;
@@ -187,12 +215,16 @@ class NMEAParser {
   double RMZAltitude;
   double RMAAltitude;
   double LastTime;
+  short RMZDelayed;
+
+  double GGAtime;
+  double RMCtime;
+  double GLLtime;
 
   bool TimeHasAdvanced(double ThisTime, NMEA_INFO *GPS_INFO);
+#ifdef OLD_TIME_MODIFY
   static double TimeModify(double FixTime, NMEA_INFO* info);
-  static double TimeConvert(double FixTime, NMEA_INFO* info);
-  void TimeSet( NMEA_INFO* info);
-
+#endif
   BOOL GLL(TCHAR *String, TCHAR **, size_t, NMEA_INFO *GPS_INFO);
   BOOL GGA(TCHAR *String, TCHAR **, size_t, NMEA_INFO *GPS_INFO);
   BOOL GSA(TCHAR *String, TCHAR **, size_t, NMEA_INFO *GPS_INFO);
@@ -206,10 +238,13 @@ class NMEAParser {
   BOOL WP1(TCHAR *String, TCHAR **, size_t, NMEA_INFO *GPS_INFO);
   BOOL WP2(TCHAR *String, TCHAR **, size_t, NMEA_INFO *GPS_INFO);
 
-  // Additional sentances
+  // Additional sentences
   BOOL PTAS1(TCHAR *String, TCHAR **, size_t, NMEA_INFO *GPS_INFO);  // RMN: Tasman instruments.  TAS, Vario, QNE-altitude
-  
+
+  // LK8000 custom special sentences, always active
+  BOOL PLKAS(TCHAR *String, TCHAR **, size_t, NMEA_INFO *GPS_INFO);
   // FLARM sentances
+  BOOL PFLAV(TCHAR *String, TCHAR **, size_t, NMEA_INFO *GPS_INFO);
   BOOL PFLAU(TCHAR *String, TCHAR **, size_t, NMEA_INFO *GPS_INFO);
   BOOL PFLAA(TCHAR *String, TCHAR **, size_t, NMEA_INFO *GPS_INFO);
 #ifdef DSX
@@ -222,6 +257,6 @@ void FLARM_EmptySlot(NMEA_INFO *GPS_INFO,int i);
 void FLARM_DumpSlot(NMEA_INFO *GPS_INFO, int i);
 
 extern bool EnableLogNMEA;
-void LogNMEA(TCHAR* text);
+void LogNMEA(TCHAR* text, int);
 
 #endif

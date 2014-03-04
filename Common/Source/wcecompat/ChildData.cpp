@@ -26,6 +26,8 @@
 #include <tchar.h>
 #include "ts_string.h"
 
+#include "utils/heapcheck.h"
+
 
 extern char** _environ;
 
@@ -470,8 +472,6 @@ bool ChildData::decode(void* childData)//, int childDataSize)
 	}
 
 	// get environment
-	if (size <= 0)
-		return false;
 	p += sizeof(DWORD);	// skip env size
 	resetEnvironment();
 	addEnvironmentList((WCHAR*)p);

@@ -3,18 +3,15 @@
    Released under GNU/GPL License v.2
    See CREDITS.TXT file for authors and copyrights
 
-   $Id$
+   $Id: WindowControls.h,v 1.1 2011/12/21 10:35:29 root Exp root $
 */
 
 #if !defined(__WINDOWSCONTROL_H)
 #define __WINDOWSCONTROL_H
 
-#include <malloc.h>
-#include "Units.h"
-#include "XCSoar.h"
-#include "Utils.h"
-#include "LKUtils.h"
 #define IsEmptyString(x)        ((x==NULL) || (x[0]=='\0'))
+
+#define MAXSETCAPTION 254	// max chars in SetCaption, autolimited
 
 #define BORDERTOP    (1<<bkTop)
 #define BORDERRIGHT  (1<<bkRight)
@@ -68,7 +65,7 @@ class ComboList{
 #define ComboPopupReopenLESSDataIndex -800002
 #define ComboPopupNULL -800003
 
-    ComboListEntry_t * CreateItem(  int ItemIndex, int DataFieldIndex,TCHAR *StringValue,TCHAR *StringValueFormatted);
+    ComboListEntry_t * CreateItem(  int ItemIndex, int DataFieldIndex,const TCHAR *StringValue,const TCHAR *StringValueFormatted);
     void FreeComboPopupItemList(void);
 
     int ComboPopupDrawListIndex;
@@ -106,7 +103,8 @@ class DataField{
 	      void(*OnDataAccess)(DataField *Sender, DataAccessKind_t Mode)=NULL);
     virtual ~DataField(void){};
 
-
+	virtual void Clear();
+        
   virtual void Special(void);
   virtual void Inc(void);
   virtual void Dec(void);
@@ -135,10 +133,12 @@ class DataField{
 
   virtual int SetMin(int Value){(void)Value; return(0);};
   virtual double SetMin(double Value){(void)Value; return(false);};
-
+  virtual int SetStep(int Value){(void)Value; return(0);};
+  virtual double SetStep(double Value){(void)Value; return(false);};
   virtual int SetMax(int Value){(void)Value; return(0);};
   virtual double SetMax(double Value){(void)Value; return(0);};
   void SetUnits(const TCHAR *text) { _tcscpy(mUnits, text); }
+  const TCHAR* GetUnits() const { return mUnits; }
 
   void Use(void){
     mUsageCounter++;
@@ -149,12 +149,15 @@ class DataField{
     return(mUsageCounter);
   }
 
-  void SetDisplayFormat(TCHAR *Value);
+  void SetDisplayFormat(const TCHAR *Value);
+  void SetEditFormat(const TCHAR *Value);
   void SetDisableSpeedUp(bool bDisable) {mDisableSpeedup=bDisable;}  // allows combolist to iterate all values
   bool GetDisableSpeedUp(void) {return mDisableSpeedup;}
   void SetDetachGUI(bool bDetachGUI) {mDetachGUI=bDetachGUI;}  // allows combolist to iterate all values w/out triggering external events
   bool GetDetachGUI(void) {return mDetachGUI;}
   virtual int CreateComboList(void) {return 0;};
+  virtual int CreateKeyboard(void) {return FALSE;};
+
   ComboList* GetCombo(void) { return &mComboList;}
   virtual int SetFromCombo(int iDataFieldIndex, TCHAR *sValue) {return SetAsInteger(iDataFieldIndex);};
   void CopyString(TCHAR * szStringOut, bool bFormatted);
@@ -183,7 +186,7 @@ class DataFieldBoolean:public DataField{
     TCHAR mTextFalse[FORMATSIZE+1];
 
   public:
-    DataFieldBoolean(const TCHAR *EditFormat, const TCHAR *DisplayFormat, int Default, TCHAR *TextTrue, TCHAR *TextFalse, void(*OnDataAccess)(DataField *Sender, DataAccessKind_t Mode)):
+    DataFieldBoolean(const TCHAR *EditFormat, const TCHAR *DisplayFormat, int Default, const TCHAR *TextTrue, const TCHAR *TextFalse, void(*OnDataAccess)(DataField *Sender, DataAccessKind_t Mode)):
       DataField(EditFormat, DisplayFormat, OnDataAccess){
 		  if (Default) {mValue=true;} else {mValue=false;}
       _tcscpy(mTextTrue, TextTrue);
@@ -263,11 +266,13 @@ class DataFieldEnum: public DataField {
     };
       ~DataFieldEnum();
 
+  void Clear();
   void Inc(void);
   void Dec(void);
   int CreateComboList(void);
 
   void addEnumText(const TCHAR *Text);
+  void addEnumTextNoLF(const TCHAR *Text);
 
   int GetAsInteger(void);
   TCHAR *GetAsString(void);
@@ -286,7 +291,7 @@ class DataFieldEnum: public DataField {
   void Sort(int startindex=0);
 };
 
-#define DFE_MAX_FILES 200
+#define DFE_MAX_FILES 300
 
 typedef struct {
   TCHAR *mTextFile;
@@ -315,19 +320,11 @@ class DataFieldFileReader: public DataField {
       
     };
     ~DataFieldFileReader() {
-	for (unsigned int i=1; i<nFiles; i++) {
-	  if (fields[i].mTextFile) {
-	    free(fields[i].mTextFile);
-	    fields[i].mTextFile= NULL;
-	  }
-	  if (fields[i].mTextPathFile) {
-	    free(fields[i].mTextPathFile);
-	    fields[i].mTextPathFile= NULL;
-	  }
+		Clear();
 	}
-	nFiles = 1;
-    }
-
+	
+	void Clear();
+    
   void Inc(void);
   void Dec(void);
   int CreateComboList(void);
@@ -339,8 +336,8 @@ class DataFieldFileReader: public DataField {
   int GetAsInteger(void);
   TCHAR *GetAsString(void);
   TCHAR *GetAsDisplayString(void);
-  void Lookup(const TCHAR* text);
-  TCHAR* GetPathFile(void);
+  bool Lookup(const TCHAR* text);
+  const TCHAR* GetPathFile(void) const;
 
   #if defined(__BORLANDC__)
   #pragma warn -hid
@@ -450,6 +447,7 @@ class DataFieldFloat:public DataField{
   void Inc(void);
   void Dec(void);
   int CreateComboList(void);
+  int CreateKeyboard(void);
   int SetFromCombo(int iDataFieldIndex, TCHAR *sValue);
 
   bool GetAsBoolean(void);
@@ -466,6 +464,7 @@ class DataFieldFloat:public DataField{
   void Set(double Value);
   double SetMin(double Value);
   double SetMax(double Value);
+  double SetStep(double Value);
   #if defined(__BORLANDC__)
   #pragma warn +hid
   #endif
@@ -484,7 +483,7 @@ class DataFieldString:public DataField{
     TCHAR mValue[EDITSTRINGSIZE];
 
   public:
-    DataFieldString(TCHAR *EditFormat, TCHAR *DisplayFormat, TCHAR *Default, void(*OnDataAccess)(DataField *Sender, DataAccessKind_t Mode)):
+    DataFieldString(const TCHAR *EditFormat, const TCHAR *DisplayFormat, const TCHAR *Default, void(*OnDataAccess)(DataField *Sender, DataAccessKind_t Mode)):
       DataField(EditFormat, DisplayFormat, OnDataAccess){
       _tcscpy(mValue, Default);
       SupportCombo=false;
@@ -526,18 +525,11 @@ class WindowControl {
     WindowControl *mOwner;
     WindowControl *mTopOwner;
     HDC  mHdc;
-    #ifndef FIXDC
-    HDC  mHdcTemp;
-    #endif
     HBITMAP mBmpMem;
     int  mBorderKind;
     COLORREF mColorBack;
     COLORREF mColorFore;
-    #if FIXGDI
-    static HBRUSH mhBrushBk;
-    #else
     HBRUSH mhBrushBk;
-    #endif
     HPEN mhPenBorder;
     HPEN mhPenSelector;
     RECT mBoundRect;
@@ -567,7 +559,7 @@ class WindowControl {
 
     HWND mHWnd;
     bool mCanFocus;
-    TCHAR mCaption[254];
+    TCHAR mCaption[MAXSETCAPTION+1]; // +1 just for safety!
     bool mDontPaintSelector;
 
     WindowControl *mClients[50];
@@ -665,16 +657,13 @@ class WindowControl {
 
     virtual void SetCaption(const TCHAR *Value);
     void SetHelpText(const TCHAR *Value);
+	const TCHAR* GetHelpText() const { return mHelpText; }
 
     HWND GetHandle(void){return(mHWnd);};
     virtual HWND GetClientAreaHandle(void){return(mHWnd);};
     HWND GetParent(void){return(mParent);};
     HDC  GetDeviceContext(void){return(mHdc);};
 
-    #if FIXDC
-    #else
-    HDC  GetTempDeviceContext(void){return(mHdcTemp);};
-    #endif
     WindowControl *GetOwner(void){return(mOwner);};
 
     void SetParentHandle(HWND hwnd);
@@ -758,7 +747,7 @@ class WndFrame:public WindowControl{
     int mLastDrawTextHeight;
     UINT mCaptionStyle;
 
-    void Paint(HDC hDC);
+    virtual void Paint(HDC hDC);
 
 };
 
@@ -797,6 +786,7 @@ class WndListFrame:public WndFrame{
     int RecalculateIndices(bool bigscroll);
     void Redraw(void);
     int GetItemIndex(void){return(mListInfo.ItemIndex);}
+    void SetItemIndexPos(int iValue);
     void SetItemIndex(int iValue);
     void SelectItemFromScreen(int xPos, int yPos, RECT *rect);
     int GetScrollBarHeight (void);
@@ -821,7 +811,7 @@ class WndListFrame:public WndFrame{
     OnListCallback_t mOnListCallback;
     OnListCallback_t mOnListEnterCallback;
     ListInfo_t mListInfo;
-    void Paint(HDC hDC);
+    virtual void Paint(HDC hDC);
 	  RECT rcScrollBarButton;
 	  RECT rcScrollBar;
     int mMouseScrollBarYOffset; // where in the scrollbar button was mouse down at
@@ -858,7 +848,7 @@ class WndOwnerDrawFrame:public WndFrame{
   protected:
 
     OnPaintCallback_t mOnPaintCallback;
-    void Paint(HDC hDC);
+    virtual void Paint(HDC hDC);
 
 };
 
@@ -892,7 +882,7 @@ class WndForm:public WindowControl{
 
     int OnUnhandledMessage(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
-    void Paint(HDC hDC);
+    virtual void Paint(HDC hDC);
     int cbTimerID;
 
   public:
@@ -955,7 +945,7 @@ class WndButton:public WindowControl{
 
   private:
 
-    void Paint(HDC hDC);
+    virtual void Paint(HDC hDC);
     bool mDown;
     bool mDefault;
     int mLastDrawTextHeight;
@@ -990,8 +980,6 @@ class WndProperty:public WindowControl{
 
   private:
 
-    static HBITMAP hBmpLeft32;
-    static HBITMAP hBmpRight32;
     static int InstCount;
 
     HWND mhEdit;
@@ -1005,8 +993,9 @@ class WndProperty:public WindowControl{
     RECT mHitRectDown;
     bool mDownDown;
     bool mUpDown;
+    bool mUseKeyboard;
 
-    void Paint(HDC hDC);
+    virtual void Paint(HDC hDC);
     void (*mOnClickUpNotify)(WindowControl * Sender);
     void (*mOnClickDownNotify)(WindowControl * Sender);
 
@@ -1038,6 +1027,7 @@ class WndProperty:public WindowControl{
     bool SetFocused(bool Value, HWND FromTo);
 
     bool SetReadOnly(bool Value);
+    bool SetUseKeyboard(bool Value);
 
     void RefreshDisplay(void);
 
@@ -1059,7 +1049,7 @@ class WndProperty:public WindowControl{
 
 };
 
-#ifndef ALTAIRSYNC
+int dlgComboPicker(WndProperty* theProperty);
 
 typedef void (*webpt2Event)(const TCHAR *);
 
@@ -1078,7 +1068,6 @@ class WndEventButton:public WndButton {
 };
 
 
-#endif
 
 #endif
 

@@ -5,29 +5,16 @@
 
 */
 
-#include "StdAfx.h"
-#include "XCSoar.h"
-#include "options.h"
-#include "Flarm.h"
 #include "externs.h"
 #include "FlarmIdFile.h"
-#include "Utils.h"
-#include "Utils2.h"
+#include "DoInits.h"
+
 
 FlarmIdFile::FlarmIdFile(void)
 {
   TCHAR path[MAX_PATH];
 
-  LKSound(_T("LK_CONNECT.WAV"));
-
   TCHAR flarmIdFileName[MAX_PATH] = TEXT("\0");
-#if NOSIM
-  if (SIMMODE) return;
-#else
-#ifdef _SIM_
-	return;
-#endif
-#endif
 
   LocalPath(path);
 
@@ -50,6 +37,15 @@ FlarmIdFile::FlarmIdFile(void)
 
   while( ( (signed)fileLength - ftell(hFile)) > 87) {
 	FlarmId *flarmId = new FlarmId;
+
+	_tcscpy(flarmId->id,_T(""));
+	_tcscpy(flarmId->name,_T(""));
+	_tcscpy(flarmId->airfield,_T(""));
+	_tcscpy(flarmId->type,_T(""));
+	_tcscpy(flarmId->reg,_T(""));
+	_tcscpy(flarmId->cn,_T(""));
+	_tcscpy(flarmId->freq,_T(""));
+
 	GetItem(hFile, flarmId);
 	flarmIds[flarmId->GetId()] = flarmId;
 	itemCount++;
@@ -64,25 +60,23 @@ FlarmIdFile::~FlarmIdFile(void)
 
 void FlarmIdFile::GetItem(HANDLE hFile, FlarmId *flarmId)
 {
-  GetAsString(hFile, 6, flarmId->id);
-  GetAsString(hFile, 21, flarmId->name);
-  GetAsString(hFile, 21, flarmId->airfield);
-  GetAsString(hFile, 21, flarmId->type);
-  GetAsString(hFile, 7, flarmId->reg);
+  GetAsString(hFile, FLARMID_SIZE_ID-1, flarmId->id);
+  GetAsString(hFile, FLARMID_SIZE_NAME-1, flarmId->name);
+  GetAsString(hFile, FLARMID_SIZE_AIRFIELD-1, flarmId->airfield);
+  GetAsString(hFile, FLARMID_SIZE_TYPE-1, flarmId->type);
+  GetAsString(hFile, FLARMID_SIZE_REG-1, flarmId->reg);
   GetAsString(hFile, MAXFLARMCN, flarmId->cn);
-  GetAsString(hFile, 7, flarmId->freq);
+  GetAsString(hFile, FLARMID_SIZE_FREQ-1, flarmId->freq);
   //SetFilePointer(hFile, 1, NULL, FILE_CURRENT) ;
 
   int i = 0;
-  int maxSize = sizeof(flarmId->reg) / sizeof(TCHAR);
-  while(flarmId->reg[i] != 0 && i < maxSize) {
+  while(i < FLARMID_SIZE_REG && flarmId->reg[i] != 0) {
       if (flarmId->reg[i] == _T(' ')) flarmId->reg[i] = 0;
       i++;
   }
 
   i = 0;
-  maxSize = sizeof(flarmId->cn) / sizeof(TCHAR);
-  while(flarmId->cn[i] != 0 && i < maxSize) {
+  while(i < MAXFLARMCN && flarmId->cn[i] != 0) {
       if (flarmId->cn[i] == _T(' ')) flarmId->cn[i] = 0;
       i++;
   }
@@ -107,9 +101,7 @@ void FlarmIdFile::GetAsString(HANDLE hFile, int charCount, TCHAR *res)
 {
   int bytesToRead = charCount * 2;
   char bytes[100];
-  //DWORD bytesRead; 
 
-  //ReadFile(hFile, bytes, bytesToRead, &bytesRead, NULL);
   fread(bytes, 1, bytesToRead, (FILE*)hFile);
     	
   TCHAR *curChar = res;
@@ -152,7 +144,7 @@ FlarmId* FlarmIdFile::GetFlarmIdItem(TCHAR *cn)
 	{
 	  return itemTemp;
 	}	
-      iterFind++;
+      ++iterFind;
     }
 	
   return NULL;

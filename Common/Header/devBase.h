@@ -3,16 +3,17 @@
    Released under GNU/GPL License v.2
    See CREDITS.TXT file for authors and copyrights
 
-   $Id$
+   $Id: devBase.h,v 1.1 2011/12/21 10:35:29 root Exp root $
 */
 //__________________________________________________________compilation_control_
 
 #ifndef __DEVBASE_H_
 #define __DEVBASE_H_
 
+#include "device.h"
+
 //_____________________________________________________________________includes_
 
-#include "device.h"
 
 //___________________________________________________________class_declarations_
 
@@ -44,6 +45,10 @@ class DevBase
       cap_speed    = (1l << dfSpeed),
       cap_vario    = (1l << dfVario),
       cap_logger   = (1l << dfLogger),
+	  cap_wind     = (1l << dfWind),
+	  cap_nmeaout  = (1l << dfNmeaOut),
+	  cap_voice    = (1l << dfVoice),
+	  cap_radio    = (1l << dfRadio)
     }; // Capability
 
     /// message type in declaration progress dialog
@@ -76,11 +81,7 @@ class DevBase
     static void ShowProgress(DeclDlg dlgType);
 
     /// Checks minimum and maximum waypoint count limits.
-   static bool CheckWPCount(const Declaration_t& decl, int minCount, int maxCount, unsigned errBufSize, TCHAR errBuf[]);
-
-    /// Converts TCHAR[] string into ASCII string (writing as much as possible
-    /// characters into @p output). Output string will always be terminated by '\0'.
-    static bool Wide2Ascii(const TCHAR* input,  int outSize, char* output);
+    static bool CheckWPCount(const Declaration_t& decl, int minCount, int maxCount, unsigned errBufSize, TCHAR errBuf[]);
 
     /// Stops port Rx thread.
     static bool StopRxThread(PDeviceDescriptor_t d, unsigned errBufSize, TCHAR errBuf[]);
@@ -96,6 +97,9 @@ class DevBase
 
     /// Writes given character to COM port and checks the result.
     static bool ComWrite(PDeviceDescriptor_t d, char character, unsigned errBufSize, TCHAR errBuf[]);
+
+    /// Flushes COM port output buffers.
+    static void ComFlush(PDeviceDescriptor_t d);
 
     /// Reads data from COM port and checks if they contain expected data.
     static bool ComExpect(PDeviceDescriptor_t d,

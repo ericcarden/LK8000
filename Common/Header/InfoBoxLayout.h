@@ -1,29 +1,6 @@
 #ifndef INFOBOXLAYOUT_H
 #define INFOBOXLAYOUT_H
 
-#include "StdAfx.h"
-#include "Sizes.h"
-
-class InfoBoxLayout {
- public:
-  static bool fullscreen;
-  static bool landscape;
-  static bool square;
-  static double dscale;
-  static bool IntScaleFlag;
-  static int scale;
-  static void CreateInfoBoxes(RECT rc);
-  static void DestroyInfoBoxes(void);
-  static int InfoBoxGeometry;
-  static int ControlWidth, ControlHeight, TitleHeight;
-  static void ScreenGeometry(RECT rc);
-  static void Paint(void);
- private:
-  static void GetInfoBoxPosition(int i, RECT rc, 
-				 int *x, int *y,
-				 int *sizex, int *sizey);
-  static void GetInfoBoxSizes(RECT rc);
-};
 
 
 class ButtonLabel {

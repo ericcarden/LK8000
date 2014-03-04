@@ -1,19 +1,47 @@
 #
 SRC=Common/Source
+DEV=Common/Source/Devices
+DLG=Common/Source/Dialogs
+LIB=Common/Source/Library
+DRW=Common/Source/Draw
+MAP=Common/Source/MapDraw
+TOP=Common/Source/Topology
+SHP=Common/Source/Topology/shapelib
+TER=Common/Source/Terrain
+NTR=Common/Source/LKInterface
+CLC=Common/Source/Calc
+TSK=Common/Source/Calc/Task
+CMM=Common/Source/Comm
+WPT=Common/Source/Waypoints
 HDR=Common/Header
+
 BIN=Bin/$(TARGET)
 
-#
-PROFILE		:= 
-OPTIMIZE	:=-O2
-#OPTIMIZE	:=-O3 -funroll-all-loops
+# enable/disable heap checking (dmalloc.h libdmalloc.a must be in ../dmalloc)
+DMALLOC=n
+
+OPTIMIZE    := -O2
+PROFILE	    :=
+REMOVE_NS   := y
+
+ifeq ($(DEBUG),y)
+    OPTIMIZE := -O0
+    OPTIMIZE += -g3 -gdwarf-2
+    REMOVE_NS :=
+endif
+
+ifeq ($(GPROF),y)
+    PROFILE		:= -pg
+    REMOVE_NS :=
+endif
+
 CONFIG_PPC2002	:=n
 CONFIG_PPC2003	:=n
-CONFIG_ALTAIR	:=n
 CONFIG_PC	:=n
 CONFIG_WINE	:=n
-ALTAIR_PORTRAIT :=n
 CONFIG_PNA	:=n
+CONFIG_LINUX	:=n
+CONFIG_ANDROID	:=n
 MINIMAL		:=n
 XSCALE		:=n
 GTARGET		:=$(TARGET)
@@ -35,21 +63,15 @@ else
         ifeq ($(TARGET),WINE)
           CONFIG_WINE :=y
         else
-          ifeq ($(TARGET),ALTAIR)
-            CONFIG_ALTAIR	:=y  
-	    MINIMAL       :=y
-	    XSCALE	:=y
-          endif
-          ifeq ($(TARGET),ALTAIRPORTRAIT)
-            CONFIG_ALTAIR	:=y
-	    ALTAIR_PORTRAIT :=y
-	    MINIMAL       :=y
-	    XSCALE	:=y
-          endif
 	  ifeq ($(TARGET),PNA)
 	    CONFIG_PNA := y
 	    CONFIG_PPC2003 := y
-	    MINIMAL       :=n
+	  else
+	    ifeq ($(TARGET),LINUX)
+	      CONFIG_LINUX := y
+	      CONFIG_ANDROID := n
+	      MINIMAL       :=n
+            endif
 	  endif
 	endif
       endif
@@ -60,20 +82,24 @@ endif
 ############# build and CPU info
 
 ifeq ($(CONFIG_PC),y)
-TCPATH		:=i386-mingw32-
+TCPATH		:=i686-w64-mingw32-
 CPU		:=i586
-MCPU		:= -mcpu=$(CPU) 
+MCPU		:= -mcpu=$(CPU)
 else
 ifeq ($(CONFIG_WINE),y)
 TCPATH		:=wine
 CPU		:=i586
-MCPU		:= -mcpu=$(CPU) 
+MCPU		:= -mcpu=$(CPU)
+else
+ifeq ($(CONFIG_LINUX),y)
+TCPATH		:= 
 else
 TCPATH		:=arm-mingw32ce-
+endif
 
 ifeq ($(XSCALE),y)
 CPU		:=xscale
-MCPU		:= -mcpu=$(CPU) 
+MCPU		:= -mcpu=$(CPU)
 else
 CPU		:=
 MCPU		:=
@@ -91,6 +117,8 @@ endif
 endif
 endif
 
+-include local.mk
+
 ############# platform info
 
 ifeq ($(CONFIG_PPC2002),y)
@@ -105,25 +133,6 @@ CE_MAJOR	:=4
 CE_MINOR	:=00
 CE_PLATFORM	:=400
 PCPU		:=ARMV4
-endif
-
-# JMW this shouldn't be required VENTA FIX
-#ifeq ($(CONFIG_PNA),y)
-#CE_MAJOR	:=5
-#CE_MINOR	:=00
-#CE_PLATFORM	:=500
-#endif
-
-ifeq ($(CONFIG_ALTAIR),y)
-# armv4i
-CE_MAJOR	:=5
-CE_MINOR	:=00
-CE_PLATFORM	:=500
-TARGET		:=ALTAIR
-ifeq ($(ALTAIR_PORTRAIT),y)
-TARGET          :=ALTAIRPORTRAIT
-endif
-
 endif
 
 ifeq ($(CONFIG_PC),y)
@@ -166,20 +175,23 @@ EBROWSE         :=ebrowse
 
 ######## windows definitions
 
+ifeq ($(CONFIG_LINUX),y)
+CE_DEFS		:=-DLINUX -D__GNUC__ -D__linux__
+else
 ifeq ($(CONFIG_PC),y)
-CE_DEFS		:=-D_WIN32_WINDOWS=$(CE_VERSION) -DWINVER=$(CE_VERSION) 
-CE_DEFS		+=-D_WIN32_IE=$(CE_VERSION) -DWINDOWSPC=1 
-CE_DEFS		+=-D_REALTHING_
+CE_DEFS		:=-D_WIN32_WINDOWS=$(CE_VERSION) -DWINVER=$(CE_VERSION)
+CE_DEFS		+=-D_WIN32_IE=$(CE_VERSION) -DWINDOWSPC=1
 else
 CE_DEFS		:=-D_WIN32_WCE=$(CE_VERSION) -D_WIN32_IE=$(CE_VERSION)
 CE_DEFS		+=-DWIN32_PLATFORM_PSPC=$(CE_PLATFORM)
 endif
+endif
 
 ifeq ($(CONFIG_PPC2002),y)
-CE_DEFS		+=-DPPC2002=1 
+CE_DEFS		+=-DPPC2002=1
 endif
 ifeq ($(CONFIG_PPC2003),y)
-CE_DEFS		+=-DPPC2003=1 
+CE_DEFS		+=-DPPC2003=1
 endif
 
 
@@ -187,47 +199,64 @@ UNICODE		:= -DUNICODE -D_UNICODE
 
 ######## paths
 
-ifeq ($(CONFIG_WINE),y)
-INCLUDES	:= -I$(HDR)/mingw32compat -I$(HDR) -I$(SRC) 
+ifeq ($(CONFIG_LINUX),y)
+INCLUDES	:= -I$(HDR)/linuxcompat -I/usr/include/linux -I$(HDR) -I$(SRC)
 else
-INCLUDES	:= -I$(HDR)/mingw32compat -I$(HDR) -I$(SRC) 
+ifeq ($(CONFIG_WINE),y)
+INCLUDES	:= -I$(HDR)/mingw32compat -I$(HDR) -I$(SRC)
+else
+INCLUDES	:= -I$(HDR)/mingw32compat -I$(HDR) -I$(SRC)
+endif
 endif
 
 ######## compiler flags
 
-CPPFLAGS	:= $(INCLUDES) $(CE_DEFS) 
-CPPFLAGS	+= -DNDEBUG -DFIVV
+CPPFLAGS	:= $(INCLUDES) $(CE_DEFS)
+CPPFLAGS	+= -DNDEBUG
+#
+# LX MINIMAP CUSTOM VERSION
+#
+#CPPFLAGS	+= -DLXMINIMAP
+#
+#
 #CPPFLAGS	+= -DFLARM_AVERAGE  NOW INSIDE options.h
-#CPPFLAGS	+= -Wchar-subscripts -Wformat -Winit-self -Wimplicit -Wmissing-braces -Wparentheses -Wreturn-type 
-#CPPFLAGS	+= -Wunused-label -Wunused-variable -Wunused-value -Wuninitialized 
+#CPPFLAGS	+= -Wchar-subscripts -Wformat -Winit-self -Wimplicit -Wmissing-braces -Wparentheses -Wreturn-type
+#CPPFLAGS	+= -Wunused-label -Wunused-variable -Wunused-value -Wuninitialized
 
-CPPFLAGS	+= -Wall -Wno-write-strings -Wno-char-subscripts
-#CPPFLAGS	+= -Wall -Wno-non-virtual-dtor 
+CPPFLAGS	+= -Wall -Wno-char-subscripts
+#CPPFLAGS	+= -Wall -Wno-char-subscripts -Wignored-qualifiers -Wunsafe-loop-optimizations 
+#CPPFLAGS	+= -Winit-self -Wswitch -Wcast-qual -Wcast-align
+#CPPFLAGS	+= -Wall -Wno-non-virtual-dtor
 #CPPFLAGS	+= -Wno-char-subscripts -Wno-switch
 
-#CPPFLAGS	+= -Wshadow 
-#CPPFLAGS	+= -Wsign-compare -Wsign-conversion 
+CPPFLAGS	+= -Wshadow
+#CPPFLAGS	+= -Wsign-compare -Wsign-conversion
 ifeq ($(CONFIG_PNA),y)
-#CPPFLAGS	+= -DBIGDISPLAY -DCECORE -DPNA -DNOLINETO 
-CPPFLAGS	+= -DCECORE -DPNA 
+CPPFLAGS	+= -DCECORE -DPNA
 endif
 
+ifeq ($(CONFIG_LINUX),y)
+CPPFLAGS	+= $(UNICODE)
+else
 ifeq ($(CONFIG_PC),y)
-CPPFLAGS	+= -D_WINDOWS -D_MBCS -DWIN32 -DCECORE -DUNDER_CE=300 $(UNICODE)
+CPPFLAGS	+= -D_WINDOWS -D_MBCS -DWIN32 -DCECORE $(UNICODE)
   ifeq ($(CONFIG_WINE),y)
-CPPFLAGS	+= -D__MINGW32__ 
-# -mno-cygwin 
+CPPFLAGS	+= -D__MINGW32__
+# -mno-cygwin
   else
 CPPFLAGS	+= $(UNICODE)
   endif
 else
 CPPFLAGS	+= -D_ARM_ $(UNICODE)
-  ifeq ($(CONFIG_ALTAIR),y)
-CPPFLAGS 	+=-IPPC2005 -DGNAV
-    ifeq ($(ALTAIR_PORTRAIT),y)
-CPPFLAGS	+= -DFORCEPORTRAIT
-    endif
-  endif
+endif
+endif
+
+ifeq ($(DMALLOC),y)
+  CPPFLAGS += -DHC_DMALLOC
+endif
+
+ifeq ($(INT_OVERFLOW), y)
+	CPPFLAGS	+=-ftrapv -DINT_OVERFLOW
 endif
 
 CXXFLAGS	:=$(OPTIMIZE) -fno-exceptions $(PROFILE)
@@ -243,15 +272,19 @@ endif
 LDFLAGS		+=$(PROFILE)
 
 ifeq ($(CONFIG_PC),y)
-LDLIBS		:= -Wl,-Bstatic -lstdc++  -lmingw32 -lcomctl32 -lkernel32 -luser32 -lgdi32 -ladvapi32 -lwinmm -lmsimg32
+  LDLIBS := -Wl,-Bstatic -lstdc++  -lmingw32 -lcomctl32 -lkernel32 -luser32 -lgdi32 -ladvapi32 -lwinmm -lmsimg32 -lwsock32 -lole32 -loleaut32 -luuid
 else
-  LDLIBS		:= -Wl,-Bstatic -lstdc++  -Wl,-Bdynamic -lcommctrl
+  LDLIBS := -Wl,-Bstatic -lstdc++  -Wl,-Bdynamic -lcommctrl -lws2 -lole32 -loleaut32 -luuid
   ifeq ($(MINIMAL),n)
     LDLIBS		+= -laygshell 
     ifneq ($(TARGET),PNA)
-      LDLIBS		+= -limgdecmp
+      LDLIBS		+= -limgdecmp 
     endif
   endif
+endif
+
+ifeq ($(DMALLOC),y)
+  LDLIBS += -L../dmalloc -ldmalloc
 endif
 
 ####### compiler target
@@ -264,12 +297,12 @@ TARGET_ARCH	:=-mwin32 $(MCPU)
 ifeq ($(TARGET),PNA)
 TARGET_ARCH	:=-mwin32
 endif
+ifeq ($(TARGET),LINUX)
+TARGET_ARCH	:=
+endif
 
 endif
 WINDRESFLAGS	:=-I$(HDR) -I$(SRC) $(CE_DEFS) -D_MINGW32_
-ifeq ($(CONFIG_ALTAIR),y)
-WINDRESFLAGS	+=-DGNAV
-endif
 MAKEFLAGS	+=-r
 
 ####### build verbosity
@@ -296,133 +329,504 @@ endif
 
 ####### sources
 
-DEVS	:=\
-	$(SRC)/devBorgeltB50.cpp \
-	$(SRC)/devCAI302.cpp \
-	$(SRC)/devCaiGpsNav.cpp \
-	$(SRC)/devCondor.cpp \
-	$(SRC)/devEW.cpp \
-	$(SRC)/devEWMicroRecorder.cpp \
-	$(SRC)/devFlymasterF1.cpp \
-	$(SRC)/devCompeo.cpp \
-	$(SRC)/devDigifly.cpp \
-	$(SRC)/devGeneric.cpp \
-	$(SRC)/devBase.cpp \
-	$(SRC)/devLX.cpp \
-	$(SRC)/devLXNano.cpp \
-	$(SRC)/devNmeaOut.cpp \
-	$(SRC)/devPosiGraph.cpp \
-	$(SRC)/devVolkslogger.cpp \
-	$(SRC)/devXCOM760.cpp \
-	$(SRC)/devZander.cpp \
-	$(SRC)/devIlec.cpp \
-	$(SRC)/devDSX.cpp \
-	$(SRC)/devFlytec.cpp \
-	$(SRC)/devLKext1.cpp \
+LIBRARY	:=\
+	$(LIB)/bsearch.cpp \
+	$(LIB)/Crc.cpp\
+	$(LIB)/DirectoryFunctions.cpp \
+	$(LIB)/DrawFunctions.cpp \
+	$(LIB)/leastsqs.cpp \
+	$(LIB)/magfield.cpp \
+	$(LIB)/MathFunctions.cpp	\
+	$(LIB)/NavFunctions.cpp	\
+	$(LIB)/PressureFunctions.cpp\
+	$(LIB)/rscalc.cpp \
+	$(LIB)/StringFunctions.cpp\
+	$(LIB)/TimeFunctions.cpp\
+	$(LIB)/Utm.cpp \
+	$(LIB)/xmlParser.cpp \
 
-DLGS	:=\
-	$(SRC)/dlgAirspace.cpp \
-	$(SRC)/dlgAirspaceColours.cpp \
-	$(SRC)/dlgAirspaceDetails.cpp \
-	$(SRC)/dlgAirspacePatterns.cpp \
-	$(SRC)/dlgAirspaceSelect.cpp \
-	$(SRC)/dlgAirspaceWarning.cpp \
-	$(SRC)/dlgBasicSettings.cpp \
-	$(SRC)/dlgChecklist.cpp \
-	$(SRC)/dlgConfiguration.cpp \
-	$(SRC)/dlgConfiguration2.cpp \
-	$(SRC)/dlgHelp.cpp \
-	$(SRC)/dlgLoggerReplay.cpp \
-	$(SRC)/dlgStartPoint.cpp \
-	$(SRC)/dlgStartup.cpp \
-	$(SRC)/dlgStatistics.cpp \
-	$(SRC)/dlgStatus.cpp \
-	$(SRC)/dlgStatusSystem.cpp \
-	$(SRC)/dlgTarget.cpp \
-	$(SRC)/dlgTaskCalculator.cpp \
-	$(SRC)/dlgTaskOverview.cpp \
-	$(SRC)/dlgTaskRules.cpp \
-	$(SRC)/dlgTimeGates.cpp \
-	$(SRC)/dlgTopology.cpp \
-	$(SRC)/dlgTaskWaypoint.cpp \
-	$(SRC)/dlgTeamCode.cpp \
-	$(SRC)/dlgTextEntry.cpp \
-	$(SRC)/dlgTextEntry_Keyboard.cpp \
-	$(SRC)/dlgTools.cpp \
-	$(SRC)/dlgWayPointDetails.cpp \
-	$(SRC)/dlgWayQuick.cpp \
-	$(SRC)/dlgWaypointEdit.cpp \
-	$(SRC)/dlgWayPointSelect.cpp \
-	$(SRC)/dlgWaypointOutOfTerrain.cpp \
-	$(SRC)/dlgWeather.cpp \
-	$(SRC)/dlgWindSettings.cpp \
-	$(SRC)/dlgStartTask.cpp \
-	$(SRC)/dlgFontEdit.cpp \
-	$(SRC)/dlgLKTraffic.cpp \
-	$(SRC)/dlgCustomKeys.cpp \
-	$(SRC)/dlgProfiles.cpp \
+
+WAYPT	:=\
+	$(WPT)/AllocateWaypointList.cpp\
+	$(WPT)/AltitudeFromTerrain.cpp\
+	$(WPT)/CUPToLatLon.cpp\
+	$(WPT)/Close.cpp\
+	$(WPT)/FindMatchingWaypoint.cpp\
+	$(WPT)/FindNearestFarVisible.cpp\
+	$(WPT)/FindNearestWayPoint.cpp\
+	$(WPT)/GrowWaypointList.cpp\
+	$(WPT)/InTerrainRange.cpp\
+	$(WPT)/InitWayPointCalc.cpp\
+	$(WPT)/ParseCOMPE.cpp\
+	$(WPT)/ParseCUP.cpp\
+	$(WPT)/ParseDAT.cpp\
+	$(WPT)/ParseOZI.cpp\
+	$(WPT)/Read.cpp\
+	$(WPT)/ReadAltitude.cpp\
+	$(WPT)/ReadFile.cpp\
+	$(WPT)/SetHome.cpp\
+	$(WPT)/ToString.cpp\
+	$(WPT)/Virtuals.cpp\
+	$(WPT)/Write.cpp\
+
+
+LKINTER	:=\
+	$(NTR)/LKCustomKeyHandler.cpp\
+	$(NTR)/LKInit.cpp\
+	$(NTR)/LKInitScreen.cpp\
+	$(NTR)/LKInterface.cpp \
+	$(NTR)/OverTargets.cpp\
+	$(NTR)/VirtualKeys.cpp\
+
+DRAW	:=\
+	$(DRW)/CalculateScreen.cpp \
+	$(DRW)/CalculateWaypointReachable.cpp \
+	$(DRW)/DoAirspaces.cpp \
+	$(DRW)/DoTarget.cpp \
+	$(DRW)/DoTraffic.cpp \
+	$(DRW)/DrawAircraft.cpp \
+	$(DRW)/DrawAirSpaces.cpp \
+	$(DRW)/DrawAirSpacesBorders.cpp \
+	$(DRW)/DrawAirspaceLabels.cpp \
+	$(DRW)/DrawBearing.cpp \
+	$(DRW)/DrawBestCruiseTrack.cpp \
+	$(DRW)/DrawCompass.cpp \
+	$(DRW)/DrawCross.cpp \
+	$(DRW)/DrawFAIOpti.cpp \
+	$(DRW)/DrawFinalGlideBar.cpp \
+	$(DRW)/DrawFlarmRadar.cpp \
+	$(DRW)/DrawFlightMode.cpp \
+	$(DRW)/DrawGlideThroughTerrain.cpp \
+	$(DRW)/DrawGPSStatus.cpp \
+	$(DRW)/DrawGreatCircle.cpp \
+	$(DRW)/DrawHeading.cpp \
+	$(DRW)/DrawHSI.cpp \
+	$(DRW)/DrawLKAlarms.cpp \
+	$(DRW)/DrawMapScale.cpp \
+	$(DRW)/DrawRunway.cpp \
+	$(DRW)/DrawStartSector.cpp \
+	$(DRW)/DrawTRI.cpp \
+	$(DRW)/DrawTask.cpp \
+	$(DRW)/DrawTaskAAT.cpp \
+	$(DRW)/DrawTeamMate.cpp \
+	$(DRW)/DrawTerrainAbove.cpp \
+	$(DRW)/DrawThermalBand.cpp \
+	$(DRW)/DrawThermalEstimate.cpp \
+	$(DRW)/DrawWind.cpp \
+	$(DRW)/Draw_Primitives.cpp \
+	$(DRW)/LKDrawAspNearest.cpp \
+	$(DRW)/LKDrawBottomBar.cpp \
+	$(DRW)/LKDrawCommon.cpp \
+	$(DRW)/LKDrawCpuStatsDebug.cpp \
+	$(DRW)/LKDrawFLARMTraffic.cpp \
+	$(DRW)/LKDrawInfoPage.cpp \
+	$(DRW)/LKDrawLook8000.cpp \
+	$(DRW)/LKDrawMapSpace.cpp \
+	$(DRW)/LKDrawNearest.cpp \
+	$(DRW)/LKDrawTargetTraffic.cpp \
+	$(DRW)/LKDrawThermalHistory.cpp \
+	$(DRW)/LKDrawTrail.cpp \
+	$(DRW)/LKDrawTraffic.cpp \
+	$(DRW)/LKDrawVario.cpp \
+	$(DRW)/LKDrawWaypoints.cpp \
+	$(DRW)/LKDrawWelcome.cpp \
+	$(DRW)/LKGeneralAviation.cpp \
+	$(DRW)/LKMessages.cpp \
+	$(DRW)/LKProcess.cpp \
+	$(DRW)/LKWriteText.cpp \
+	$(DRW)/LoadSplash.cpp\
+	$(DRW)/MapScale.cpp \
+	$(DRW)/MapWindowA.cpp \
+	$(DRW)/MapWindowMode.cpp \
+	$(DRW)/MapWindowZoom.cpp \
+	$(DRW)/MapWindow_Events.cpp \
+	$(DRW)/MapWindow_Utils.cpp \
+	$(DRW)/MapWndProc.cpp \
+	$(DRW)/Multimaps/DrawMultimap.cpp \
+	$(DRW)/Multimaps/DrawMultimap_Asp.cpp \
+	$(DRW)/Multimaps/DrawMultimap_Radar.cpp \
+	$(DRW)/Multimaps/DrawMultimap_Test.cpp \
+	$(DRW)/Multimaps/GetVisualGlidePoints.cpp \
+	$(DRW)/Multimaps/RenderAirspace.cpp\
+	$(DRW)/Multimaps/RenderAirspaceTerrain.cpp\
+	$(DRW)/Multimaps/RenderNearAirspace.cpp\
+	$(DRW)/Multimaps/RenderPlane.cpp\
+	$(DRW)/Multimaps/Sideview.cpp \
+	$(DRW)/Multimaps/Sky.cpp \
+	$(DRW)/Multimaps/TopView.cpp \
+	$(DRW)/Multimaps/DrawVisualGlide.cpp \
+	$(DRW)/OrigAndOrient.cpp \
+	$(DRW)/RenderMapWindow.cpp \
+	$(DRW)/RenderMapWindowBg.cpp \
+	$(DRW)/ScreenLatLon.cpp \
+	$(DRW)/Sonar.cpp \
+	$(DRW)/TextInBox.cpp \
+	$(DRW)/UpdateAndRefresh.cpp \
+
+CALC	:=\
+	$(CLC)/AddSnailPoint.cpp 		\
+	$(CLC)/AltitudeRequired.cpp \
+	$(CLC)/Atmosphere.cpp 		\
+	$(CLC)/AutoMC.cpp \
+	$(CLC)/AutoQNH.cpp \
+	$(CLC)/AverageClimbRate.cpp \
+	$(CLC)/Azimuth.cpp \
+	$(CLC)/BallastDump.cpp \
+	$(CLC)/BestAlternate.cpp	\
+	$(CLC)/Calculations2.cpp \
+	$(CLC)/Calculations_Utils.cpp \
+	$(CLC)/ClimbAverageCalculator.cpp\
+	$(CLC)/ClimbStats.cpp\
+	$(CLC)/ContestMgr.cpp\
+	$(CLC)/DistanceToHome.cpp\
+	$(CLC)/DistanceToNext.cpp\
+	$(CLC)/DoAlternates.cpp \
+	$(CLC)/DoCalculations.cpp \
+	$(CLC)/DoCalculationsSlow.cpp \
+	$(CLC)/DoCalculationsVario.cpp \
+	$(CLC)/DoCommon.cpp \
+	$(CLC)/DoLogging.cpp \
+	$(CLC)/DoNearest.cpp \
+	$(CLC)/DoRangeWaypointList.cpp \
+	$(CLC)/DoRecent.cpp \
+	$(CLC)/FarFinalGlideThroughTerrain.cpp\
+	$(CLC)/FinalGlideThroughTerrain.cpp\
+	$(CLC)/Flaps.cpp \
+	$(CLC)/FlarmCalculations.cpp \
+	$(CLC)/FlightTime.cpp\
+	$(CLC)/FreeFlight.cpp \
+	$(CLC)/GlideThroughTerrain.cpp \
+	$(CLC)/Heading.cpp \
+	$(CLC)/HeadWind.cpp \
+	$(CLC)/InitCloseCalculations.cpp \
+	$(CLC)/LastThermalStats.cpp\
+	$(CLC)/LD.cpp\
+	$(CLC)/LDRotaryBuffer.cpp\
+	$(CLC)/MagneticVariation.cpp \
+	$(CLC)/McReady.cpp\
+	$(CLC)/NettoVario.cpp\
+	$(CLC)/Orbiter.cpp \
+	$(CLC)/Pirker.cpp \
+	$(CLC)/PredictNextPosition.cpp \
+	$(CLC)/ResetFlightStats.cpp\
+	$(CLC)/SetWindEstimate.cpp \
+	$(CLC)/SpeedToFly.cpp \
+	$(CLC)/TakeoffLanding.cpp\
+	$(CLC)/TeamCodeCalculation.cpp \
+	$(CLC)/TerrainFootprint.cpp \
+	$(CLC)/TerrainHeight.cpp \
+	$(CLC)/ThermalBand.cpp \
+	$(CLC)/ThermalHistory.cpp \
+	$(CLC)/ThermalLocator.cpp \
+	$(CLC)/TotalEnergy.cpp\
+	$(CLC)/Trace.cpp \
+	$(CLC)/Turning.cpp \
+	$(CLC)/Valid.cpp\
+	$(CLC)/Vario.cpp\
+	$(CLC)/WaypointApproxDistance.cpp \
+	$(CLC)/WaypointArrivalAltitude.cpp \
+	$(CLC)/windanalyser.cpp\
+	$(CLC)/windmeasurementlist.cpp \
+	$(CLC)/windstore.cpp 	\
+	$(CLC)/WindEKF.cpp 	\
+	$(CLC)/WindKalman.cpp 	\
+
+
+TASK	:=\
+	$(TSK)/AATCalculateIsoLines.cpp \
+	$(TSK)/AATDistance.cpp \
+	$(TSK)/AATInTurnSector.cpp	\
+	$(TSK)/AATStats.cpp 		\
+	$(TSK)/AATtools.cpp 		\
+	$(TSK)/AnnounceWPSwitch.cpp 	\
+	$(TSK)/CheckFinalGlide.cpp \
+	$(TSK)/CheckInSector.cpp \
+	$(TSK)/CheckStartRestartFinish.cpp \
+	$(TSK)/FAIFinishHeight.cpp \
+	$(TSK)/FlyDirectTo.cpp \
+	$(TSK)/InFinishSector.cpp \
+	$(TSK)/InSector.cpp \
+	$(TSK)/InStartSector.cpp \
+	$(TSK)/InTurnSector.cpp \
+	$(TSK)/InsideStartHeight.cpp\
+	$(TSK)/OptimizedTargetPos.cpp \
+	$(TSK)/ReadyToStartAdvance.cpp \
+	$(TSK)/RefreshTaskStatistics.cpp \
+	$(TSK)/SpeedHeight.cpp\
+	$(TSK)/StartTask.cpp \
+	$(TSK)/TaskAltitudeRequired.cpp\
+	$(TSK)/TaskSpeed.cpp\
+	$(TSK)/TaskStatistic.cpp\
+	$(TSK)/TaskUtils.cpp\
+	$(TSK)/TimeGates.cpp\
+	$(TSK)/RefreshTask/CalculateAATTaskSectors.cpp\
+	$(TSK)/RefreshTask/CalculateTaskSectors.cpp\
+	$(TSK)/RefreshTask/RefreshTask.cpp\
+	$(TSK)/PGTask/PGTaskPt.cpp\
+	$(TSK)/PGTask/PGCicrcleTaskPt.cpp\
+	$(TSK)/PGTask/PGLineTaskPt.cpp\
+	$(TSK)/PGTask/PGTaskMgr.cpp\
+	$(TSK)/PGTask/PGSectorTaskPt.cpp\
+	$(TSK)/PGTask/PGConeTaskPt.cpp\
+
+TERRAIN	:=\
+	$(TER)/Cache.cpp	\
+	$(TER)/OpenCreateClose.cpp	\
+	$(TER)/RasterTerrain.cpp	\
+	$(TER)/RAW.cpp	\
+	$(TER)/STScreenBuffer.cpp \
+
+TOPOL	:=\
+	$(TOP)/Topology.cpp		\
+
+MAPDRAW	:=\
+	$(MAP)/DrawTerrain.cpp		\
+	$(MAP)/DrawTopology.cpp		\
+	$(MAP)/MarkLocation.cpp		\
+	$(MAP)/OpenCloseTopology.cpp		\
+	$(MAP)/SetTopologyBounds.cpp		\
+	$(MAP)/TopoMarks.cpp		\
+	$(MAP)/ZoomTopology.cpp		\
+
+UTILS	:=\
+	$(SRC)/utils/fileext.cpp \
+	$(SRC)/utils/stringext.cpp \
+	$(SRC)/utils/md5internal.cpp \
+	$(SRC)/utils/md5.cpp
+
+COMMS	:=\
+	$(CMM)/LKFlarm.cpp\
+	$(CMM)/Parser.cpp\
+	$(CMM)/ComPort.cpp\
+	$(CMM)/GpsIdPort.cpp\
+	$(CMM)/lkgpsapi.cpp\
+	$(CMM)/SerialPort.cpp\
+	$(CMM)/UpdateBaroSource.cpp \
+	$(CMM)/UpdateMonitor.cpp \
+	$(CMM)/UtilsParser.cpp \
+	$(CMM)/device.cpp \
+	$(CMM)/Bluetooth/BtHandler.cpp \
+	$(CMM)/Bluetooth/BtHandlerWince.cpp \
+	$(CMM)/Bluetooth/BthPort.cpp \
+	$(CMM)/Obex/CObexPush.cpp \
+
+
+DEVS	:=\
+	$(DEV)/devBase.cpp \
+	$(DEV)/devBorgeltB50.cpp \
+	$(DEV)/devCAI302.cpp \
+	$(DEV)/devCaiGpsNav.cpp \
+	$(DEV)/devCompeo.cpp \
+	$(DEV)/devCondor.cpp \
+	$(DEV)/devDigifly.cpp \
+	$(DEV)/devDisabled.cpp \
+	$(DEV)/devDSX.cpp \
+	$(DEV)/devEye.cpp \
+	$(DEV)/devEW.cpp \
+	$(DEV)/devEWMicroRecorder.cpp \
+	$(DEV)/devFlymasterF1.cpp \
+	$(DEV)/devFlytec.cpp \
+	$(DEV)/devGeneric.cpp \
+	$(DEV)/devIlec.cpp \
+	$(DEV)/devIMI.cpp \
+	$(DEV)/devNmeaOut.cpp \
+	$(DEV)/devLKext1.cpp \
+	$(DEV)/devLX.cpp \
+	$(DEV)/devLX16xx.cpp \
+	$(DEV)/devLXMiniMap.cpp \
+	$(DEV)/devLXNano.cpp \
+	$(DEV)/devLXV7.cpp \
+	$(DEV)/devLXV7easy.cpp \
+	$(DEV)/devLXV7_EXP.cpp \
+	$(DEV)/devPosiGraph.cpp \
+	$(DEV)/devVolkslogger.cpp \
+	$(DEV)/devXCOM760.cpp \
+	$(DEV)/devZander.cpp \
+	$(DEV)/devWesterboer.cpp \
+	$(DEV)/LKHolux.cpp \
+	$(DEV)/LKRoyaltek3200.cpp	\
+	$(DEV)/devFlyNet.cpp \
+	$(DEV)/devCProbe.cpp \
+	$(DEV)/devBlueFlyVario.cpp
+		
 
 VOLKS	:=\
-	$(SRC)/Volkslogger/dbbconv.cpp \
-	$(SRC)/Volkslogger/grecord.cpp \
-	$(SRC)/Volkslogger/vlapi2.cpp \
-	$(SRC)/Volkslogger/vlapihlp.cpp \
-	$(SRC)/Volkslogger/vlapisys_win.cpp \
-	$(SRC)/Volkslogger/vlconv.cpp \
-	$(SRC)/Volkslogger/vlutils.cpp
+	$(DEV)/Volkslogger/dbbconv.cpp \
+	$(DEV)/Volkslogger/grecord.cpp \
+	$(DEV)/Volkslogger/vlapi2.cpp \
+	$(DEV)/Volkslogger/vlapihlp.cpp \
+	$(DEV)/Volkslogger/vlapisys_win.cpp \
+	$(DEV)/Volkslogger/vlconv.cpp \
+	$(DEV)/Volkslogger/vlutils.cpp
 
-#	$(SRC)/dlgConfigurationVario.cpp \
-#	$(SRC)/dlgVoice.cpp \
-#	$(SRC)/dlgVegaDemo.cpp \
-#	$(SRC)/dlgFlarmTraffic.cpp \
-#	$(SRC)/dlgSwitches.cpp \
-#	$(SRC)/dlgBrightness.cpp \
+
+DLGS	:=\
+	$(DLG)/AddCustomKeyList.cpp \
+	$(DLG)/dlgAirspace.cpp \
+	$(DLG)/dlgAirspaceWarningParams.cpp \
+	$(DLG)/dlgAirspaceColours.cpp \
+	$(DLG)/dlgMultiSelectList.cpp \
+	$(DLG)/dlgAirspaceDetails.cpp \
+	$(DLG)/dlgAirspacePatterns.cpp \
+	$(DLG)/dlgAirspaceSelect.cpp \
+	$(DLG)/dlgBasicSettings.cpp \
+	$(DLG)/dlgBottomBar.cpp \
+	$(DLG)/dlgChecklist.cpp \
+	$(DLG)/dlgComboPicker.cpp \
+	$(DLG)/dlgConfiguration.cpp \
+	$(DLG)/dlgConfiguration2.cpp \
+	$(DLG)/dlgCustomKeys.cpp \
+	$(DLG)/dlgCustomMenu.cpp \
+	$(DLG)/dlgFontEdit.cpp \
+	$(DLG)/dlgHelp.cpp \
+	$(DLG)/dlgInfoPages.cpp \
+	$(DLG)/dlgLKAirspaceWarning.cpp \
+	$(DLG)/dlgLKTraffic.cpp \
+	$(DLG)/dlgLoggerReplay.cpp \
+	$(DLG)/dlgMultimaps.cpp\
+	$(DLG)/dlgOracle.cpp \
+	$(DLG)/dlgProfiles.cpp \
+	$(DLG)/dlgStartPoint.cpp \
+	$(DLG)/dlgStartTask.cpp \
+	$(DLG)/dlgStartup.cpp \
+	$(DLG)/dlgStatus.cpp \
+	$(DLG)/dlgTarget.cpp \
+	$(DLG)/dlgTaskCalculator.cpp \
+	$(DLG)/dlgTaskOverview.cpp \
+	$(DLG)/dlgTaskRules.cpp \
+	$(DLG)/dlgTimeGates.cpp \
+	$(DLG)/dlgTopology.cpp \
+	$(DLG)/dlgTaskWaypoint.cpp \
+	$(DLG)/dlgTeamCode.cpp \
+	$(DLG)/dlgTextEntry_Keyboard.cpp \
+	$(DLG)/dlgThermalDetails.cpp \
+	$(DLG)/dlgTools.cpp \
+	$(DLG)/dlgWayPointDetails.cpp \
+	$(DLG)/dlgWayQuick.cpp \
+	$(DLG)/dlgWaypointEdit.cpp \
+	$(DLG)/dlgWayPointSelect.cpp \
+	$(DLG)/dlgWaypointOutOfTerrain.cpp \
+	$(DLG)/dlgWindSettings.cpp \
+	$(DLG)/Analysis/DrawOtherFunctions.cpp \
+	$(DLG)/Analysis/DrawXYGrid.cpp \
+	$(DLG)/Analysis/RenderBarograph.cpp \
+	$(DLG)/Analysis/RenderClimb.cpp \
+	$(DLG)/Analysis/RenderContest.cpp \
+	$(DLG)/Analysis/RenderFAISector.cpp \
+	$(DLG)/Analysis/RenderGlidePolar.cpp \
+	$(DLG)/Analysis/RenderSpeed.cpp\
+	$(DLG)/Analysis/RenderTask.cpp \
+	$(DLG)/Analysis/RenderTemperature.cpp \
+	$(DLG)/Analysis/RenderWind.cpp \
+	$(DLG)/Analysis/ScaleFunctions.cpp \
+	$(DLG)/Analysis/StyleLine.cpp \
+	$(DLG)/Analysis/Update.cpp \
+	$(DLG)/Analysis/dlgStatistics.cpp \
+	$(DLG)/Task/AdjustAATTargets.cpp\
+	$(DLG)/Task/InsertWaypoint.cpp\
+	$(DLG)/Task/LoadTaskWaypoints.cpp\
+	$(DLG)/Task/RemoveTaskPoint.cpp\
+	$(DLG)/Task/RemoveWaypoint.cpp\
+	$(DLG)/Task/ReplaceWaypoint.cpp\
+	$(DLG)/Task/RotateStartPoints.cpp\
+	$(DLG)/Task/SwapWaypoint.cpp\
+	$(DLG)/dlgBluetooth.cpp\
+	$(DLG)/dlgIgcFile.cpp\
+	
 
 SRC_FILES :=\
-	$(SRC)/AATDistance.cpp 		$(SRC)/AirfieldDetails.cpp \
-	$(SRC)/Airspace.cpp 		$(SRC)/AirspaceColourDlg.cpp \
-	$(SRC)/AirspaceWarning.cpp 	$(SRC)/Atmosphere.cpp \
-	$(SRC)/Calculations.cpp 	$(SRC)/Calculations2.cpp \
-	$(SRC)/ClimbAverageCalculator.cpp $(SRC)/LKCalculations.cpp \
-	$(SRC)/ConditionMonitor.cpp 	$(SRC)/device.cpp \
-	$(SRC)/Dialogs.cpp 		$(SRC)/LKProcess.cpp \
-	$(SRC)/FlarmIdFile.cpp 		$(SRC)/FlarmCalculations.cpp \
+	$(SRC)/AirfieldDetails.cpp \
+	$(SRC)/Alarms.cpp\
+	$(SRC)/Backlight.cpp 		\
+	$(SRC)/Battery.cpp \
+	$(SRC)/Bitmaps.cpp \
+	$(SRC)/Buttons.cpp \
+	$(SRC)/ChangeScreen.cpp\
+	$(SRC)/CommandLine.cpp \
+	$(SRC)/ConditionMonitor.cpp \
+	$(SRC)/CpuLoad.cpp \
+	$(SRC)/DataOptions.cpp \
+	$(SRC)/Dialogs.cpp\
+	$(SRC)/DLL.cpp \
+	$(SRC)/DoInits.cpp\
+	$(SRC)/ExpandMacros.cpp	\
+	$(SRC)/FlarmIdFile.cpp 		\
+	$(SRC)/FlarmTools.cpp		\
+	$(SRC)/Fonts.cpp \
 	$(SRC)/Geoid.cpp \
-	$(SRC)/InfoBox.cpp 		$(SRC)/InfoBoxLayout.cpp \
-	$(SRC)/InputEvents.cpp 		$(SRC)/leastsqs.cpp \
-	$(SRC)/Logger.cpp 		$(SRC)/LKMapWindow.cpp \
-	$(SRC)/LKDrawLook8000.cpp 	$(SRC)/LKDrawNearest.cpp\
-	$(SRC)/LKDrawCommon.cpp 	\
-	$(SRC)/LKDrawInfoPage.cpp	$(SRC)/LKDrawWaypoints.cpp\
-	$(SRC)/LKDrawTraffic.cpp	$(SRC)/LKSimulator.cpp\
-	$(SRC)/LKBestAlternate.cpp \
-	$(SRC)/MapWindow.cpp 		$(SRC)/MapWindow2.cpp \
-	$(SRC)/MapWindow3.cpp 		$(SRC)/MapWindowA.cpp \
-	$(SRC)/MapWindowZoom.cpp        $(SRC)/MapWindowMode.cpp \
-	$(SRC)/Utils2.cpp \
-	$(SRC)/McReady.cpp 		$(SRC)/Message.cpp \
-	$(SRC)/NavFunctions.cpp		$(SRC)/OnLineContest.cpp \
-	$(SRC)/Parser.cpp		$(SRC)/Port.cpp \
-	$(SRC)/Process.cpp 		$(SRC)/dlgComboPicker.cpp \
-	$(SRC)/RasterTerrain.cpp	$(SRC)/rscalc.cpp \
-	$(SRC)/StdAfx.cpp		$(SRC)/STScreenBuffer.cpp \
-	$(SRC)/Task.cpp			$(SRC)/TeamCodeCalculation.cpp \
-	$(SRC)/Terrain.cpp		$(SRC)/ThermalLocator.cpp \
-	$(SRC)/Topology.cpp		$(SRC)/units.cpp \
-	$(SRC)/Utils.cpp		$(SRC)/Utm.cpp \
-	$(SRC)/VOIMAGE.cpp		$(SRC)/LKObjects.cpp \
-	$(SRC)/Waypointparser.cpp  	$(SRC)/LKUtils.cpp \
-	$(SRC)/LKLanguage.cpp		$(SRC)/LKGeneralAviation.cpp \
-	$(SRC)/windanalyser.cpp		$(SRC)/windmeasurementlist.cpp \
-	$(SRC)/windstore.cpp 		$(SRC)/WindowControls.cpp \
-	$(SRC)/WindZigZag.cpp 		$(SRC)/xmlParser.cpp \
+	$(SRC)/Globals.cpp	\
+	$(SRC)/InitFunctions.cpp\
+	$(SRC)/InputEvents.cpp 		\
+	$(SRC)/lk8000.cpp\
+	$(SRC)/LiveTracker.cpp \
+	$(SRC)/LKAirspace.cpp	\
+	$(SRC)/LKFonts.cpp		\
+	$(SRC)/LKInstall.cpp 		\
+	$(SRC)/LKLanguage.cpp		\
+	$(SRC)/LKObjects.cpp \
+	$(SRC)/LKProfileInitRuntime.cpp\
+	$(SRC)/LKProfileLoad.cpp\
+	$(SRC)/LKProfileResetDefault.cpp\
+	$(SRC)/LKProfileSave.cpp\
+	$(SRC)/LKSimulator.cpp\
+	$(SRC)/LKSimTraffic.cpp\
+	$(SRC)/LKUtils.cpp \
+	$(SRC)/LocalPath.cpp\
+	$(SRC)/Locking.cpp\
+	$(SRC)/Logger/DoSignature.cpp 	\
+	$(SRC)/Logger/FlightDataRec.cpp 	\
+	$(SRC)/Logger/LogBook.cpp\
+	$(SRC)/Logger/Logger.cpp \
+	$(SRC)/Logger/NMEAlogger.cpp\
+	$(SRC)/Logger/ReplayLogger.cpp \
+	$(SRC)/Logger/StartStopLogger.cpp \
+	$(SHP)/mapbits.cpp \
+	$(SHP)/maperror.cpp 	\
+	$(SHP)/mapprimitive.cpp \
+	$(SHP)/mapsearch.cpp\
+	$(SHP)/mapshape.cpp \
+	$(SHP)/maptree.cpp\
+	$(SHP)/mapxbase.cpp \
+	$(SRC)/Memory.cpp \
+	$(SRC)/Message.cpp \
+	$(SRC)/MessageLog.cpp	\
+	$(SRC)/Models.cpp\
+	$(SRC)/Multimap.cpp\
+	$(SRC)/Oracle.cpp\
+	$(SRC)/Polar.cpp		\
+	$(SRC)/ProcessTimer.cpp \
+	$(SRC)/Progress.cpp\
+	$(SRC)/RotateScreen.cpp\
+	$(SRC)/SaveLoadTask/ClearTask.cpp\
+	$(SRC)/SaveLoadTask/DefaultTask.cpp\
+	$(SRC)/SaveLoadTask/LoadNewTask.cpp\
+	$(SRC)/SaveLoadTask/CTaskFileHelper.cpp\
+	$(SRC)/SaveLoadTask/SaveDefaultTask.cpp\
+	$(SRC)/SaveLoadTask/SaveTask.cpp\
+	$(SRC)/SaveLoadTask/LoadCupTask.cpp\
+	$(SRC)/SaveLoadTask/LoadGpxTask.cpp\
+	$(SRC)/Settings.cpp\
+	$(SRC)/Sound.cpp \
+	$(SRC)/StatusFile.cpp \
+	$(SRC)/Thread_Calculation.cpp\
+	$(SRC)/Thread_Draw.cpp	\
+	$(SRC)/TrueWind.cpp		\
+	$(SRC)/units.cpp \
+	$(SRC)/Utils.cpp		\
+	$(SRC)/WndProc.cpp\
+	$(SRC)/WindowControls.cpp \
 	\
-	$(SRC)/mapbits.cpp \
-	$(SRC)/maperror.cpp 		$(SRC)/mapprimitive.cpp \
-	$(SRC)/mapsearch.cpp		$(SRC)/mapshape.cpp \
-	$(SRC)/maptree.cpp              $(SRC)/mapxbase.cpp \
-	\
-	$(SRC)/lk8000.cpp \
+	$(LKINTER) \
+	$(LIBRARY) \
+	$(WAYPT) \
+	$(DRAW) \
+	$(CALC) \
+	$(TASK) \
+	$(TERRAIN) \
+	$(TOPOL) \
+	$(MAPDRAW) \
+	$(UTILS) \
+	$(COMMS) \
 	$(DEVS) \
 	$(DLGS) \
 	$(VOLKS)
@@ -430,16 +834,16 @@ SRC_FILES :=\
 
 ####### libraries
 
-ZZIPSRC	:=$(SRC)/zzip
+ZZIPSRC	:=$(LIB)/zzip
 ZZIP	:=\
-	$(ZZIPSRC)/adler32.c	 	$(ZZIPSRC)/compress.c \
-	$(ZZIPSRC)/crc32.c 		$(ZZIPSRC)/deflate.c \
+	$(ZZIPSRC)/adler32.c	 	\
+	$(ZZIPSRC)/crc32.c 		\
 	$(ZZIPSRC)/err.c 		$(ZZIPSRC)/fetch.c \
 	$(ZZIPSRC)/file.c 		\
 	$(ZZIPSRC)/infback.c 		$(ZZIPSRC)/inffast.c \
 	$(ZZIPSRC)/inflate.c 		$(ZZIPSRC)/info.c \
 	$(ZZIPSRC)/inftrees.c 		$(ZZIPSRC)/plugin.c \
-	$(ZZIPSRC)/trees.c 		$(ZZIPSRC)/uncompr.c \
+	$(ZZIPSRC)/uncompr.c \
 	$(ZZIPSRC)/zip.c 		$(ZZIPSRC)/zstat.c \
 	$(ZZIPSRC)/zutil.c
 
@@ -466,14 +870,22 @@ JASPER	:=\
 COMPATSRC:=$(SRC)/wcecompat
 COMPAT	:=\
 	$(COMPATSRC)/errno.cpp 		$(COMPATSRC)/string_extras.cpp \
-	$(COMPATSRC)/ts_string.cpp 	$(COMPATSRC)/wtoi.c
+	$(COMPATSRC)/wtoi.c
 
+#ifneq ($(CONFIG_PC),y)
+#COMPAT	:=$(COMPAT) \
+#   $(COMPATSRC)/redir.cpp
+#endif
+
+DIALOG_XML = $(wildcard Common/Data/Dialogs/*.xml)
 
 ####### compilation outputs
 
+# Add JP2 library for JP2000 unsupported raster maps
+# (BIN)/jasper.a \
+
 OBJS 	:=\
 	$(patsubst $(SRC)%.cpp,$(BIN)%.o,$(SRC_FILES)) \
-	$(BIN)/jasper.a \
 	$(BIN)/zzip.a \
 	$(BIN)/compat.a \
 	$(BIN)/lk8000.rsc
@@ -491,15 +903,19 @@ cxx-flags	=$(DEPFLAGS) $(CXXFLAGS) $(CPPFLAGS) $(CPPFLAGS_$(dirtarget)) $(TARGET
 
 
 ####### targets
-
-.PHONY: FORCE all clean cleani tags
+.PHONY: FORCE all clean cleani tags rebuild
 
 all:	$(OUTPUTS)
 
+rebuild:
+	@$(MAKE) clean
+	@$(MAKE) all
+
 clean: cleani
 	@$(NQ)echo "  CLEAN   $(BIN)"
-	$(Q)$(FIND) $(BIN) $(IGNORE) \( -name '*.[oa]' -o -name '*.rsc' -o -name '.*.d' \) -type f -print | xargs -r $(RM)
-	$(Q)$(RM) LK8000-$(TARGET)-ns.exe 
+	$(Q)$(FIND) $(BIN) $(IGNORE) \( -name '*.[oa]' -o -name '*.rsc' -o -name '.*.d' -o -name '*.min.*' \) -type f -print | xargs -r $(RM)
+	$(Q)$(RM) LK8000-$(TARGET)-ns.exe
+	$(Q)$(RM) LK8000-$(TARGET).exe
 
 cleani:
 	@$(NQ)echo "  CLEANI"
@@ -531,8 +947,10 @@ LK8000-$(TARGET).exe: LK8000-$(TARGET)-ns.exe
 	@$(NQ)echo "  STRIP   $@"
 	$(Q)$(STRIP) $< -o $@
 	$(Q)$(SIZE) $@
-#	./buildnumber
+
+ifeq ($(REMOVE_NS),y)
 	$(RM) LK8000-$(TARGET)-ns.exe
+endif
 
 LK8000-$(TARGET)-ns.exe: $(OBJS)
 	@$(NQ)echo "  LINK    $@"
@@ -562,12 +980,20 @@ $(BIN)/%.o: $(SRC)/%.cpp
 	$(Q)$(CXX) $(cxx-flags) -c $(OUTPUT_OPTION) $<
 	@sed -i '1s,^[^ :]*,$@,' $(DEPFILE)
 
-$(BIN)/%.rsc: $(SRC)/%.rc
-	@echo "$@: $< " `sed -nr 's|^.*"\.\./(Data[^"]+)".*$$|Common/\1|gp' $<` > $(DEPFILE)
+$(BIN)/%.rsc: $(BIN)/%.min.rc 
 	@$(NQ)echo "  WINDRES $@"
 	$(Q)$(WINDRES) $(WINDRESFLAGS) $< $@
 
+$(BIN)/%.min.rc: $(SRC)/%.rc $(patsubst Common/Data/Dialogs/%.xml,$(BIN)/Data/Dialogs/%.min.xml,$(DIALOG_XML))
+	@echo "$@: $< " `sed -nr 's|^.*"\.\./(Data[^"]+)".*$$|Common/\1|gp' $<` > $(DEPFILE)
+	@$(NQ)echo "  build $@"
+	@sed -r 's|(^.*")\.\./(Data/Dialogs[^"]+)(.xml".*)$$|\1$(BIN)/\2.min\3|g' $< > $@
 
+$(BIN)/Data/Dialogs/%.min.xml: Common/Data/Dialogs/%.xml
+	@$(NQ)echo "  minimize $@"
+	$(Q)xsltproc --output $@ build/dialogtemplate.xsl $<
+
+.PRECIOUS: $(BIN)/Data/Dialogs/%.min.xml
 
 ####### include depends files
 
@@ -577,6 +1003,9 @@ endif
 ifneq ($(wildcard $(BIN)/*/.*.d),)
 include $(wildcard $(BIN)/*/.*.d)
 endif
-ifneq ($(wildcard $(BIN)/.*.rsc),)
-include $(wildcard $(BIN)/.*.d)
+ifneq ($(wildcard $(BIN)/*/*/.*.d),)
+include $(wildcard $(BIN)/*/*/.*.d)
+endif
+ifneq ($(wildcard $(BIN)/*/*/*/.*.d),)
+include $(wildcard $(BIN)/*/*/*/.*.d)
 endif

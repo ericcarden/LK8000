@@ -3,14 +3,12 @@
    Released under GNU/GPL License v.2
    See CREDITS.TXT file for authors and copyrights
 
-   $Id: InputEvents.h,v 8.2 2011/01/01 23:35:17 root Exp root $
+   $Id: InputEvents.h,v 1.1 2011/12/21 10:35:29 root Exp root $
 */
 
 #ifndef INPUTEVENTS_H
 #define INPUTEVENTS_H
 
-#include "XCSoar.h"
-#include "externs.h"
 
 typedef void (*pt2Event)(const TCHAR *);
 
@@ -19,6 +17,8 @@ HINSTANCE _loadDLL(TCHAR *name);
 class InputEvents {
  public:
   static void readFile();
+  static void UnloadString();
+
   static int mode2int(const TCHAR *mode, bool create);
   static void setMode(const TCHAR *mode);
   static TCHAR* getMode();
@@ -49,17 +49,11 @@ class InputEvents {
   static void eventBallast(const TCHAR *misc);
   static void eventBugs(const TCHAR *misc);
   static void eventCalculator(const TCHAR *misc);
-  static void eventChangeInfoBoxType(const TCHAR *misc);
   static void eventChecklist(const TCHAR *misc);
-  static void eventClearAirspaceWarnings(const TCHAR *misc);
-  static void eventClearStatusMessages(const TCHAR *misc);
-  static void eventClearWarningsOrTerrainTopology(const TCHAR *misc);
   static void eventDLLExecute(const TCHAR *misc);
-  static void eventDoInfoKey(const TCHAR *misc);
   static void eventFlightMode(const TCHAR *misc);
   static void eventLogger(const TCHAR *misc);
   static void eventMacCready(const TCHAR *misc);
-  static void eventMainMenu(const TCHAR *misc);
   static void eventMarkLocation(const TCHAR *misc);
   static void eventMode(const TCHAR *misc);
   static void eventNearestAirspaceDetails(const TCHAR *misc);
@@ -72,7 +66,6 @@ class InputEvents {
   static void eventRepeatStatusMessage(const TCHAR *misc);
   static void eventRun(const TCHAR *misc);
   static void eventScreenModes(const TCHAR *misc);
-  static void eventSelectInfoBox(const TCHAR *misc);
   static void eventSendNMEA(const TCHAR *misc);
   static void eventSendNMEAPort1(const TCHAR *misc);
   static void eventSendNMEAPort2(const TCHAR *misc);
@@ -89,18 +82,15 @@ class InputEvents {
   static void eventWaypointDetails(const TCHAR *misc);
   static void eventWind(const TCHAR *misc);
   static void eventZoom(const TCHAR *misc);
-  static void eventBrightness(const TCHAR *misc);
   static void eventDeclutterLabels(const TCHAR *misc);
   static void eventExit(const TCHAR *misc);
-  static void eventFLARMRadar(const TCHAR *misc);
   static void eventBeep(const TCHAR *misc);
   static void eventUserDisplayModeForce(const TCHAR *misc);
   static void eventAirspaceDisplayMode(const TCHAR *misc);
   static void eventAutoLogger(const TCHAR *misc);
-  static void eventGotoLookup(const TCHAR *misc);
+  static void eventMyMenu(const TCHAR *misc);
   static void eventAddWaypoint(const TCHAR *misc);
   static void eventOrientation(const TCHAR *misc);
-  static void eventFlarmTraffic(const TCHAR *misc);
   static void eventCalcWind(const TCHAR *misc);
   static void eventInvertColor(const TCHAR *misc);
   static void eventChangeBack(const TCHAR *misc);
@@ -117,15 +107,21 @@ class InputEvents {
   static void eventChangeGS(const TCHAR *misc);
   static void eventChangeTurn(const TCHAR *misc);
   static void eventService(const TCHAR *misc);
+  
+  static void eventInfoStripe(const TCHAR *misc);
+  static void eventInfoPage(const TCHAR *misc);
+  static void eventModeType(const TCHAR *misc);
   // -------
 
-#if NOSIM
   static void showErrors();
-#else
-#ifdef _SIM_
-  static void showErrors();
-#endif 
+
+#ifdef LXMINIMAP
+  static int getSelectedButtonIndex();
+  static void eventChangeSorting(const TCHAR *misc);
+  static bool isSelectMode();
 #endif
+  // This must be public in any case
+  static void eventMinimapKey(const TCHAR *misc);
 
  private:
   static bool processGlideComputer_real(int);
@@ -304,10 +300,5 @@ enum {
   NE_COUNT = 132, // How many we have for arrays etc // XXX Increased arbitrarily for duplicates above
 };
 
-/*
-#ifdef _SIM_
-#define _INPUTDEBUG_
-#endif
-*/
 
 #endif

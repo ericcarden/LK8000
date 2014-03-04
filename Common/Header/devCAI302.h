@@ -3,13 +3,9 @@
 #define	DEVCAI302_H
  
 #include <windows.h>
-#include "Sizes.h"
-#include "MapWindow.h"
-
-#include "device.h"
 
 BOOL cai302Register(void);
-
-
-
+BOOL cai302PutBugs(PDeviceDescriptor_t d, double Bugs);
+BOOL cai302PutMacCready(PDeviceDescriptor_t d, double MacCready);
+BOOL cai302PutBallast(PDeviceDescriptor_t d, double Ballast);
 #endif

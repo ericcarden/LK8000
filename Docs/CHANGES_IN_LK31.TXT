@@ -1,0 +1,1496 @@
+VERSION 3.1 MANUAL ADDENDUM (NOT UPDATED TO THE LATEST 3.1h version yet!)
+===========================
+
+FLARM RADAR (INCOMPLETE DESCRIPTION, OBSOLETED BY MULTIMAP RADAR.. TODO)
+-----------
+
+The Radar page works similar to the well-known Butterfly displays and it's derivates, but has some more features: 
+
+-sideview to the see the vertical distances at a glance
+-colored scheme to see the climb rates at a glance
+-labels and climb rates of “all” FLARM objects
+-different shapes for ghosts and zombies
+-direct "link line" to target object
+
+Zoom works like in normal map from 1km..100km, clicking in the upper third of the display zooms the scale, clicking in the lower third unzooms the scale.
+
+
+Colors scheme to indicate the current climb rates (30s integral):
+dark blue:         vario < -1,5m/s
+blue:              vario < 0.5m/s
+yellow: -0.5m/s <= vario <= 0.5m/s
+green:             vario > 0.5m/s
+light green:       vario > 1.5m/s
+
+Shapes:
+arrow:    active Flarm object
+square:   zombie
+dot:      ghost
+
+Target:
+If a FLARM target object is selected it will be connected with a straight line between own and the target position.
+
+
+
+CUSTOM MENU
+-----------
+Calling menu, on first page a new button is replacing the old TrueWind button.
+This is the Custom Menu button. Click on it, and you can find up to 10 menu buttons, plus the Cancel.
+By default, some of these buttons are already preassigned. For example, TrueWind Calc, Lock Screen etc.
+To configure the Custom Menu, enter System Setup and go to page 10, Interface.
+There is a new button for Configure Custom Menu.
+Each item can be assigned a custom key, or be Disabled.
+
+The Custom Menu is itself available also as a custom key!
+This means that you can assign Custom Menu recall from a custom key, like for example top right.
+When you click top right, you would recall the custom menu.
+
+
+SCREEN ROTATION IN LK8000
+-------------------------
+LK8000 3.2 detects automatically if the screen has been rotated or changed in resolution, and it will
+reconfigure itself for the new state.  It will only adapt for supported resolutions, of course.
+This is totally automatic, and nothing has to be configured. For example, on an HX4700 PPC you can use an hardware key to force screen rotation from portrait to landscape and vice-versa. 
+LK will immediately adapt to the new orientation.
+
+A menu has been added to force screen resize or rotation, in order to let LK adapt.
+Click on Menu, Config 1/3. A new button is called SCREEN MODES.
+Screen Modes menu is different for PC and PDA/PNA versions, because functionalities can be different for them.
+
+Screen Modes for PC
+Allows you to change to some resolution as 480x272, 640x480 etc., and to Turn Screen (landscape/portrait) using the current resolution.
+For example you can change to 320x240, like on a small PNA, and then Turn Screen to get into 240x320 portait mode.
+
+Screen modes for PNA and PPC
+On PNA and PPC devices, you have only two buttons for Screen Modes:
+Turn 90 degrees
+Turn 180 degrees
+Do you want to invert upside/down the screen? Use Turn 180. And do it again to go back to previous state.
+To rotate by 270 degrees you can either turn 90 for 3 times, or turn 180 and the turn 90.
+
+Notice:
+1. On exit LK will NOT turn screen automatically, nor does it on startup. 
+   Screen rotation is totally manual operation.
+2. Screen rotation must be supported by the PNA/PPC hardware and operating system.
+   Some devices cannot rotate the screen. Some other can do it only by adding unsupported unofficial
+   rotating drivers by third parties.
+   LK is simply asking to the operating system to rotate the screen. If nothing happens, there is nothing
+   we can do about it. We dont support hardware patches, nor external rotating drivers.
+
+3. Although it is possible to rotate the screen also while moving/flying, it is NOT wise to do so.
+   During screen rotation the software will stop internally for a couple of seconds.
+
+4. Custom fonts are always shared among all screen resolutions/orientations, be careful.
+   There is only 1 custom fonts configuration, and this will be used (if used) for all orientations.
+   Expecially on PC this can be confusing, because if you have configured a custom font perfect for 
+   800x480 and then you change to 320x240 you can imagine the result: fonts are not rescaled!
+
+Screen Rotation is still experimental. 
+
+
+ENHANCED PROFILE SETUP
+----------------------
+From Menu, Config 2/3, LK8000 Setup  you enter a new menu, with 8 buttons:
+
+. System Setup, System Save
+. Aircraft Setup, Aircraft Save
+. Pilot Setup, Pilot Save
+. Device Setup, Device Save
+
+Aircraft, Pilot and Device configurations have been exported from the old configuration setup 
+and they are now independent items. Some predefined profiles for devices and system are available.
+
+
+LXnav V7 support
+----------------
+IMPORTANT Note: The driver need a V7 firmware 1.98 or higher. It can be found here
+http://www.lxnav.com/download/firmware.html
+
+The LXnav V7 instrument has the ability to be controlled by a PDA. 
+Since the V7 is compatible to the older LX instruments, you can use the common LX drivers (LX, LX16xx).  Thanks to LXnav we developed an additional commandset in oder to fully support the V7.
+In order to use the full functionality of the V7 we recommend to use the LXV7driver, which gives the additional information to LK8000
+-Outside air temperature
+-External battery voltage
+-Status of the Vario/STF switch
+-XYZ accelometer values
+ 
+The values for McReady, Ballast and Bug's (Efficiency) can be entered either be adjusted on the V7 both will have the same values after a few seconds.
+
+One big advantage is, that the Auto McReady function of LK8000 can now adjust the MC value in the V7, so that the MC Value in the V7 is updated automatically.
+Another good example is the automatic ballast dump in Basic settings; once the Ballast dump is activated the changing Wingload is continuously updated automatically until the Ballast dump is stopped
+
+
+To connect a V7 instrument with LK8000 you must select LXV7 as the device in setup (8 Devices) dialog. 
+In order to test the communication change the MC value on the V7 it should be updated in the LK8000 as well. 
+Now open  the "Basic Settings" dialog (Menu Config / Setup Basic)
+Here you can change the "Ballast" and "Efficiency" values which should be changes in the V7 as well. If you press Dump ballast, the values are changed in the V7 at the same time.
+
+Please Note:
+The update will take up to 2 seconds.
+While using Auto MC it is still possible to change the MC values on the V7 for both devices. The value will be changed automatically as soon the Auto MC algorithm changes the current MC value, which may take a while depending on the history and Auto MC settings.
+The status of the STF/Vario switch can be used for changing the circling cruise mode in LK8000. In order to do so you must set the Display mode to DSP auto (Menue Display 2/3 DspMode _Auto_)
+
+Polar coefficients:
+The polar coefficients of the V7 and LK8000 are independent from another. This is intended to prevent to change the instrument polar accidentally and possibly use different polar's at the same time.
+
+Barometric Altitudes:
+The V7 instruments have a pressure sensor and deliver a barometric height. If you use a GPS source with Baro altitude you can decide which one will be used in the V7 setup. Please refer to the V7 manual.
+Accelometer values:
+The values of the V7 XYZ Accelometer values are drawn as a red dot in the Experimental page 1.6. This dot moves like the little ball in a real TRI indicator with additional information's movements: ------Accelerations towards the nose of the plane make the dot smaller.  
+-Accelerations towards the tail of the plane make the dot bigger. 
+-Accelerations towards the top of the aircraft will move the up, the opposite down.
+Please not that this in an experimental feature and may not be used for navigation purposes.
+
+
+
+New airfield symbols since V3.1x
+--------------------------------
+
+With the Version 3.1x we introduced new airfield symbols. In order to enable it goto System Setup Page 11 and set the Appearance style from Alternate to Vector. This is now the default for LK 3.2.
+The vector airfield symbols have new scalable airfield and outlanding icons with runway direction and type (dark grey = solid, white = grass). 
+
+The runway length is drawn proportional to the real length, and with correct orientation.
+
+If an airfield is defined as glider site an, it will be marked with "white wings" 
+
+On an appropriate zoom level the radio frequency will be shown as well.
+On higher zoom levels, more information such as ICAO name (if available) and altitude will be printed on the map
+
+Like before if the runway is reachable with respect to the safety height and wind, the airfield/outlanding is green, otherwise red.
+In order to use this additional information's it must be included in the waypointfile of course. We recommend to use the *.cup file format of SeeYou which is able to support this additional information. If you don't have the additional information's we recommend to use the old Alternate symbols, which is probably the best choice for paragliders and hanggliders.
+
+
+
+Wind calculation made by external instruments requires configuration!
+---------------------------------------------------------------------
+
+If you are using an external instrument such as a Zander, an LX, an Ilec or any other instrument that can provide wind calculation, then you need to configure LK to use this information.
+You can do it permanently inside configuration, menu 5, Auto Wind should be set to "external".
+Or/And you can do it during the flight, Menu, Config, Setup Wind, Auto wind set to external.
+When using external wind, no calculation is performed while circling.
+If for any reason you want to disable external wind during the flight, simply enter Setup Wind menu and change the setting.
+
+If the Auto wind is not configured to "external", the wind calculated externally will be IGNORED.
+
+
+USER INTERFACE CHANGES/ENHANCEMENTS
+-----------------------------------
+New Ungesture feature: 
+   clicking on the already selected sort button in nearest pages will advance to next page.
+   Example> you select 2.1 page (APTS), there are seven pages and you read APTS 1/7 .
+   The page is sorted by Distance. You click on Direction, the page is sorted by Direction now.
+   You click again on Direction, the page is showing APTS 2/7 : you have advanced to next page like with
+   a gesture down.
+   This ungesture works also in Common and Recent pages, although they cannot be sorted by anything.
+   Any sort place will nevertheless advance to next page, as expected.
+
+
+New engine for multiple sources of barometric altitude, with automatic fallback
+-------------------------------------------------------------------------------
+   Full support also of multiplexers like Westerboer, K6mux etc.
+   The new LK baro altitude driver can handle several concurrent baro altitude sources sending at the 
+   same time their values.
+   Some multiplexers like Westerboer, K6mux, etc. will mix two sources (for example a flarm and an LX) 
+   and send them to LK.
+   The new logic is: if a Flarm is connected, we use its baro altitude (if available: it is 
+   not granted from a multiplexer).
+   If no flarm, we use baro altitude from internal/custom sources like Funtrek, Royaltek, 
+   embedded drivers and devices.
+   Then we can select PriorityBaroSources such as devices themselves: LX, LK8EXT1 etc.
+   And if there is no PriorityBaroSource, we use whatever is available.
+   If a baro source disappears, we use automatically what is available, within a few seconds.
+
+
+New Takeoff safety alarm (configuration menu Alarms)
+-----------------------------------------------------
+
+   We can now select an altitude over ground at takeoff, above which an alarm will play.
+   For gliders, this is normally the minimal altitude needed to turn 180 degrees and go back 
+   to the airfield in case towing is suddenly a borted.
+   Depending on airfields and conditions, it can be something between 50m and 100m.
+   It can be configured in step of 10m or 10feet, up to 500m or 500feet.
+   When this safe altitude is reached, a soft cabin chime sound is played, 
+   followed by a calm voice saying "safety".
+   Nothing is printed on the screen. This is an aid to pilot to help them concentrate on the 
+   towing phase during this early part of the flight, without continously look at 
+   the altimeter to know if the safety takeoff altitude is reached.
+   By default this alarm is disabled, and can be disabled by setting the altitude to 0.
+   Remember this is a ground altitude (QFE), so if you want to be told when you are 50m above ground, 
+   set 50, simply.
+   The takeoff safety sound will be armed again only after landing, and be automatically 
+   in use again for the next takeoff.
+
+
+THE MULTIMAP VISUALGLIDE
+------------------------
+
+Multimap page 4 is offering an information feature called "VisualGlide".
+It is replacing the old and obsoleted VisualGlide that appeared in the very early versions
+of LK in the year 2009.
+
+The VG is using the bottom window of the multimap, which you can resize to be full screen, or to disappear.
+In such case, only the topview will remain visible, and the VG feature will be disabled, leaving space only the moving map.
+What you see in the bottom window is a center horizontal line representing the arrival altitude 0.
+This means: any object OVER this line, in the green shaded area, has a positive arrival altitude for your current MC setting. 
+(We are using the common arrival altitude you already know, thus using MC, safety etc. as usual.)
+Any object BELOW this center line, in the red shaded area has a negative arrival altitude.
+
+Then you see a vertical line, representing an approximated bearing of 0 degrees in front of you.
+Objects left and right of this line are of course left and right on the horizont, relatively to your current bearing.
+
+
+Objects are boxes of one to three lines of text, depending on the device resolution and on the visualglide window.
+The smaller the window, the lesser the information. In the minimal situation, only small boxes with only the name of the waypoint are painted.
+
+. WAWYPOINT BOX CONTENT
+Line 1: name of waypoint. This name is painted in BLUE when the safety altitude applies to calculations, otherwise is it painted BLACK.
+Line 2 and Line 3: arrival altitude, required glide ratio (aka efficiency), waypoint distance and bearing difference.
+If only two lines are in use, waypoint distance and bearing diff. are not painted.
+The required efficiency is printed if it is below 200. Over 199, it not printed.
+
+. WAYPOINT BOX COLORS
+Each box has a coloured background.
+A green box of course means arrival altitude Ok.
+A yellow box means: arrival altiutude is positive, but with a small margin, less than 150ft (50m).
+So, caution, there may be obstacles as well since the terrain may not be accurate or the waypoint position/altitude could be wrong!
+(WE DO NOT CALCULATE OBSTACLES BELOW 50m arrival altitude, for this reason).
+A red box means the waypoint is not reachable. Attention: it the box is in the positive green area, this means:
+the waypoint has a positive arrival altitude, but an OBSTACLE is in between.
+
+Green boxes always grant you both arrival altitude and no obstacles.
+
+. RESIZING THE MULTIMAP PAGE VISUALGLIDE
+All multimaps are splitted in two windows, plus the bottom bar than never disappears.
+You can resize the two windows by doing a gesture up or gesture down (stripe up/down).
+A gesture down will bring down the top window, which normally is the moving map.
+A gesture up will bring up the bottom window.
+it is possible to resize at will either windows full size.
+
+
+. CLICKS ON THE MULTIMAP PAGE VISUALGLIDE
+
+The M4 page is working like all multimap pages: a short click on top will zoom in, a short click on bottom will zoom out on the topview window. If there is no topview window (because you have rescaled the visualglide fullscreen) then you get no zoom, simply.
+The virtualkeys are operative: topleft, topright. No center virtualkey, as in all multimaps.
+
+A LONG CLICK on a waypoint box will trigger waypoint details!
+From the usual wp detail page you can decide an action, or investigate further the waypoint.
+
+
+. WAYPOINTS APPEARING ON THE VISUALGLIDE  (the VGE: Visual Glide Engine)
+
+You are now wondering which waypoints are appearing on the visualglide.
+First of all, we can only display a few of them, depending on screen resolution.
+We also want the waypoint box to be large enough to be clickable, and we dont want boxes to overlap.
+So we must carefully choose what to show! 
+The VGE (Visual Glide Engine) is doing exactly this for you, automatically.
+
+VG is about showing what you actually have in FRONT of you, like in Nearest page 2.3, sorted by direction.
+What do we mean by "in front": 45 degrees left or right of you. If necessary (unfilled space available) we extend the search up to 60 degrees left and right, for a total of 120 degrees in a "frog view".
+Starting from that list, we give priority to:
+- Mountain passes (if using CUP turnpoints)
+- Task turnpoints
+Mountain passes and turnpoints are shown with priority over anything else only if they are not so obviously reachable that you can see them by yourself OR if they are absolutely unreachable.
+The VGE considers your current best glide ratio and the current arrival altitude predicted for such waypoint, to take this decision.
+
+
+Then the VGE try to be smart enough to not tell you that you are making it over something you can see by yourself. 
+There is no reason to tell you that 4 miles away there is a mountain that you can reach with a GR of 12 and an arrival altitude of +375m for example: your eyes already can see it with no need of a computer.
+But you wouldn't be able to guess that, far beyond that mountain, you can make it over the very next ridge, and you can thus skip the first thermal and go straight to the next ridge!
+The VGE discards useless informations, and goes beyond your eyes.
+
+
+Waypoints are then printed from left to right, ordered by bearing difference.
+The horizontal disposition is not accurate and will NOT necessarily reflect the position of the waypoint relatively to your horizont.
+
+. VERTICAL DISPOSITION OF WAYPOINTS ON THE VISUALGLIDE
+Obviously, the idea is to paint an object closer to the center "0 arrival altitude" line proportionally to its arrival value.
+However, we rescale the positive and negative vertical space to 1000ft (300m).
+Anything above or below this limit, will be painted at the border.
+Why we do this? Because you are of course more interested to have a better view of the situation for the cases you are in doubt if a waypoint is reachable or not. When you are 500m above arrival altitude, it is a useless information. It is more interesting to be able to see a difference between +67 and +150 , which would not be possible if we wouldnt rescale properly to a smaller range like we do.
+
+
+. REFRESH of WAYPOINTS
+The waypoint calculation and update is happening every 5 seconds.
+Your eyes will not be fatigated by flickering values because we do so.
+
+. OVERLAYS, GAUGES AND TOPVIEW MOVING MAP OPTIONS 
+As in all multimaps, by using Menu - Display 1/3  you can change Labelling, enable/disable topology terrain and OVERLAYS in the visualglide multimap. 
+
+
+. DISABLING MULTIMAP VISUALGLIDE and changing topview main map orientation
+Enter system configuration, go to page 10 "Interface", select Configure Multimaps.
+Choice 4 can be:
+ Disabled: the visualglide page will not appear during multimap rotation.
+ Normal: active, with topview orientation left to right).
+ North up: active, with north-up orientation.
+
+. I DONT SEE LANDING POINTS IN THE VISUALGLIDE!
+That is normal, because by default we are listing only not-landables points, like we do in the Neares Page 2.3.
+If you fly in flat lands, it is unlikely you will look for a mountain pass :-)
+No worry, enter system configuration, page 11 Appearance, 8th field is "Turnpoint filter".
+Change the "No landables" which is the default to All waypoints, or to DAT. See the HELP in that page for explanations if you are in doubt.
+
+. WHERE IS A WAYPOINT?
+Enlarge the topview map, and zoom in a bit, you will most likely see the waypoint.
+If not, because you have a shaming 3000m altitude and you are getting far away waypoints, use waypoint details and figure it out yourself.
+
+. WHY DO I GET AN OBSTACLE THAT LOOK NONEXISTENT?
+The most common cause is very simple: your waypoint coordinates are not coherent with the terrain, in terms of altitude. For example, terrain in that position is supposed to be 1500, and at the same time your waypoint is declared to be at.. 1450. Of course there is a problem: we find an obstacle right OVER your waypoint!
+Another common cause is the actual position (coordinates) of the waypoint. You think it is right over the ridge, while it is 20m beyond it.
+for this reason, we consider "yellow condition" anything below 50m arrival altitude.
+
+
+New PC SIMULATOR KEYS, working as an optional in addition to SIM buttons.
+------------------------------------------------------------------------
+
+On PC, in SIM mode only, it is possible to trigger changes of altitude, direction and speed very quickly by using the keyboard.
+
+    - Arrow Up/Down changes speed as with SIMULATOR buttons.
+    - Arrow Left/Right and also Shift arrow Left/Right change direction by 5 degrees, WITHOUT setting a turn rate.
+    - SHIFT Arrow UP  will fast forward at 10x speed, many times per second.
+      If ground speed is zero, a minimum speed is granted to make the aircraft move nevertheless.
+      Set higher ground speed to proceed faster.
+
+    - Page Up and Page Down will change altitude by 10 meters or 50 feet.
+
+    . By keeping the keys pressed, values will change rapidly.
+    . You cannot go below altitude 0.
+    . At altitude 0, while steady on ground, the simulator will set ground altitude.
+
+
+   WHEN USING REPLAY IGC FILE:
+    Only when in map pages (any multimap page) you can use PC keys to interact with the replay logger.
+    . Arrow Up  : lower replay speed , up to 0X .
+    . Arrow Down : higher replay speed, no limit.
+    . Arrow Right:  advance one minute forward in time
+    . Page Up:  advance 5 minutes forward in time
+
+    Remarks>
+    - you cannot go back in time .
+    - replay speed over 10x will report inaccurate values in calculations
+    - advancing in time will not update correctly calculations, doing interpolations.
+      It will simply skip all intermediate points .
+    - Setting replay speed 0 will let you examine the situation like freezing flight at that moment.
+    - this is working only on PC
+
+
+GROUPED AIRSPACES
+-----------------
+
+Complex airspaces are often a combination of different parts (blocks). Due to the airspace file structure each of this part is handled as a separate airspace.
+This can be annoying if you want to acknowledge or en/disable such complex structure.
+The airspace grouping will combine all airspace parts as one airspace, as long the parts have identical names and types.
+
+The name must be identical in length and upper-/lowercase characters.
+
+Grouping the airspaces can be turned on/off in Setup page 2 "Airspaces".
+But in case you need separate acknowledgment of parts of the same airspace it is a better way to give it different names (e.g. Dresden EAST, Dresden WEST).  
+
+
+
+LK8000 VERSION 3.1q 130214
+==========================
+
+. If Thermal Locator is disabled by configuration, mark the thermals using climb start lat and lon.
+  Notice that disabling Thermal Locator will create many side effects.
+
+. Fix possible problem in multimaps disabling thermal locator during runtime
+
+. Enable the DRAWPERCENT option in FAI Analysis, printing percentages
+
+. Fix task files not loaded with lowercase suffix
+
+. New multimap icons
+
+. Fix a possible assertion error in CAR mode
+
+
+
+LK8000 VERSION 3.1p 130207
+==========================
+
+NEW
+
+. Import task from SeeYou CUP files - experimental
+  From load task it is possible to select also CUP files containing a task.
+  The CUP must be located inside the Task folder (not in waypoints!).
+  Only the first task in the file will be loaded. If the CUP file has more than
+  a task, the other task lines after the first will be ignored.
+  Not all parameters are loaded (size of sectors, cylinders etc.) so you better check.
+
+.  New task action buttons in waypoint details, for more clear actions:
+   Insert and replace will tell which waypoint are affecting .
+   New Append before and after finish.
+
+CHANGES
+
+. Profile reset will also load DEMO.tsk
+
+
+
+FIXES
+
+Fix Altitude alarm message too big in portrait mode.
+Fix : Draw filling of AAT Task Sector with wrong radius
+Fix waypoint command window buttons fullscreen in landscape mode
+
+Fix water labels topology setting incorrectly affecting also coast areas (seas)
+This parameter is now also reset to 10km by default.
+
+
+
+LK8000 VERSION 3.1o 130201
+==========================
+
+NEW
+
+. Add new configuration in Airspace Warnings for Group Ack.
+  Acknowledging one airspace will then extend this confirmation to all of the airspaces having the same name and the same class.
+  This is particularly useful if flying in populated airspace areas where a single zone is splitted into several airspaces all logically connected.
+
+
+.  VisualGlide vertical line for bearing diff.
+   This bearing diff line is positioned in the approximated 0 degrees bearing diff, which means: your bearing.
+.  VisualGlide printing on second line also the required glideratio (aka Efficiency Requested).
+.  VG If the Safety Altitude applies for the boxed waypoint, paint its name in BLUE, instead of BLACK.
+
+
+
+
+CHANGES
+
+. Overlay button is skipping GAUGES if no gauges are configured to be available.
+  The same happens for overlay customkeys.
+  Note that GA mode always has an overlay available, the compass.
+
+. For CAR TREKKING mode the arrival altitude is always the difference between our altitude and waypoint altitude.  No gliding there!
+
+. Do not let people change altitude in basic settings if there is no baroaltitude available.
+
+. At startup, drawing FAI sectors is disabled. We dont print at the same time FAI and Task sectors.
+  Reason: either you fly cross country or you fly a real task. You can change display any time, but not
+  keep both things at the same time.
+
+. Better sorting of nearest waypoints for direction.
+  Restrict selection of waypoints in DoNearest sorted by direction to those in the -60  +60 degrees range.
+  Previously selecting also those at out back, which made the 50 nearest list sorted by direction very limitated.
+
+.  Visualglide is finally using correctly waypoints ahead.
+   The real VG engine is working only now.. giving us more useful informations.
+   See manual.
+
+. PC simulator fast forward key will move the aircraft even if no ground speed is set.
+
+
+
+FIXES
+
+. Fix waypoint details comment window no more displaying scrollbar.
+  Resize automatically buttons and text to fit correctly horizontal space.
+  Also fix portrait button disposition in the same page.
+
+. Fix Waypoint details scrollbar in WAYNOTES window not sized correctly vertically
+  It was starting one line below the first.
+
+. Fix airspace configuration dialog, scroll bar overlapping text, resized to full screen in all resolutions.
+
+. Fix water area disappearing when zooming out over 12km, bug introduced in 3.1i.
+
+. Fix all configuration dialogs to be rescaled full screen.
+. Fix HELP dialogs rescaled fullscreen
+
+. Fix simulator keys using FEET altitude, now is correctly changing altitude by 50 feet, not by 45m.
+
+. Fix 3.1n missing bearing line in visualglide topview
+
+. Do not alert for missing safety altitude if using CAR TREK MODE
+
+
+
+LK8000 VERSION 3.1N 130126
+==========================
+
+NEW
+
+. The MULTIMAP 4 : VISUALGLIDE. SEE DOCS ABOVE.
+. Save and Load Time Gate config in Task file
+. New LX V7 driver using RMB output . Still experimental.
+
+
+CHANGES
+
+. 3.1 Show HeadUp line in place of dashed lines in multimaps when there is no visible sideview.
+. Show on main map the track line (if enabled) at all zoom levels, up to 200km scaled long.
+. Draw Wind overlay in multimaps when the topview is fullscreen.
+  When there is a sideview, we dont do that in order not to overcast scale values.
+
+
+FIXES
+
+. Bug in 3.1M making some lines on screen going around.. like the one for track line.
+. Fix : set default Turpoint type when reset Task point
+. FIx bug displaying in pan mode an invalid terrain altitude when the terrain was not available.
+  In this case, pan mode informations now report 0 altitude
+
+. Fix : wrong leg calculation if previous turnpoint is same as current.
+  this cause wrong Task lenght in Task edit dialog ans wrong task covered percent of task in bottom bar
+
+. fix incorrect radius for drawing AAT Task Sector
+
+. Fix Assert in TaskSpeed.cpp
+
+. Prevent a problem with dual flarm feed into LK. If two com ports are in use, and both of them are accessing the same data from flarm, both of them will appear as FLARM unit, and this cannot be tolerated. In such case, one or both ports will be disabled for FLAU messages, and no traffic will be used. The RMZ will be used, though, correctly.
+
+
+
+
+LK8000 VERSION 3.1M 130111
+==========================
+
+
+NEW
+
+ draw thermal bar also in cruise mode (can be configured in config 13 page: disabled,
+  in thermal, in thermal and cruise)
+
+ More accurate battery indicator, flashing when below 6%, and full blue when 100% under power.
+
+ Airspace "borders only" painted 13 times faster than before.
+
+ New startup and shutdown sounds for v4
+
+
+
+CHANGES
+
+ Multimap M1 sideview showing glideline in SIM and not flying using glider best ld.
+
+ Use thin airspace outlines if content is not filled or selected.
+
+ Many optimizations for speed
+
+ Cpu load more accurate 
+
+ Draw glide amoeba shaded area unconditionally, if:
+ - we are flying
+ or
+ - we are in simmode, at least 100m above ground.
+
+. Airspace warnings have no more Analysis button (useless since we have multimaps)
+ and the alert sound is shorter and with no voice. The old sound is still available.
+
+FIXES
+
+ Fix rounding problem using feet units in Airspace setup: 
+ clip altitude, Warning vertical margin, Altitude Warning Margin.
+
+ Fixes in CProbe device driver
+
+ Fix Wrong circle airspace drawing if Radius is less than 20 pixel
+
+ Fix no sonar audio played is general audio is disabled
+
+ Fix speed for determining flaps in turn, should be corrected for bank angle.
+ It behaves the same like for example minimum speed rising.
+
+ Fix runway size glitch in portrait mode
+ Fix task rendering with start on a leg
+ Fix sideview using transparent airspaces and bordersonly in topview.
+
+ Fix bug in comm port not managing correctly lonesome barometric altitudes
+
+ Fix loading CompeGPS waypoints
+
+ Resize correctly analysys buttons for portrait mode.
+
+
+LK8000 VERSION 3.1L 121221
+==========================
+
+NEW THINGS
+
+. FAI Closing Point distance C:   and relative C:%  added to infoboxes
+. Support for new EYE device
+
+
+CHANGES
+
+. Message timeout reduced from 2.5 seconds to 1.5 seconds
+. BestAlternate messages lasting only 2 seconds, instead of 5 to 10 seconds
+
+
+FIXES
+
+. Fix Safety altitude and safety altitude terrain in Safety configuration not accurate using imperial units.
+  For example, setting 1500ft would have rounded them to 1499. 
+  This fix requires a reconfiguration of those values, that are reset.
+
+. Fix 3.1j simulator bug not moving aircraft if not flying.
+  so it took some seconds to actually see the aircraft moving.
+
+. Fix Flarm Radar critical bug freezing LK after some time, expecially in simulations.
+
+
+
+
+LK8000 VERSION 3.1k 121214
+==========================
+
+NEW THINGS
+
+. New bearing diff indicator
+
+. Draw Map Scale on topview when fullscreen in M1 and M2.
+
+. Blink ACT overlay near to mapscale when ActiveMap is enabled
+
+. Add startup check for SD card locked or full, not writable.
+
+. New polar for ASK-13
+
+
+CHANGES
+
+ Disable ActiveMap button from any page different from M0 M1 M2
+
+ Change in ActiveMap function: after selecting an object, or changing page, it is automatically disabled.
+ Flashing text is alerting pilot that active map is enabled for direct screen selection.
+
+ In fullscreen topview in M1 and M2, make zoom performing at 2x instead of 1.3x speed.
+
+ Logger not saving F record for satellites anymore
+
+
+FIXES
+
+ Fix critical bug leading to crashes during contest optimization calculations.
+
+ Fix critical bug in 3.1 FlarmRadar loading FlarmNet database showing FlarmRadar may crash LK
+
+ Fix 3.1i thermal circle all white, missing thin black borders
+
+ Fix 3.1j bug setting FREEFLIGHT altitude to 0.
+
+ Fix gestures not working correctly for left/right in main map.
+ Only ungestures were detected. Bug found by Bo.
+
+ Fix North arrow for MM2 and MM3
+ The north arrow orientation in MM2 and MM3 was relative to the aircraft wichi was OK for 
+ sideview only and for MM1.
+ But since we have a topview map, we must show the north arrow relative to the map orientation.
+
+ Fix simulator minibug, showing a netto of -1 m/s constantly.
+ LD is now correct for the current polar.
+
+ Fix ISCAR mode averages . eIAS was no more calculated.
+
+ Fix accuracy of average speed. Previously using a rounded integer not considering the too large error.
+ eqMC should be better too.
+
+ Fix bug in Flarm radar, when selecting a plane in sideview, the sideview window was highlighted.
+
+ Fix artifacts appearing on HP31x and other PNAs , showing strange lines on screen while drawing FAI sectors.
+
+ Fix bug in 3.1 moving the aircraft on ground with 0 GS when wind was set
+
+
+LK8000 VERSION 3.1j 121208
+==========================
+
+NEW THINGS
+
+. Add north-up orientation and  configuration for Multimaps in config menu 10.
+  Multimaps 1-3 are saved to profiles.
+  Values can be Disabled, Normal, North up.
+  Default Normal for everybody.
+
+. We remember zoom levels for each multimap, changed at runtime.
+
+. Airspace Filter (All below, Auto, Clip) now work in multimap
+
+. New configuration for Bottom Bar TRM0 AUTO mode: selection can be made automatic upon
+  entering thermal mode. By default it is enabled, as it has been so far.
+
+CHANGES
+
+. (3.1i) Change sequence number of multimaps, from 1 to 4, leaving main map using old style 
+  bottom bitmaps icons for final glide etc
+
+. Fast exit from thermal mode. Previously up to 15 seconds, now 10 seconds.
+
+. Show required Task Req. Efficiency also before valid start.
+
+. Use full width for turn point list in task edit window and always draw tp radius after tp name 
+  in this list.
+
+
+. Menu Screen View: Set Map submenu not available out of main moving map, to avoid confusion.
+  Removed duplicated buttons map orientation inside Set Map menu, to simplify.
+
+.  Snail trail button in Display 2/3 disabled out of main moving map.
+   Same thing for DspMode Thermal/Cruise/Final/Auto in Display 3/3
+   Display menu now consistent with multimaps
+
+. Some Map Orient buttons  not available in multimaps, except for north up and track up
+
+. While circling keep showing Bearing Diff, instead of adopting bearing on overlays and in infopage
+
+
+FIXES
+
+. Fix 3,0 bug after loading a waypoint file without a valid header line , LK was correctly discovering the
+  real waypoint format and it was correctly loading waypoints, but the filename of wp file was 
+  disappearing in config.  So at the next run, wp file was no more configured.
+
+. Fix 3.1i bug AutoAdvance not working for Arm Start mode.
+
+. Fix GlideSlope bug in 3.1i, found by Dave
+
+. Fix bug FAI Close jumping far away if not defined
+
+. Fix bug in 3.1 not closing correctly NMEA log.
+
+. Fix PG Task optimized point offset with negative longitude
+
+. Fix zoom in/out screenview buttons working in multimaps
+
+. Fix topology not shown correctly after changing from low zoom levels
+
+
+LK8000 VERSION 3.1i 121130
+==========================
+
+
+
+NEW THINGS
+
+    New Multimaps
+
+    New FAI triangle optimization
+
+    New G Record Key for LK8000 Logger, valid for OLC. We have our own 3 letters code which is XLK.
+
+    New support for external validators of IGC logs.
+    This is for online contests or even real contests currently rejecting LK logs because the signature key is in public.
+    An external program called LKRECORD_PNA.LK8  should be copied inside _Logger folder to activate the special signature.
+    This action is required only for some contests, like UK XC.
+    Support files .LK8 will be released in the public distribution.
+
+    New CAR/TREKKING functions
+
+    New Device profile buttons, made independent from system configuration. We now have predefined 
+    profiles for different devices. Profiles can now be shared among devices, and among pilots.
+
+    GPS-NAV task declaration support
+
+
+    Overtarget rotation:
+
+    -Skip MATE overtarget if no target mate is set.
+    To access MATE own code the direct multitarget menu is available.
+
+    -Skip F> overtarget if there is no Target set while Flarm is detected.
+
+
+    Buttons
+    Add Button INFO 1/2 for SONAR TOGGLE
+
+
+    Pan Mode
+    PAN mode: smoother coordinates printed in overlay, fixed portrait mode glitch
+
+    Change PAN mode orientation: always NORTH UP.
+    (So it will not twist around while panning in flight and circling!)
+
+
+    Bottom Bar
+    BottomBar SYS6 showing CPU load percentage in place of Grecord available.
+
+
+    New Infoboxes
+
+    New Rotary_Speed and Rotary_Distance  values, for CAR mode, calculated average speed and distance achieved in the last LD average period of time. These values are reset by Trip Reset.
+
+    New Customkeys
+    Add new customkey SONAR TOGGLE , will toggle the sonar sounds on and off in multimap ASP
+
+    New customkey Reset Trip Computer .
+    Will reset Trip timers,  FlightTime, and Odometer.
+    Can be used in any mode, but currently only ISCAR mode is calculating Trip values.
+    Only in ISCAR mode the FlightTime will be reset
+    This function is performing a classic Trip computer reset like on bike computers.
+    Todo> add more informations for Trip, such as averages, climb values etc. for trekking
+
+    Add new "Force landing" customkey.
+    This will force landed status, so that logbook is updated, and eventually logger is stopped.
+    This customkey requires to be below the takeoff speed, otherwise it will simply say "Stop moving".
+
+    New declutter engine for landable waypoints at low zoom levels
+
+    New virtual waypoint:  FREEFLY  and FAIOPTIM  .
+    They indicate start of freeflight and the current optimized triangle turnpoints.
+    They appear automatically inside COMMONs page, and in the waypoint list of course.
+
+    New PC SIMULATOR KEYS, working as an optional in addition to SIM buttons.
+    On PC, in SIM mode only, it is possible to trigger changes of altitude, direction and speed very quickly by using arrows and PageUp Pa
+geDown.
+    - Arrow Up/Down changes speed as with SIMULATOR buttons.
+    - Arrow Left/Right changes direction by 5 degrees, WITHOUT setting a turn rate.
+    - SHIFT Arrow UP  will fast forward at 10x speed, many times per second.
+    - Page Up and Page Down will change altitude by 10 meters or 45 feet.
+
+    . By keeping the keys pressed, values will change rapidly.
+    . You cannot go below altitude 0.
+    . At altitude 0, while steady on ground, the simulator will set ground altitude.
+
+
+   NEW Replay logger keyboard commands for PC.
+    Only when in map pages (any multimap page) you can use PC keys to interact with the replay logger.
+    . Arrow Up  : lower replay speed , up to 0X .
+    . Arrow Down : higher replay speed, no limit.
+    . Arrow Right:  advance one minute forward in time
+    . Page Up:  advance 5 minutes forward in time
+
+    Remarks>
+    - you cannot go back in time .
+    - replay speed over 10x will report inaccurate values in calculations
+    - advancing in time will not update correctly calculations, doing interpolations.
+      It will simply skip all intermediate points .
+    - Setting replay speed 0 will let you examine the situation like freezing flight at that moment.
+    - this is working only on PC
+
+
+
+CAR/BIKE/TREKKING MODE
+
+    CAR mode: NAV1 showing Odo and local time. STA3 showing average speed.
+
+
+    CAR TREKKING STA3 added Chrono box.
+    Timers in Trekking/Car mode are the following:
+    Moving time
+    Steady time
+    Total (moving + steady)
+    The above are relative to working gps, with valid fix, and thus with the PNA unit turned on.
+    Forth value is Chrono: time passed since start of trip, counting also the time passed when the
+    unit actually was with no valid fix or turned off for any reason.
+    All of these values are reset by the Trip reset button (configurable in custom menu)
+
+    CAR / TREK mode start trip speed is 3kmh .
+
+    CAR TREK  Bottom bar STA3 inverted Odo and MaxAlt to show ODOmeter on 4.3 devices, with priority.
+
+    CAR TREK mode: BottomBat STA3 showing Moving, Steady and Total trip times.
+
+    Add new  Trip timers for Car/Trekking mode: Moving and Steady times in seconds
+
+    Change Aircraft category "Car" to "Car, Bike & Trekking"
+
+    CAR mode variometer is using horizontal G load . Other settngs are ignored.
+    The variobar will display acceleration and deceleration of your car/bike/boat/pedestrian ability.
+    The positive and negative acceleration have different scales, calculated dynamically during the trip.
+    Decelerations in cars are more effective and accelerations, and thus we have a separated scale.
+    After a few minutes the system will be autocalibrated to show accelerations and decelerations at best.
+    So even while running, or biking, this variobar will be usable.
+
+
+
+PARAGLIDERS
+
+    Add Sector Turnpoint in PGTaskMgr,
+    for now optimization for type of turnpoint, use always center point !
+
+    Remove AAT Iso Line Drawing for PG Task
+
+    Add IN/OUT type in Task Waypoint dialog for PGTask
+
+    disable AAT Time notification for PG optimized Task
+
+
+CHANGES
+
+    Better white text outlinining, smoother and much nicer
+
+    Faster panning and zooming 
+    30% faster drawing airspaces "border only"
+
+    Airspace Sonar is now working globally, and can be disabled/enabled with a button
+
+    Rename virtual waypoints if they are part of a task, when saved.
+    Virtual, like TAKEOFF or FREEFLY are renamed with a leading TSK_ .
+    There waypoints can be saved to task, and made real waypoints.
+
+
+    TASK lines made thicker and better visible
+
+    Add optional glide footprint around active WP
+
+    Faster Zoom and more responsive PAN mode
+
+    Reset COMM ports automatically on no activity after 3 minutes, not after 30 seconds.
+
+    Add BEEP to startup timeout on welcome page, so we know the LK has got the GPS fix.
+
+    Do not force reload of waypoints when creating or editing a new one.
+    We unload and reload waypoints only for the DELETE case.
+
+    Reduce CPU Usage in Task system
+
+    Make the map scale indicator with a better look and contrast.
+
+    Remove system configuration items for Enable Terrain and Enable Topology: multimaps have a button for that.
+
+    Accept a short click for welcome page confirmation, and change sounds for welcome page.
+
+
+    Change aircraft shape and color, a bit. White colored, black outlined, and bolder on low res devices.
+    The problem was on low resolution the shape was almost invisible under the sun.
+
+    Change DEFAULT_MENU  for Display 1  page.
+    Visualglide removed from menu, Overlay toggle is replacing it.
+    In addition, Airspace toggle will not force immediate menu off.
+
+    BottomBar stripe "TRM0" is no more enabled by default, and if enabled it will not be automatically selected while thermalling.
+    When entering and leaving a thermal, pilot often want to keep their own bottombar information under control.
+    Up to now, it was disturbing more than helping, to have an automatic triggering of this information.
+    It is still available in the normal bottom bar rotation, once it is enabled in the configuration.
+
+    Location marker altitude in pan mode is the terrain altitude, if available. Otherwise it is zero.
+
+    Improve battery warning messaging: after 1 hour with no errors, accept back warnings even if they were disabled because too many, previousy.
+
+
+    Terrain with no topology will print water areas all the same
+
+
+FIXES
+
+    Fix old bug  hardware keys no more working after defocusing LK windows, on PC or PDAs.
+
+    Fix old bug not correctly saving some CUP waypoint files (file name disappearing in configuration)
+
+    Fix bug in FastPanning mode, forcing unwanted refresh. Panning mode much better and smoother now.
+
+    Fix very old bug disabling keypress actions randomly.
+
+    Fix : Crash on shutdown when task edit dialog is open !
+
+    Fix waypoint selection list not showing invalid virtual waypoints.
+    Like LKMARKER for example!
+
+    Fix Distance To Next Overlay for Exit Waypoint
+
+    Fix handling GPS comm failures, passing control to a secondary (port B) device if connected, even
+    if it was not giving GPS (example, LK8EX1)
+
+    Fix bug announcing Baro Altitude available if it was never really received at least once.
+    Minor bug because this was happening only at startup when a device providing baro altitude was declared to be used but not really connected, or not really providing valuable data.
+
+
+    Load FlarmNET database during startup, not before LK launch!
+    This will dramatically speed up startup of LK and gain to the splash screen, while using FlarmNet.
+
+    Fix Calc of Start and End of sector and ligne in case of first & second Task point is same Turnpoint
+
+    Fix PG optimization for Line Start
+    
+    Fix Calc of Start and End of sector and ligne if current turn point is same as previous turnpoint
+
+    Fix PG optimization for Line Goal
+
+    Fix 3.1 bug not showing pan altitude in correct units
+
+    Fix small bug showing infinite current glide ratio when on ground, not flying.
+
+    Fix small bug in 3.0 showing E.20 even when not flying
+
+    Fix bug in 3.0 not setting the default altitude when creating a new waypoint.
+    We are now using terrain altitude, or gps altitude if we are in non-sim mode, and the altitude from the gps is higher than the terrain (which is always approximated).
+
+
+
+LK8000 VERSION 3.1h 120906
+==========================
+
+NEW
+
+.   New location marking in PAN mode, and fix small problems on pan mode display overlay.
+    In PAN mode, both in SIM and in FLY mode, near to the zoom scale indicator are painted :
+    - latitude/longitude/altitude
+    - distance to current position, bearing to current position
+    This will give the pilot more informations about the pan position he is using.
+    A new button is available in pan mode: location marker.
+    It is the same "location marker" available to create a marker while flying, 
+    but in this case it will create the marker in the cross center pa n position.
+    The marker is then available for selection as a waypoint, can be inserted in a task as 
+    an intermediate waypoint, can be used as an alternate destination, etc.
+    The marker altitude in this case is set to the same altitude of the aircraft at the time of marker creation.
+    (A new DEFAULT_MENU.TXT must be updated in _SYSTEM)
+
+
+. Support for the new LKRUN v1.0 PNA shell
+  LKRUN.EXE is an executable inside LK8000 folder, in the same place of LK8000-PNA.EXE.
+  Running LKRUN.EXE will make LK8000-PNA.EXE run as well. 
+  Upon exit, LK will restart automatically.
+  If you Exit from the startup screen, you exit LKRUN and the loop is over.
+  In case of software crash, LK will be restarted automatically for max. 10 times.
+  
+
+. Save "Toggle WndRose" state at Shutdown and Load at Startup....
+
+
+
+CHANGES
+
+.  Allow saving a task that is using virtual waypoints. This is needed because it is now possible 
+   to insert a virtual waypoint during the flight in pan mode.
+
+.  Allow Find NearestWaypoint button to select also markers.
+   Only valid markers of course.
+   So it is possible to pan, create a virtual waypoint, and select it for a goto.
+
+. Accelerate terrain drawing a bit, 10ms gain on a 400mhz cpu
+
+
+FIXES
+
+
+. Fix possible startup bug that on some systems may crash LK (only on startup!).
+
+. Fix bug not loading FlarmId in a random condition.
+
+. Fix bug not setting Home waypoint for paragliders in SIM mode.
+  This was happening only in SIM mode when the paraglider was not flying, and on ground.
+
+. Fix bug in 3.1g odometer calculated only for car mode..
+
+. Fix small bug drawing airspace labels, when using black background color we were using 
+  also black outline color, resulting in a blurred text effect. 
+  This was happening only when using configuration interface setting as "unboxed" for text.
+
+. Fix 3.1g glitch accepting track bearing changes for fly mode even with impossibly low speed
+
+. Fix bug in Flarm Radar not drawing circles scaled correctly when using nautical or statute units.
+
+
+
+
+
+LK8000 VERSION 3.1g 120825
+==========================
+
+NEW
+
+.  New custom key "Reset odometer" , needed while trekking
+
+.  Car mode enhanced for Trekking mode
+   Correct logging of snail trail.
+   Snail trail using Vario and not NettoVario to show colors.
+   In Car/Trekking mode, a snail point is recorded every 5 seconds, as soon as at least 5 meters have been made in distance.
+   Odometer will account for any distance, even 1 m .
+   Zoom levels of maps are the same of paragliders: zoom up to 10m scale, instead of max 100m.
+   This preliminar setup was tested in the alps while trekking with a Medion S3747, outperforming Garmins!
+
+.  Add altitude value for pan mode sim mode: beside lat/long, also alttiude of terrain is displayed, releative to center screen.
+
+.   Arm TPs support added
+
+
+FIXES
+
+
+.  Fix bug not showing correctly SYS6 status of satellites relative to device A or B: even is using B, A was shown.
+
+.  Fix small bug showing welcome page with wrong background in FLY mode if flipping pages before long click on center screen, on startup.
+
+.  Fix 3.0 bug not managing correctly FLYTEC FLYSEN time, not advancing.
+   We also fix the UTC time incorrectly managed as local time.
+   And we also manage date change, and month change.
+
+.  Fix very old bug not considering day advanced through a new month.
+   Only a single day was considered, and this was creating problems to people not switching off the gps for many days.
+
+.  Fix bug not setting track bearing when speed below 1 knot. Not it is enough to have >0 .
+
+
+
+
+LK8000 VERSION 3.1f 120726
+==========================
+
+NEW
+
+. Lx MiniMap alternate hardware key handling, and fix missing selection of modeltype
+  Using customkeys bottom bar for hardware buttons: selecting (pressing) Minimap hardware buttons
+  will result in using the customkeys assigned to the bottom bar. This is working only if the
+  original MiniMap software version is not used,  by now.
+
+. Flarm objects traces: traffic is shown displaying recent traces in color.
+
+. NEW SUPPORT FOR COMPASS C-PROBE by Bruno!
+
+  Add Compass C-Probe device
+       -Alt Baro
+       -IAS - TAS
+       -3D Accelerometer
+       -Air Temp
+       -Relative humidity
+       -3D Gyros
+       -Magnetic compass
+
+    Add Device specific Status and Config Dialog For C-Probe
+        you need Add "Device X Config" Kustom key in Custom menu for Calibrate C-Probe Device
+
+    Gyro is used in TRI if available
+
+
+. New "Position" button in SIM mode PAN mode.
+
+  To reposition the aircraft in sim pan mode, simply change position by dragging the moving map, 
+  and when the center cross is where you want to position the aircraft, click on the "Position" 
+  new button on left top screen.
+  The old behaviour was to long click on the moving map, but it was not working fine on PNAs, 
+  and it was inaccurate.
+  Now that we have a smooth scrolling, it is better to use a button.
+
+
+. Geo coordinates are shown on screen near to map scale, when using PAN mode in SIM mode.
+
+
+
+CHANGES
+
+
+
+
+
+FIXES
+
+. Fix airspace critical loading bug on startup, crashing LK if a spurious line longer than 254 characters was found.
+
+. It is possible to set a non-landable home WP via WP notes file
+
+. Fix bug not handling a bad polar file been loaded.
+    The polar was incorrectly loaded only from the first non-commented line, and if this was invalid it was nevertheless kept as valid.
+    Result was a 0,0,0,0,0 polar of course.
+    We now manage incorrect lines, and we enforce check for valid polar been loaded.
+    In case of problems, the situation is reverted to Std Cirrus and a message is given to the user.
+    Previously, no message was given in case of bad polar loaded.
+
+. Accept Cup Waypoint with invalid altitude
+
+
+. Bug fix in task start/finish lines
+  A pilot using xcsoar software a few days ago reported a problem with the task startline not being accurate at the borders.
+  It seems that the error depends on the fact that, as the pilot explains, the start line is not 90 degrees exactly to the target point.
+  We assume the same can happen with the finish line.
+  This patch is fixing the calculation of the angle, by applying the Great Circle convergency which was not taken into account.
+
+
+. Fix problem in replay logger while dealing with position fixes in the IGC file having the same timestamp.
+  It was causing an assertion failure.
+
+. Fix strange dash line appearing in AAT task mode, removed.
+    
+
+LK8000 VERSION 3.1e 120607
+==========================
+
+NEW
+
+. Page 4.4 Flarm Radar, see docs.
+
+. Add customkey for Flarm Radar
+  It will toggle between Map and Flarm Radar, and back to Map.
+
+. Preliminar full support for LX MiniMap
+
+CHANGES
+
+
+. Extend Acknowledge time for airspaces from 120 seconds to 720 seconds (12 hours).
+
+. Enhancement for dual feed com ports: if no valid fix on any port, we use the first port with 
+  at least some data going through!
+  This will keep probably at least the time updated since the gps may still be receiving a 
+  valid time, which is good for us.
+
+. Flarm objects on map are now using the same color schemes of flarm radar
+
+
+
+FIXES
+
+. Fix 3.1d bug not converting vector altitude to user unit
+
+. Fix TrueWind IAS configuration and Max Speed in aircraft configuration, not keeping some values.
+
+. Fix small bug terrain shading option: changing terrain with shading off would not allow us 
+  to enable shading again.
+
+. Fix airspace selection in pan mode no more working since september 13 2011
+
+. CAI302 task declaration fixed
+
+. Fix vector waypoint overwriting task lines.
+  Task is drawn after waypoints now.
+
+. Fix old bug not calculating terrain reachable (and displaying orange arrival altitude on overlay) 
+  when a turnpoint not landable was assigned as alternate destination.
+
+. Fix Nearest turnpoint page 2.3 not checking correctly terrain reachable, 
+  appearing almost always negative (red)
+
+. Fix old bug in 3.0 wrong upper zone for nearest page: the zone for pulling up cursor selection 
+  of nearest pages was too tight.
+
+. Fix old bug in 3.0 overcalculating reachability for landables. 
+  Even landables with negative arrival altitudes were checked for terrain
+  obstacles, resulting in a abnormal number of calculations (hidden by multicalc optimization).
+  LK performance is greatly improved now, when using a lot of landable waypoints (many thousands).
+
+. Fix infobox values for task (arrival, ETE, eta, etc) should display --- when task was not started yet.
+
+. Fix bug resetting FlarmNet counter on startup
+
+. Fix Flarm declaration: in case of an error it could happen to define twice a waypoint.
+
+
+
+
+LK8000 VERSION 3.1d 120517
+==========================
+
+NEW
+
+
+. New customkeys:
+
+   + Repeat message 
+     will repeat on screen the last message issued by LK, if any.
+
+   + Waypoint lookup
+
+   + PAN mode
+
+   + Toggle Wind Rose
+     will change wind direction overlay and infopage from degrees to textual and back.
+     Example:  245/5 becomes WSW/5
+     This customkey by default is assigned also inside custom menu.
+
+   
+. New Ungestures feature: 
+   clicking on the already selected sort button in nearest pages will advance to next page.
+   Example> you select 2.1 page (APTS), there are seven pages and you read APTS 1/7 .
+   The page is sorted by Distance. You click on Direction, the page is sorted by Direction now.
+   You click again on Direction, the page is showing APTS 2/7 : you have advanced to next page like with
+   a gesture down.
+   This ungesture works also in Common and Recent pages, although they cannot be sorted by anything.
+   Any sort place will nevertheless advance to next page, as expected.
+
+.  New engine for multiple sources of barometric altitude, with automatic fallback.
+   Full support also of multiplexers like Westerboer, K6mux etc.
+   The new LK baro altitude driver can handle several concurrent baro altitude sources sending at the 
+   same time their values.
+   Some multiplexers like Westerboer, K6mux, etc. will mix two sources (for example a flarm and an LX) 
+   and send them to LK.
+   The new logic is: if a Flarm is connected, we use its baro altitude (if available: it is 
+   not granted from a multiplexer).
+   If no flarm, we use baro altitude from internal/custom sources like Funtrek, Royaltek, 
+   embedded drivers and devices.
+   Then we can select PriorityBaroSources such as devices themselves: LX, LK8EXT1 etc.
+   And if there is no PriorityBaroSource, we use whatever is available.
+   If a baro source disappears, we use automatically what is available, within a few seconds.
+
+.  New Takeoff safety alarm (configuration menu Alarms).
+   We can now select an altitude over ground at takeoff, above which an alarm will play.
+   For gliders, this is normally the minimal altitude needed to turn 180 degrees and go back 
+   to the airfield in case towing is suddenly a borted.
+   Depending on airfields and conditions, it can be something between 50m and 100m.
+   It can be configured in step of 10m or 10feet, up to 500m or 500feet.
+   When this safe altitude is reached, a soft cabin chime sound is played, 
+   followed by a calm voice saying "safety".
+   Nothing is printed on the screen. This is an aid to pilot to help them concentrate on the 
+   towing phase during this early part of the flight, without continously look at 
+   the altimeter to know if the safety takeoff altitude is reached.
+   By default this alarm is disabled, and can be disabled by setting the altitude to 0.
+   Remember this is a ground altitude (QFE), so if you want to be told when you are 50m above ground, 
+   set 50, simply.
+   The takeoff safety sound will be armed again only after landing, and be automatically 
+   in use again for the next takeoff.
+
+. New polar for LP-49
+
+CHANGES
+
+. Customkey FreeFlight restart is now asking for a confirmation
+
+. Improve direction sorting for Nearest pages 2.x
+  Now sorting is done by both direction and distance.
+
+. Vector landables are also showing airfield altitude at high zoom levels
+. Vector landables are now the default, and their configuration is reset to this setting.
+
+. Do not give airspace warnings during first 60 seconds after takeoff.
+
+
+
+
+FIXES
+
+. Fix eIAS not adopted when IAS disappeared.
+. Fix devLX bug in external speed, missing conversion from km/h to m/s
+. Fix flarm declaration timeout
+. Fix 3.1 bug not rotating vector runway relatively to the map orientation.
+  Now replaying takeoffs will correctly show aircraft on the runway!
+
+
+
+LK8000 VERSION 3.1c 120428
+==========================
+
+NEW
+
+. Flight Data Recorder, for flight engineers. See separated docs.
+
+. Configuration for using wind precalculated by external instrument
+  In config menu 5 (Glide Computer) Auto Wind  can also be "External"
+  In basic wind setup , the same.
+
+
+CHANGES
+
+. Using external wind from instruments like CAI, LX etc requires setting.
+  See addendum manual.
+
+. Vector runway radio information customised for resolutions
+
+
+
+FIXES
+
+. Fix critical bug since v2.0 in wind setup dialog, possible crashes!
+. Fix 3.1 UTM coordinates in status dialog
+. Fix invalid date received by Condor simulator, not updating gps calculations and not detecting takeoff.
+
+
+LK8000 VERSION 3.1b 120418
+==========================
+
+NEW
+
+.   Support for ASI FlyNet Vario Device
+
+.   [Quick gestures]
+    Only for paragliders and hangdliers mode: enable/disable quick gestures.
+    By default, quick gestures are enabled. Quick gestures allow the pilot to click
+    on right or left nearest/info pages to switch to next/previous like with gestures.
+    Using gloves during the flight will require this option be disabled.
+
+.   Support for UTM coordinate system in units (needed by PGs/HGs)
+
+.   Added  Apis2 15m polar
+
+
+
+CHANGES
+
+.   Clock is shown (if enabled) also in portrait mode.
+    Some resolutions will display the clock lower after right overlays.
+    Most resolutions will display it on top right, as usual.
+
+.   Vector icons for landables will display radio frequency at high zoom levels, and ICAO code at highest
+
+
+
+FIXES
+
+Fix bug in 3.0 not disabling menu and wndproc actions when in MODE_TARGET_PAN (Crashes possible)
+Fix old bug resetting flight statistics at 00UTC on some GPS devices like HP31x.
+Fix bug with large topology maps on CE 5 devices with not enough memory
+
+
+Allow Flarm task declaration even in multiplexed or serial bus setups
+
+Fix logger: if no baro pressure available, log 0 for pressure altitude instead of GPS altitude.
+
+AutoQNH fixed not to use TAKEOFF altitude
+
+
+Fix Analysis olcmode should not use task scale, and print at max zoom the current trace.
+
+(minor) Fix Next Waypoint infobox no more available
+
+More internal code autochecks during execution in beta versions
+
+
+
+LK8000 VERSION 3.1a 120402
+==========================
+
+
+NEW
+
+    New LK icon for all platforms, by Jiri Bergman !
+
+    Add Volkslogger baro support in B50 driver
+    Add support for LX V7
+
+    New customkey: ARM TOGGLE ADVANCE 
+    New customkeys: Task Calculator, Task Target, Custom Menu.
+
+    New task edit button "delete" for deleting task files. 
+    This button is available only when TimeGates are disabled, because they share the same screen location.
+    After removing a task file, dialog is closed and back to moving map.
+    Removing Default.tsk has little effect, because on exit it is always recreated.
+
+    Vector waypoint icons, with radio frequency at high zoom levels
+
+    New config button for screen rotation
+    Rotation working dynamically on PNA/PPC. Two new menu buttons for turn 90 and turn 180.
+    You can switch by 90 and by 180 degrees, during LK runtime.
+    Menu Config 1 , button SCREEN MODES for changing resolution on PC
+    Some resolutions are available for switch, and a common invert for portrait/landscape.
+
+    DrawTRI Turn Rate indicator showing acceleration point
+
+    New NAV 3/3 button Clear Alternates
+    This button is replacing the old Clear Alternates button in waypoint details pages
+
+    New custom menu buttons  in main menu.
+    Up to 10 buttons can be assigned to custom keys actions. 
+    This menu is configurable in system setup page 10.
+
+    LiveTracker support
+
+    New LK8000 Setup menus: System, Aircraft and Pilot Setup/Save buttons separated.
+
+    New polar for H-206 Hornet
+
+CHANGES
+
+    Disable STF switch usage for Westerboer
+
+    Glider mode: while circling display HNAV on left overlay, in place of ground speed.
+    Addded units for average climb  while circling, on left overlay (missing)
+
+    Waypoint selection quick dialog, added TASK button.
+
+    Removed Goto button from Waypoint details dialog
+    Removed Set Alternates and Clear Alternates from Waypoint details dialog.
+
+    Add SYSTEM profile is use, printed on startup profile selection screen.
+
+    Improved sideview. Faster horizontal resolution, better airspace label placement.
+
+FIXES
+
+    Fix bug (workaround only) quick waypoint selection dialog not disabling underlying mapwindow events.
+    It was possible to still call menu, and run another instance of wayquick. On exit, crash.
+
+    Fix bug Waypoint text style in config 11 sometimes changed wrong inside default system configuration.
+    This was happening everytime we were changing overlay colors with a button "Invert Text" and then exit LK.
+
+    Fix bug not showing Efficiency configuration is Config menu 6 on Portrait resolutions
+
+
